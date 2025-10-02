@@ -6,6 +6,12 @@ import { GET_FACTORY_ADDRESS } from '../../constants'
 import type { LevrClankerDeploymentSchemaType } from '../../schema'
 import { useClanker } from './use-clanker'
 
+export type UseDeployParams = {
+  treasuryAirdropAmount?: number
+  onSuccess?: (params: { txHash: `0x${string}`; address: `0x${string}` }) => void
+  onError?: (error: unknown) => void
+}
+
 /**
  * Deploys a Clanker token and registers it with the Levr factory.
  * Returns tx hash and deployed address.
@@ -14,11 +20,7 @@ export function useDeploy({
   treasuryAirdropAmount = 100_000_000,
   onSuccess,
   onError,
-}: {
-  treasuryAirdropAmount?: number
-  onSuccess?: (params: { txHash: `0x${string}`; address: `0x${string}` }) => void
-  onError?: (error: unknown) => void
-}) {
+}: UseDeployParams) {
   const { clanker } = useClanker()
   const chainId = clanker.data?.publicClient?.chain?.id
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)

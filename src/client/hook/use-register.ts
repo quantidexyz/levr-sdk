@@ -7,6 +7,11 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 import { LevrFactory_v1 } from '../../abis'
 import { GET_FACTORY_ADDRESS } from '../../constants'
 
+export type UseRegisterParams = {
+  onSuccess?: (params: RegisterResult) => void
+  onError?: (error: unknown) => void
+}
+
 export type RegisterResult = {
   hash: `0x${string}`
   project:
@@ -24,10 +29,7 @@ export type RegisterResult = {
  * @param options - The options for the register mutation.
  * @returns The hash of the transaction.
  */
-export function useRegister(options?: {
-  onSuccess?: (params: RegisterResult) => void
-  onError?: (error: unknown) => void
-}) {
+export function useRegister({ onSuccess, onError }: UseRegisterParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
@@ -63,7 +65,7 @@ export function useRegister(options?: {
         project,
       }
     },
-    onSuccess: (params) => options?.onSuccess?.(params),
-    onError: options?.onError,
+    onSuccess,
+    onError,
   })
 }

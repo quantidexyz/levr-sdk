@@ -6,23 +6,23 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { LevrFactory_v1 } from '../../abis'
 
+export type UsePrepareParams = {
+  factoryAddress?: `0x${string}`
+  onSuccess?: (params: {
+    hash: `0x${string}`
+    treasury: `0x${string}` | undefined
+    staking: `0x${string}` | undefined
+  }) => void
+  onError?: (error: unknown) => void
+}
+
 /**
  * Prepares a project for the Levr factory registration.
  * @param factoryAddress - The address of the Levr factory.
  * @param options - The options for the prepare mutation.
  * @returns The hash of the transaction.
  */
-export function usePrepare(
-  factoryAddress?: `0x${string}`,
-  options?: {
-    onSuccess?: (params: {
-      hash: `0x${string}`
-      treasury: `0x${string}` | undefined
-      staking: `0x${string}` | undefined
-    }) => void
-    onError?: (error: unknown) => void
-  }
-) {
+export function usePrepare({ factoryAddress, onSuccess, onError }: UsePrepareParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
 
@@ -57,7 +57,7 @@ export function usePrepare(
         staking,
       }
     },
-    onSuccess: (params) => options?.onSuccess?.(params),
-    onError: options?.onError,
+    onSuccess,
+    onError,
   })
 }

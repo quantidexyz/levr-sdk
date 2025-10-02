@@ -1,6 +1,11 @@
 import { CLANKERS } from 'clanker-sdk'
 import { anvil, base, baseSepolia } from 'viem/chains'
 
+/**
+ * Get the LP locker address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The LP locker address
+ */
 export const GET_LP_LOCKER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   if (!chainId) return undefined
 
@@ -14,10 +19,46 @@ export const GET_LP_LOCKER_ADDRESS = (chainId?: number): `0x${string}` | undefin
   return chainMap?.[chainId]
 }
 
+/**
+ * Get the factory address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The factory address
+ */
 export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   if (!chainId) return undefined
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL,
   }[chainId] as `0x${string}` | undefined
+}
+
+/**
+ * Get the WETH address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The WETH address
+ */
+export const WETH = (
+  chainId?: number
+):
+  | {
+      address: `0x${string}`
+      decimals: number
+      symbol: string
+      name: string
+    }
+  | undefined => {
+  if (!chainId) return undefined
+
+  const initial = {
+    decimals: 18,
+    symbol: 'WETH',
+    name: 'Wrapped Ether',
+    address: '0x4200000000000000000000000000000000000006',
+  } as const
+
+  return {
+    [anvil.id]: initial,
+    [base.id]: initial,
+    [baseSepolia.id]: initial,
+  }[chainId]
 }

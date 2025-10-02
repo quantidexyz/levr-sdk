@@ -1,17 +1,31 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { zeroAddress } from 'viem'
+import { erc20Abi, zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import { LevrFactory_v1 } from '../../abis'
+import { IClankerTokenABI, LevrFactory_v1 } from '../../abis'
 import { GET_FACTORY_ADDRESS } from '../../constants'
+
+export type ProjectMetadata = {
+  description: string
+  socialMediaUrls: []
+  auditUrls: []
+}
 
 export type Project = {
   treasury: `0x${string}`
   governor: `0x${string}`
   staking: `0x${string}`
   stakedToken: `0x${string}`
+  token: {
+    address: `0x${string}`
+    decimals: number
+    name: string
+    symbol: string
+    totalSupply: bigint
+    metadata: ProjectMetadata | null
+  }
 }
 
 export type UseProjectParams = {
@@ -39,7 +53,61 @@ export function useProject({ clankerToken, enabled: e }: UseProjectParams) {
 
       if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
-      return { treasury, governor, staking, stakedToken }
+      // Fetch token metadata using multicall
+      const [decimals, name, symbol, totalSupply, metadata] = await publicClient!.multicall({
+        contracts: [
+          {
+            address: clankerToken!,
+            abi: erc20Abi,
+            functionName: 'decimals',
+          },
+          {
+            address: clankerToken!,
+            abi: erc20Abi,
+            functionName: 'name',
+          },
+          {
+            address: clankerToken!,
+            abi: erc20Abi,
+            functionName: 'symbol',
+          },
+          {
+            address: clankerToken!,
+            abi: erc20Abi,
+            functionName: 'totalSupply',
+          },
+          {
+            address: clankerToken!,
+            abi: IClankerTokenABI,
+            functionName: 'metadata',
+          },
+        ],
+      })
+
+      // Parse metadata JSON
+      let parsedMetadata: ProjectMetadata | null = null
+      if (metadata.result && typeof metadata.result === 'string') {
+        try {
+          parsedMetadata = JSON.parse(metadata.result)
+        } catch {
+          // If parsing fails, leave as null
+        }
+      }
+
+      return {
+        treasury,
+        governor,
+        staking,
+        stakedToken,
+        token: {
+          address: clankerToken!,
+          decimals: decimals.result as number,
+          name: name.result as string,
+          symbol: symbol.result as string,
+          totalSupply: totalSupply.result as bigint,
+          metadata: parsedMetadata,
+        },
+      }
     },
     staleTime: 15_000,
   })
