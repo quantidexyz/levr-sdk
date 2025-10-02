@@ -5,6 +5,7 @@ export const GET_LP_LOCKER_ADDRESS = (chainId?: number): `0x${string}` | undefin
   if (!chainId) return undefined
 
   const chainMap = {
+    // @ts-expect-error - clanker_v4_anvil is not defined in the remote package
     [anvil.id]: CLANKERS.clanker_v4_anvil.related.locker,
     [base.id]: CLANKERS.clanker_v4.related.locker,
     [baseSepolia.id]: CLANKERS.clanker_v4_sepolia.related.locker,

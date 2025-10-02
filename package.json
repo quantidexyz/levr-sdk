@@ -6,12 +6,10 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "require": "./src/index.ts",
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
     "./client": {
-      "require": "./src/client/index.ts",
       "import": "./src/client/index.ts",
       "types": "./src/client/index.ts"
     }
@@ -25,8 +23,7 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "lint": "eslint .",
     "fill-placeholders": "sh ./script/fill-placeholders.sh",
-    "build": "bun build:cjs && bun build:esm && bun build:types",
-    "build:cjs": "tsc --project ./tsconfig.cjs.json && tsc-alias --outDir ./dist/cjs && ts-add-js-extension --dir=dist/cjs --showprogress=false",
+    "build": "bun build:esm && bun build:types",
     "build:esm": "tsc --project ./tsconfig.esm.json && tsc-alias --outDir ./dist/esm && ts-add-js-extension --dir=dist/esm --showprogress=false",
     "build:types": "tsc --project ./tsconfig.types.json && tsc-alias --outDir ./dist/types",
     "clean": "rm -rf dist tsconfig.tsbuildinfo node_modules bun.lockb",
@@ -56,7 +53,7 @@
     "wagmi": "^2.17.5"
   },
   "dependencies": {
-    "clanker-sdk": "workspace:* | ^4.1.23",
+    "clanker-sdk": "^4.1.23",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
     "type-fest-4": "npm:type-fest@latest"
@@ -67,6 +64,7 @@
     "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
     "@types/bun": "^1.2.22",
     "@types/debug": "^4.1.12",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-prettier": "^5.5.4",
     "husky": "^9.1.7",

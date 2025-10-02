@@ -27,6 +27,7 @@ export type BuildCalldatasV4ReturnType = {
 }
 
 export const clankerV4Factory: Record<number, `0x${string}`> = {
+  // @ts-expect-error - clanker_v4_anvil is not defined in the remote package
   [chains.anvil.id]: CLANKERS.clanker_v4_anvil.address,
   [chains.base.id]: CLANKERS.clanker_v4.address,
   [chains.baseSepolia.id]: CLANKERS.clanker_v4_sepolia.address,

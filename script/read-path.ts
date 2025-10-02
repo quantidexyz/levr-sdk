@@ -28,8 +28,7 @@ export function readPath(
     const stat = fs.statSync(itemPath)
 
     // If the item is a directory, read its files recursively
-    if (stat.isDirectory())
-      readPath({ startPath: itemPath, exclude, extName, include }, callback)
+    if (stat.isDirectory()) readPath({ startPath: itemPath, exclude, extName, include }, callback)
     // If the item is a extName file, proceed
     else if (path.extname(item) === `.${extName}`) {
       // If the item includes the exclude string, return the ones who are not excluded

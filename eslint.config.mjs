@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
 import importX from 'eslint-plugin-import-x'
 import prettier from 'eslint-plugin-prettier'
 import { defineConfig } from 'eslint/config'
@@ -18,8 +19,8 @@ export default defineConfig({
   plugins: {
     '@typescript-eslint': tseslint.plugin,
     prettier,
-    // Cast to any to work around upstream type incompatibility in plugin configs
-    'import-x': /** @type {any} */ (importX),
+    // @ts-expect-error - importX has outdated types
+    'import-x': importX,
   },
 
   languageOptions: {
@@ -27,6 +28,15 @@ export default defineConfig({
     parserOptions: {
       project: true,
     },
+  },
+  settings: {
+    'import-x/resolver-next': [
+      createTypeScriptImportResolver({
+        alwaysTryTypes: true,
+        project: './tsconfig.json',
+        bun: true,
+      }),
+    ],
   },
   rules: {
     // ImportX rules
