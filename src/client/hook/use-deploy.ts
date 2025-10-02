@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
-import { useAccount } from 'wagmi'
 
 import { LevrFactory_v1, LevrForwarder_v1 } from '../../abis'
 import { buildCalldatasV4 } from '../../build-calldatas-v4'
+import { GET_FACTORY_ADDRESS } from '../../constants'
 import type { LevrClankerDeploymentSchemaType } from '../../schema'
 import { useClanker } from './use-clanker'
 
@@ -11,19 +11,17 @@ import { useClanker } from './use-clanker'
  * Returns tx hash and deployed address.
  */
 export function useDeploy({
-  factoryAddress,
   treasuryAirdropAmount = 100_000_000,
   onSuccess,
   onError,
 }: {
-  factoryAddress: `0x${string}` | undefined
   treasuryAirdropAmount?: number
   onSuccess?: (params: { txHash: `0x${string}`; address: `0x${string}` }) => void
   onError?: (error: unknown) => void
 }) {
   const { clanker } = useClanker()
-  const { address: tokenAdmin, chainId: wagmiChainId } = useAccount()
-  const chainId = wagmiChainId as any
+  const chainId = clanker.data?.publicClient?.chain?.id
+  const factoryAddress = GET_FACTORY_ADDRESS(chainId)
 
   return useMutation({
     mutationFn: async (c: LevrClankerDeploymentSchemaType) => {
@@ -34,7 +32,6 @@ export function useDeploy({
       const publicClient = clanker.data.publicClient
 
       if (!wallet || !publicClient) throw new Error('Wallet or public client not found')
-      if (!tokenAdmin) throw new Error('Wallet address not found')
       if (!chainId) throw new Error('Chain ID not found')
 
       const { callDatas, clankerTokenAddress } = await buildCalldatasV4({

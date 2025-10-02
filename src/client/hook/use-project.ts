@@ -5,6 +5,7 @@ import { zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import { LevrFactory_v1 } from '../../abis'
+import { GET_FACTORY_ADDRESS } from '../../constants'
 
 export type Project = {
   treasury: `0x${string}`
@@ -14,14 +15,14 @@ export type Project = {
 }
 
 export type UseProjectParams = {
-  factoryAddress?: `0x${string}`
   clankerToken?: `0x${string}`
   enabled?: boolean
 }
 
-export function useProject({ factoryAddress, clankerToken, enabled: e }: UseProjectParams) {
+export function useProject({ clankerToken, enabled: e }: UseProjectParams) {
   const { chainId } = useAccount()
   const publicClient = usePublicClient()
+  const factoryAddress = GET_FACTORY_ADDRESS(chainId)
 
   const enabled = !!publicClient && !!factoryAddress && !!clankerToken && (e ?? true)
 

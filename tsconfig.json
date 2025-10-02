@@ -33,11 +33,6 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
 
     // Skip type checking for node modules
-    "skipLibCheck": true,
-
-    // Type aliasing
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "skipLibCheck": true
   }
 }

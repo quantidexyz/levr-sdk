@@ -5,6 +5,7 @@ import { decodeFunctionResult } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { LevrFactory_v1 } from '../../abis'
+import { GET_FACTORY_ADDRESS } from '../../constants'
 
 export type RegisterResult = {
   hash: `0x${string}`
@@ -23,15 +24,14 @@ export type RegisterResult = {
  * @param options - The options for the register mutation.
  * @returns The hash of the transaction.
  */
-export function useRegister(
-  factoryAddress?: `0x${string}`,
-  options?: {
-    onSuccess?: (params: RegisterResult) => void
-    onError?: (error: unknown) => void
-  }
-) {
+export function useRegister(options?: {
+  onSuccess?: (params: RegisterResult) => void
+  onError?: (error: unknown) => void
+}) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
+  const chainId = publicClient?.chain?.id
+  const factoryAddress = GET_FACTORY_ADDRESS(chainId)
 
   return useMutation({
     mutationFn: async (params: { clankerToken: `0x${string}` }) => {
