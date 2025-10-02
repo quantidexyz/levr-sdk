@@ -1,0 +1,43 @@
+{
+  "typescript.experimental.useTsgo": true,
+  "include": ["src", "example", "test", "script"],
+  "exclude": ["**/bak/*", "dist"],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+
+    // Type checking
+    "strict": true,
+    "useDefineForClassFields": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "jsx": "react-jsx",
+    "noEmit": true,
+
+    // JavaScript support
+    "allowJs": false,
+    "checkJs": false,
+
+    // Interop constraints
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+
+    // Language and environment
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+
+    // Skip type checking for node modules
+    "skipLibCheck": true,
+
+    // Type aliasing
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

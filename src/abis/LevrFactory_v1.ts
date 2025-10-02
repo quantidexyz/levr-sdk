@@ -1,0 +1,485 @@
+export default [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'cfg',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.FactoryConfig',
+        components: [
+          {
+            name: 'protocolFeeBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'submissionDeadlineSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'maxSubmissionPerType',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'streamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minWTokenToSubmit',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'protocolTreasury',
+            type: 'address',
+            internalType: 'address',
+          },
+        ],
+      },
+      {
+        name: 'owner_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'trustedForwarder_',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeTransaction',
+    inputs: [
+      {
+        name: 'target',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'data',
+        type: 'bytes',
+        internalType: 'bytes',
+      },
+    ],
+    outputs: [
+      {
+        name: 'success',
+        type: 'bool',
+        internalType: 'bool',
+      },
+      {
+        name: 'returnData',
+        type: 'bytes',
+        internalType: 'bytes',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'getProjectContracts',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'project',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.Project',
+        components: [
+          {
+            name: 'treasury',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'governor',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'staking',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'stakedToken',
+            type: 'address',
+            internalType: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'isTrustedForwarder',
+    inputs: [
+      {
+        name: 'forwarder',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'maxSubmissionPerType',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'minWTokenToSubmit',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'owner',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'prepareForDeployment',
+    inputs: [],
+    outputs: [
+      {
+        name: 'treasury',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'staking',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'protocolFeeBps',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'protocolTreasury',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'register',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'project',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.Project',
+        components: [
+          {
+            name: 'treasury',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'governor',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'staking',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'stakedToken',
+            type: 'address',
+            internalType: 'address',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'renounceOwnership',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'streamWindowSeconds',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint32',
+        internalType: 'uint32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'submissionDeadlineSeconds',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint32',
+        internalType: 'uint32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'transferOwnership',
+    inputs: [
+      {
+        name: 'newOwner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'trustedForwarder',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'updateConfig',
+    inputs: [
+      {
+        name: 'cfg',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.FactoryConfig',
+        components: [
+          {
+            name: 'protocolFeeBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'submissionDeadlineSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'maxSubmissionPerType',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'streamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minWTokenToSubmit',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'protocolTreasury',
+            type: 'address',
+            internalType: 'address',
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    name: 'ConfigUpdated',
+    inputs: [],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'OwnershipTransferred',
+    inputs: [
+      {
+        name: 'previousOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'PreparationComplete',
+    inputs: [
+      {
+        name: 'deployer',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'treasury',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'staking',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'Registered',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'treasury',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'governor',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'stakedToken',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'error',
+    name: 'OwnableInvalidOwner',
+    inputs: [
+      {
+        name: 'owner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'OwnableUnauthorizedAccount',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'UnauthorizedCaller',
+    inputs: [],
+  },
+] as const

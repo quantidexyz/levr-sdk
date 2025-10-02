@@ -1,0 +1,95 @@
+{
+  "name": "levr",
+  "description": "Leverage your Clanker launch with DAO capabilities",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "require": "./src/index.ts",
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./client": {
+      "require": "./src/client/index.ts",
+      "import": "./src/client/index.ts",
+      "types": "./src/client/index.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "watch": "bun run script/tsgo-watch.ts",
+    "type-check": "tsgo --noEmit --pretty",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "lint": "eslint .",
+    "fill-placeholders": "sh ./script/fill-placeholders.sh",
+    "build": "bun build:cjs && bun build:esm && bun build:types",
+    "build:cjs": "tsc --project ./tsconfig.cjs.json && tsc-alias --outDir ./dist/cjs && ts-add-js-extension --dir=dist/cjs --showprogress=false",
+    "build:esm": "tsc --project ./tsconfig.esm.json && tsc-alias --outDir ./dist/esm && ts-add-js-extension --dir=dist/esm --showprogress=false",
+    "build:types": "tsc --project ./tsconfig.types.json && tsc-alias --outDir ./dist/types",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo node_modules bun.lockb",
+    "postinstall": "husky || true",
+    "prepack": "pinst --disable",
+    "package": "bun run build && npm pack",
+    "postpack": "pinst --enable",
+    "release": "standard-version -a",
+    "release:alpha": "standard-version -a --prerelease alpha --skip.changelog",
+    "release:beta": "standard-version -a --prerelease beta --skip.changelog",
+    "release:pub": "git push --follow-tags origin $(git rev-parse --abbrev-ref HEAD)"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "resolutions": {
+    "eslint": "^9.17.0",
+    "typescript": "^5.8.0"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.90.2",
+    "react": "^19.2.0",
+    "viem": "^2.37.11",
+    "wagmi": "^2.17.5"
+  },
+  "dependencies": {
+    "clanker-sdk": "workspace:* | ^4.1.23",
+    "debug": "^4.4.1",
+    "effect": "^3.18.1",
+    "type-fest-4": "npm:type-fest@latest"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
+    "@types/bun": "^1.2.22",
+    "@types/debug": "^4.1.12",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "pinst": "^3.0.0",
+    "prettier": "^3.6.2",
+    "standard-version": "^9.5.0",
+    "ts-add-js-extension": "^1.6.6",
+    "tsc-alias": "^1.8.16",
+    "tsc-files": "^1.1.4",
+    "typescript-eslint": "^8.44.0"
+  },
+  "homepage": "https://github.com/quantidexyz/levr",
+  "repository": "quantidexyz/levr",
+  "authors": [
+    "quantidexyz"
+  ],
+  "keywords": [
+    "npm",
+    "contracts",
+    "web3",
+    "ethereum",
+    "solidity",
+    "evm"
+  ]
+}
