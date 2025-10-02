@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import { LevrFactory_v1 } from '../../abis'
@@ -18,18 +19,14 @@ export type UseProjectParams = {
   enabled?: boolean
 }
 
-export function useProjectContracts({
-  factoryAddress,
-  clankerToken,
-  enabled: e,
-}: UseProjectParams) {
+export function useProject({ factoryAddress, clankerToken, enabled: e }: UseProjectParams) {
   const { chainId } = useAccount()
   const publicClient = usePublicClient()
 
   const enabled = !!publicClient && !!factoryAddress && !!clankerToken && (e ?? true)
 
   return useQuery<Project | null>({
-    queryKey: ['project-contracts', factoryAddress, clankerToken, chainId],
+    queryKey: ['project', factoryAddress, clankerToken, chainId],
     enabled,
     queryFn: async () => {
       const { treasury, governor, staking, stakedToken } = await publicClient!.readContract({
@@ -38,6 +35,8 @@ export function useProjectContracts({
         functionName: 'getProjectContracts',
         args: [clankerToken!],
       })
+
+      if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
       return { treasury, governor, staking, stakedToken }
     },
