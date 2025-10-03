@@ -5,7 +5,7 @@ import { erc20Abi, zeroAddress } from 'viem'
 import type { ExtractAbiItem, Log } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import { IClankerTokenABI, LevrFactory_v1 } from '../../abis'
+import { IClankerToken, LevrFactory_v1 } from '../../abis'
 import { GET_FACTORY_ADDRESS } from '../../constants'
 import type { Project, ProjectMetadata } from './use-project'
 
@@ -109,12 +109,12 @@ export function useProjects({
         },
         {
           address: token,
-          abi: IClankerTokenABI,
+          abi: IClankerToken,
           functionName: 'metadata' as const,
         },
         {
           address: token,
-          abi: IClankerTokenABI,
+          abi: IClankerToken,
           functionName: 'imageUrl' as const,
         },
       ])

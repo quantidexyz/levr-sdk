@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Clanker } from 'clanker-sdk/v4'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { IClankerTokenABI } from '../../abis'
+import { IClankerToken } from '../../abis'
 
 /**
  * Returns a Clanker SDK instance bound to the current wagmi public and wallet clients.
@@ -31,7 +31,7 @@ export function useClanker(clankerToken?: `0x${string}`) {
     queryFn: async () => {
       const allData = await publicClient?.readContract({
         address: clankerToken!,
-        abi: IClankerTokenABI,
+        abi: IClankerToken,
         functionName: 'allData',
       })
 
