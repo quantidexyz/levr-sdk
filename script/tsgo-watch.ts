@@ -98,10 +98,12 @@ function scheduleTypeCheck() {
  */
 async function startWatching() {
   const srcDir = path.resolve(process.cwd(), 'src')
+  const testDir = path.resolve(process.cwd(), 'test')
   const rootDir = process.cwd()
 
   log('Starting incremental type checking with tsgo...', 'cyan')
   log(`Watching: ${srcDir}/**/*.{ts,tsx}`, 'dim')
+  log(`Watching: ${testDir}/**/*.{ts,tsx}`, 'dim')
   log(`Watching: ${rootDir}/tsconfig*.json`, 'dim')
   log('', 'reset')
 
@@ -130,6 +132,19 @@ async function startWatching() {
     scheduleTypeCheck()
   })
 
+  // Watch test directory for TypeScript files
+  const testWatcher = watch(testDir, { recursive: true }, (eventType, filename) => {
+    if (!filename) return
+
+    // Only watch TypeScript files
+    if (!filename.endsWith('.ts') && !filename.endsWith('.tsx')) {
+      return
+    }
+
+    log(`Changed: ${filename}`, 'yellow')
+    scheduleTypeCheck()
+  })
+
   // Watch root directory for tsconfig files
   const configWatcher = watch(rootDir, { recursive: false }, (eventType, filename) => {
     if (!filename) return
@@ -147,6 +162,7 @@ async function startWatching() {
   const cleanup = () => {
     log('Stopping watcher...', 'yellow')
     srcWatcher.close()
+    testWatcher.close()
     configWatcher.close()
     process.exit(0)
   }

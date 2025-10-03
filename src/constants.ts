@@ -90,3 +90,17 @@ export const UNISWAP_V4_UNIVERSAL_ROUTER = (chainId?: number): `0x${string}` | u
     [base.id]: '0x6ff5693b99212da76ad316178a184ab56d299b43',
   }[chainId] as `0x${string}` | undefined
 }
+
+/**
+ * Get the Uniswap V4 Pool Manager address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Pool Manager address
+ */
+export const UNISWAP_V4_POOL_MANAGER = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x498581ff718922c3f8e6a244956af099b2652b2b',
+    [base.id]: '0x498581ff718922c3f8e6a244956af099b2652b2b',
+  }[chainId] as `0x${string}` | undefined
+}
