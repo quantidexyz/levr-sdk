@@ -2,13 +2,12 @@ import { Token } from '@uniswap/sdk-core'
 import { Pool } from '@uniswap/v4-sdk'
 import { describe, expect, it } from 'bun:test'
 import { Clanker } from 'clanker-sdk/v4'
-import { encodeFunctionData, erc20Abi, parseEther } from 'viem'
+import { erc20Abi, keccak256, parseEther } from 'viem'
 
-import { IClankerLPLocker, V4Quoter } from '../src/abis'
+import { IClankerLPLocker, PoolManager } from '../src/abis'
 import {
   GET_LP_LOCKER_ADDRESS,
   UNISWAP_V4_POOL_MANAGER,
-  UNISWAP_V4_QUOTER,
   UNISWAP_V4_UNIVERSAL_ROUTER,
   WETH,
 } from '../src/constants'
@@ -105,11 +104,9 @@ describe('#DEPLOY_SWAP_TEST', () => {
       const publicClient = getPublicClient()
       const chainId = levrAnvil.id
       const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
-      const quoterAddress = UNISWAP_V4_QUOTER(chainId)
       const poolManagerAddress = UNISWAP_V4_POOL_MANAGER(chainId)
 
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
-      if (!quoterAddress) throw new Error('Quoter address not found')
       if (!poolManagerAddress) throw new Error('Pool Manager address not found')
 
       console.log('Using deployed token:', deployedTokenAddress)
@@ -141,83 +138,81 @@ describe('#DEPLOY_SWAP_TEST', () => {
 
       console.log('Pool ID:', poolId)
 
-      // Quote a swap: 0.01 ETH -> Token
+      // Get WETH address and determine swap direction
       const wethAddress = WETH(chainId)?.address
       if (!wethAddress) throw new Error('WETH address not found')
 
-      // Determine swap direction (WETH is currency0 or currency1?)
       const zeroForOne = poolKey.currency0.toLowerCase() === wethAddress.toLowerCase()
-      const amountIn = parseEther('0.01') // 0.01 WETH
+      const amountIn = parseEther('0.01')
 
-      console.log('Attempting quote with params:', {
-        zeroForOne,
-        amountIn: amountIn.toString(),
-        currency0: poolKey.currency0,
-        currency1: poolKey.currency1,
-        hooks: poolKey.hooks,
+      // Read pool state from PoolManager storage
+      const POOLS_SLOT = 6n
+      const poolIdBytes = poolId as `0x${string}`
+      const slotKey = keccak256(
+        `0x${poolIdBytes.slice(2)}${POOLS_SLOT.toString(16).padStart(64, '0')}`
+      )
+
+      // Read slot0: sqrtPriceX96, tick, protocolFee, lpFee
+      const slot0Data = await publicClient.readContract({
+        address: poolManagerAddress,
+        abi: PoolManager,
+        functionName: 'extsload',
+        args: [slotKey],
       })
 
-      // Try multiple quote approaches
-      let quoteSuccess = false
+      // Decode slot0 packed data
+      const slot0BigInt = BigInt(slot0Data)
+      const sqrtPriceX96 = slot0BigInt & ((1n << 160n) - 1n)
+      const tickRaw = Number((slot0BigInt >> 160n) & ((1n << 24n) - 1n))
+      const tick = tickRaw >= 0x800000 ? tickRaw - 0x1000000 : tickRaw
+      const lpFee = Number((slot0BigInt >> 208n) & ((1n << 24n) - 1n))
 
-      // Approach 1: Try with standard V4Quoter
-      try {
-        const quoteParams = {
-          poolKey: poolKey,
-          zeroForOne: zeroForOne,
-          exactAmount: amountIn,
-          hookData: '0x' as `0x${string}`,
-        }
+      // Read liquidity from storage
+      const liquiditySlotBigInt = BigInt(slotKey) + 3n
+      const liquiditySlotHex =
+        `0x${liquiditySlotBigInt.toString(16).padStart(64, '0')}` as `0x${string}`
 
-        const quoteCalldata = encodeFunctionData({
-          abi: V4Quoter,
-          functionName: 'quoteExactInputSingle',
-          args: [quoteParams],
-        })
+      const liquidityData = await publicClient.readContract({
+        address: poolManagerAddress,
+        abi: PoolManager,
+        functionName: 'extsload',
+        args: [liquiditySlotHex],
+      })
 
-        const result = await publicClient.call({
-          to: quoterAddress,
-          data: quoteCalldata,
-        })
+      const liquidity = BigInt(liquidityData)
 
-        if (result.data) {
-          console.log('✅ Quote successful (V4Quoter)')
-          console.log('Raw result:', result.data)
-          quoteResult = {
-            amountOut: BigInt(result.data),
-            gasEstimate: 0n,
-          }
-          quoteSuccess = true
-        }
-      } catch (error: any) {
-        console.log('⚠️ V4Quoter approach failed:', error.message?.substring(0, 100))
+      // Calculate quote using price from pool state
+      const Q96 = 2n ** 96n
+      let amountOut: bigint
+
+      if (zeroForOne) {
+        // Swapping token0 for token1: output = amountIn * Q96^2 / sqrtPrice^2
+        amountOut = (amountIn * Q96 * Q96) / (sqrtPriceX96 * sqrtPriceX96)
+      } else {
+        // Swapping token1 for token0: output = amountIn * sqrtPrice^2 / Q96^2
+        amountOut = (amountIn * sqrtPriceX96 * sqrtPriceX96) / Q96 / Q96
       }
 
-      // Approach 2: If quoter fails, use manual calculation based on pool reserves
-      if (!quoteSuccess) {
-        console.log('📊 Using estimated quote (quoter not supported by hook)')
+      // Apply LP fee
+      const feeAmount = (amountOut * BigInt(lpFee)) / 1000000n
+      amountOut = amountOut - feeAmount
 
-        // For testing purposes, we'll estimate the quote
-        // In production, you might want to use an off-chain calculation
-        // or check the pool's liquidity directly
-        const estimatedAmountOut = amountIn * 1000n // Rough estimate
-
-        quoteResult = {
-          amountOut: estimatedAmountOut,
-          gasEstimate: 0n,
-        }
-
-        console.log('✅ Using estimated quote:', {
-          amountIn: amountIn.toString(),
-          estimatedAmountOut: estimatedAmountOut.toString(),
-          note: 'Clanker hook may not support quoter simulations - using estimate',
-        })
-
-        quoteSuccess = true
+      quoteResult = {
+        amountOut,
+        gasEstimate: 0n,
       }
 
-      expect(quoteSuccess).toBe(true)
+      console.log('✅ Quote calculated:', {
+        amountIn: amountIn.toString(),
+        amountOut: amountOut.toString(),
+        price: sqrtPriceX96.toString(),
+        liquidity: liquidity.toString(),
+        tick,
+        lpFee,
+      })
+
       expect(quoteResult).toBeDefined()
+      expect(amountOut).toBeGreaterThan(0n)
     },
     {
       timeout: 60000,
