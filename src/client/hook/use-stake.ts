@@ -7,6 +7,7 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { LevrStaking_v1 } from '../../abis'
 import { WETH } from '../../constants'
+import { useBalance } from './use-balance'
 import { useProject } from './use-project'
 
 export type UseStakeParams = {
@@ -48,6 +49,15 @@ export function useStake({
   const address = wallet.data?.account?.address
 
   const project = useProject({ clankerToken })
+
+  // Query: Token balance
+  const balances = useBalance({
+    tokens:
+      project.data && clankerToken
+        ? [{ address: clankerToken, decimals: project.data.token.decimals, key: 'token' }]
+        : [],
+    enabled: enabled && !!project.data && !!clankerToken,
+  })
 
   // Approve mutation
   const approve = useMutation({
@@ -110,6 +120,7 @@ export function useStake({
       allowance.refetch()
       poolData.refetch()
       userData.refetch()
+      balances.refetch()
       onStakeSuccess?.(receipt)
     },
     onError: onStakeError,
@@ -144,6 +155,7 @@ export function useStake({
       // Auto-refetch after successful unstake
       poolData.refetch()
       userData.refetch()
+      balances.refetch()
       onUnstakeSuccess?.(receipt)
     },
     onError: onUnstakeError,
@@ -178,6 +190,7 @@ export function useStake({
       // Auto-refetch after successful claim
       poolData.refetch()
       userData.refetch()
+      balances.refetch()
       onClaimSuccess?.(receipt)
     },
     onError: onClaimError,
@@ -332,11 +345,13 @@ export function useStake({
     allowance,
     poolData,
     userData,
+    balances,
 
     // Helpers
     needsApproval,
 
     // Convenience accessors for individual values
+    tokenBalance: balances.data?.token,
     stakedBalance: userData.data?.stakedBalance,
     totalStaked: poolData.data?.totalStaked,
     escrowBalance: poolData.data?.escrowBalance,
@@ -347,5 +362,6 @@ export function useStake({
     // Loading states
     isLoadingPoolData: poolData.isLoading,
     isLoadingUserData: userData.isLoading,
+    isLoadingBalances: balances.isLoading,
   }
 }
