@@ -73,7 +73,11 @@ export function useStake({
 
       return receipt
     },
-    onSuccess: onApproveSuccess,
+    onSuccess: (receipt) => {
+      // Auto-refetch allowance after successful approval
+      allowance.refetch()
+      onApproveSuccess?.(receipt)
+    },
     onError: onApproveError,
   })
 
@@ -101,7 +105,13 @@ export function useStake({
 
       return receipt
     },
-    onSuccess: onStakeSuccess,
+    onSuccess: (receipt) => {
+      // Auto-refetch after successful stake
+      allowance.refetch()
+      poolData.refetch()
+      userData.refetch()
+      onStakeSuccess?.(receipt)
+    },
     onError: onStakeError,
   })
 
@@ -130,7 +140,12 @@ export function useStake({
 
       return receipt
     },
-    onSuccess: onUnstakeSuccess,
+    onSuccess: (receipt) => {
+      // Auto-refetch after successful unstake
+      poolData.refetch()
+      userData.refetch()
+      onUnstakeSuccess?.(receipt)
+    },
     onError: onUnstakeError,
   })
 
@@ -159,7 +174,12 @@ export function useStake({
 
       return receipt
     },
-    onSuccess: onClaimSuccess,
+    onSuccess: (receipt) => {
+      // Auto-refetch after successful claim
+      poolData.refetch()
+      userData.refetch()
+      onClaimSuccess?.(receipt)
+    },
     onError: onClaimError,
   })
 
@@ -167,7 +187,7 @@ export function useStake({
   const allowance = useQuery({
     queryKey: ['staking', 'allowance', project.data?.token.address, project.data?.staking, address],
     queryFn: async () => {
-      if (!publicClient || !project.data || !address) return 0n
+      if (!publicClient || !project.data || !address) return { raw: 0n, formatted: '0' }
 
       const result = await publicClient.readContract({
         address: project.data.token.address,
@@ -176,7 +196,12 @@ export function useStake({
         args: [address, project.data.staking],
       })
 
-      return result
+      const data = {
+        raw: result,
+        formatted: formatUnits(result, project.data.token.decimals),
+      }
+
+      return data
     },
     enabled: enabled && !!publicClient && !!project.data && !!address,
   })
@@ -286,18 +311,11 @@ export function useStake({
     enabled: enabled && !!publicClient && !!project.data && !!address,
   })
 
-  // Helper to parse amount consistently
-  const parseAmount = (amount: string | number): bigint => {
-    if (!project.data) throw new Error('Project data not loaded')
-    return parseUnits(amount.toString(), project.data.token.decimals)
-  }
-
   // Helper to check if approval is needed for an amount
   const needsApproval = (amount: string | number): boolean => {
     if (!project.data || allowance.data === undefined) return false
     try {
-      const parsedAmount = parseAmount(amount)
-      return allowance.data < parsedAmount
+      return Number(allowance.data.formatted) < Number(amount)
     } catch {
       return false
     }
@@ -316,7 +334,6 @@ export function useStake({
     userData,
 
     // Helpers
-    parseAmount,
     needsApproval,
 
     // Convenience accessors for individual values
