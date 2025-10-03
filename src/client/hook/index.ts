@@ -1,3 +1,4 @@
+export * from './use-balance'
 export * from './use-clanker'
 export * from './use-deploy'
 export * from './use-register'
