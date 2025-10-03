@@ -11,6 +11,7 @@ export { default as LevrForwarder_v1 } from './LevrForwarder_v1'
 // Uniswap V4
 export { default as V4Quoter } from './V4Quoter'
 export { default as PoolManager } from './PoolManager'
+export { default as Permit2 } from './Permit2'
 
 // -----------------------------
 // Clanker
@@ -20,3 +21,4 @@ export { default as IClankerLPLocker } from './IClankerLPLocker'
 export { default as IClanker } from './IClanker'
 export { default as IClankerHook } from './IClankerHook'
 export { default as IClankerHookV2 } from './IClankerHookV2'
+export { default as ClankerUniV4EthDevBuy_v4 } from './ClankerUniV4EthDevBuy_v4'

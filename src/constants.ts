@@ -64,6 +64,20 @@ export const WETH = (
 }
 
 /**
+ * Get the Uniswap V4 Permit2 address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Permit2 address
+ */
+export const UNISWAP_V4_PERMIT2 = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+    [base.id]: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
  * Get the Uniswap V4 Quoter address for a given chain ID
  * @param chainId - The chain ID
  * @returns The Quoter address
