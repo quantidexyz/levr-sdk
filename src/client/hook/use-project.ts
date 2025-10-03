@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { erc20Abi, zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import { IClankerTokenABI, LevrFactory_v1 } from '../../abis'
+import { IClankerToken, LevrFactory_v1 } from '../../abis'
 import { GET_FACTORY_ADDRESS } from '../../constants'
 
 export type ProjectMetadata = {
@@ -80,12 +80,12 @@ export function useProject({ clankerToken, enabled: e }: UseProjectParams) {
             },
             {
               address: clankerToken!,
-              abi: IClankerTokenABI,
+              abi: IClankerToken,
               functionName: 'metadata',
             },
             {
               address: clankerToken!,
-              abi: IClankerTokenABI,
+              abi: IClankerToken,
               functionName: 'imageUrl',
             },
           ],

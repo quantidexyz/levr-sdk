@@ -62,3 +62,31 @@ export const WETH = (
     [baseSepolia.id]: initial,
   }[chainId]
 }
+
+/**
+ * Get the Uniswap V4 Quoter address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Quoter address
+ */
+export const UNISWAP_V4_QUOTER = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x0d5e0f971ed27fbff6c2837bf31316121532048d',
+    [base.id]: '0x0d5e0f971ed27fbff6c2837bf31316121532048d',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
+ * Get the Uniswap V4 Universal Router address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Uniswap V4 Universal Router address
+ */
+export const UNISWAP_V4_UNIVERSAL_ROUTER = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x6ff5693b99212da76ad316178a184ab56d299b43',
+    [base.id]: '0x6ff5693b99212da76ad316178a184ab56d299b43',
+  }[chainId] as `0x${string}` | undefined
+}
