@@ -112,13 +112,18 @@ export function useProjects({
           abi: IClankerTokenABI,
           functionName: 'metadata' as const,
         },
+        {
+          address: token,
+          abi: IClankerTokenABI,
+          functionName: 'imageUrl' as const,
+        },
       ])
 
       const results = await publicClient!.multicall({ contracts })
 
       // Parse results into Project objects
       const projects: Project[] = []
-      const callsPerProject = 6
+      const callsPerProject = 7
 
       for (let i = 0; i < clankerTokens.length; i++) {
         const offset = i * callsPerProject
@@ -146,6 +151,7 @@ export function useProjects({
         const symbol = results[offset + 3].result as string
         const totalSupply = results[offset + 4].result as bigint
         const metadataStr = results[offset + 5].result as string | undefined
+        const imageUrl = results[offset + 6].result as string | undefined
 
         // Parse metadata JSON
         let parsedMetadata: ProjectMetadata | null = null
@@ -169,6 +175,7 @@ export function useProjects({
             symbol,
             totalSupply,
             metadata: parsedMetadata,
+            imageUrl,
           },
         })
       }

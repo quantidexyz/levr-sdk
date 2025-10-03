@@ -25,6 +25,7 @@ export type Project = {
     symbol: string
     totalSupply: bigint
     metadata: ProjectMetadata | null
+    imageUrl?: string
   }
 }
 
@@ -54,35 +55,41 @@ export function useProject({ clankerToken, enabled: e }: UseProjectParams) {
       if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
       // Fetch token metadata using multicall
-      const [decimals, name, symbol, totalSupply, metadata] = await publicClient!.multicall({
-        contracts: [
-          {
-            address: clankerToken!,
-            abi: erc20Abi,
-            functionName: 'decimals',
-          },
-          {
-            address: clankerToken!,
-            abi: erc20Abi,
-            functionName: 'name',
-          },
-          {
-            address: clankerToken!,
-            abi: erc20Abi,
-            functionName: 'symbol',
-          },
-          {
-            address: clankerToken!,
-            abi: erc20Abi,
-            functionName: 'totalSupply',
-          },
-          {
-            address: clankerToken!,
-            abi: IClankerTokenABI,
-            functionName: 'metadata',
-          },
-        ],
-      })
+      const [decimals, name, symbol, totalSupply, metadata, imageUrl] =
+        await publicClient!.multicall({
+          contracts: [
+            {
+              address: clankerToken!,
+              abi: erc20Abi,
+              functionName: 'decimals',
+            },
+            {
+              address: clankerToken!,
+              abi: erc20Abi,
+              functionName: 'name',
+            },
+            {
+              address: clankerToken!,
+              abi: erc20Abi,
+              functionName: 'symbol',
+            },
+            {
+              address: clankerToken!,
+              abi: erc20Abi,
+              functionName: 'totalSupply',
+            },
+            {
+              address: clankerToken!,
+              abi: IClankerTokenABI,
+              functionName: 'metadata',
+            },
+            {
+              address: clankerToken!,
+              abi: IClankerTokenABI,
+              functionName: 'imageUrl',
+            },
+          ],
+        })
 
       // Parse metadata JSON
       let parsedMetadata: ProjectMetadata | null = null
@@ -106,6 +113,7 @@ export function useProject({ clankerToken, enabled: e }: UseProjectParams) {
           symbol: symbol.result as string,
           totalSupply: totalSupply.result as bigint,
           metadata: parsedMetadata,
+          imageUrl: imageUrl.result as string | undefined,
         },
       }
     },
