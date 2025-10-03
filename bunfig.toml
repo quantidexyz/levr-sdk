@@ -1,5 +1,2 @@
 [test]
-root = "./tests"
-env = { DEBUG = "*" }
-[define]
-"process.env.DEBUG" = "'*'"
+root = "./test"

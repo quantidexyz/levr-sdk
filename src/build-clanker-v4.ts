@@ -50,6 +50,7 @@ export const buildClankerV4 = ({
     fees,
     rewards,
     chainId: chainId as ClankerTokenV4['chainId'],
+    vanity: true,
   } as const
 
   return config
@@ -125,7 +126,7 @@ const getAirdrop = (
   return {
     amount: airdropData.reduce((acc, curr) => acc + curr.amount, 0),
     merkleRoot: merkleTree.root,
-    lockupDuration: 1,
+    lockupDuration: 86400, // 1 day minimum required by Clanker SDK
     vestingDuration: 0,
   }
 }
