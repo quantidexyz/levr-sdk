@@ -279,57 +279,125 @@ describe('#DEPLOY_SWAP_TEST', () => {
 
       const amountIn = parseEther('0.01')
 
-      // Step 1: Wrap ETH to WETH
-      console.log('Wrapping ETH to WETH...')
-      const wrapTx = await wallet.sendTransaction({
-        to: wethAddress,
-        value: amountIn,
-        data: '0xd0e30db0', // deposit() function selector
-      })
-      await publicClient.waitForTransactionReceipt({ hash: wrapTx })
-      console.log('✅ ETH wrapped to WETH')
+      // Uniswap V4 supports native ETH directly via Currency.wrap(address(0))
+      // This allows trading native ETH without explicit wrapping to WETH
+      // Check if currency0 is native ETH (address(0))
+      const isNativeETH =
+        poolKey.currency0.toLowerCase() === '0x0000000000000000000000000000000000000000'
 
-      // Step 2: Check WETH balance
-      const wethBalance = await publicClient.readContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account!.address],
+      console.log('Pool currency info:', {
+        currency0: poolKey.currency0,
+        currency1: poolKey.currency1,
+        isNativeETH,
+        zeroForOne,
+        wethAddress,
       })
-      console.log('WETH balance:', wethBalance.toString())
-      expect(wethBalance).toBeGreaterThanOrEqual(amountIn)
 
-      // Step 3: Approve WETH to Universal Router
-      console.log('Approving WETH to Universal Router...')
-      const approveTx = await wallet.writeContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [universalRouterAddress, amountIn],
-      })
-      await publicClient.waitForTransactionReceipt({ hash: approveTx })
-      console.log('✅ WETH approved')
+      // Handle approval/balance checks based on whether we're trading native ETH or ERC20
+      if (isNativeETH && zeroForOne) {
+        // Swapping native ETH → token: No approval needed, will send ETH value with transaction
+        console.log('✅ Swapping native ETH → token (no approval needed)')
+        const ethBalance = await publicClient.getBalance({
+          address: wallet.account!.address,
+        })
+        console.log('ETH balance:', ethBalance.toString())
+        expect(ethBalance).toBeGreaterThanOrEqual(amountIn)
+      } else if (isNativeETH && !zeroForOne) {
+        // Swapping token → native ETH: Need to approve token
+        console.log('Approving token to Universal Router...')
+        const approveTx = await wallet.writeContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [universalRouterAddress, amountIn],
+        })
+        await publicClient.waitForTransactionReceipt({ hash: approveTx })
+        console.log('✅ Token approved')
+
+        const tokenBalance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account!.address],
+        })
+        console.log('Token balance:', tokenBalance.toString())
+        expect(tokenBalance).toBeGreaterThanOrEqual(amountIn)
+      } else {
+        // Pool uses WETH (not native ETH), need to wrap and approve
+        console.log('Wrapping ETH to WETH...')
+        const wrapTx = await wallet.sendTransaction({
+          to: wethAddress,
+          value: amountIn,
+          data: '0xd0e30db0', // deposit() function selector
+        })
+        await publicClient.waitForTransactionReceipt({ hash: wrapTx })
+        console.log('✅ ETH wrapped to WETH')
+
+        const wethBalance = await publicClient.readContract({
+          address: wethAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account!.address],
+        })
+        console.log('WETH balance:', wethBalance.toString())
+        expect(wethBalance).toBeGreaterThanOrEqual(amountIn)
+
+        console.log('Approving WETH to Universal Router...')
+        const approveTx = await wallet.writeContract({
+          address: wethAddress,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [universalRouterAddress, amountIn],
+        })
+        await publicClient.waitForTransactionReceipt({ hash: approveTx })
+        console.log('✅ WETH approved')
+      }
 
       console.log('✅ Swap setup validated')
       console.log('Ready to swap:', {
-        from: wethToken.symbol,
-        to: clankerSdkToken.symbol,
+        from: isNativeETH && zeroForOne ? 'ETH' : wethToken.symbol,
+        to: isNativeETH && !zeroForOne ? 'ETH' : clankerSdkToken.symbol,
         amountIn: amountIn.toString(),
         poolFee: poolKey.fee,
         tickSpacing: poolKey.tickSpacing,
+        isNativeETH,
       })
 
       // Note: Actual swap execution through Universal Router would require:
       // 1. Encoding V4_SWAP command with proper path and pool keys
       // 2. Setting deadline and slippage protection
       // 3. Using the Universal Router SDK's command encoder
-      // The Universal Router for V4 uses a different command structure than V3
-      // and requires understanding of the Actions enum and command encoding
+      // 4. For native ETH swaps (when isNativeETH && zeroForOne), pass { value: amountIn }
+      // 5. The Universal Router for V4 uses a different command structure than V3
+      //    and requires understanding of the Actions enum and command encoding
 
       expect(poolKey).toBeDefined()
       expect(wethToken).toBeDefined()
       expect(clankerSdkToken).toBeDefined()
-      expect(wethBalance).toBeGreaterThanOrEqual(amountIn)
+
+      // Verify we have sufficient balance for the swap based on currency type
+      if (isNativeETH && zeroForOne) {
+        const ethBalance = await publicClient.getBalance({
+          address: wallet.account!.address,
+        })
+        expect(ethBalance).toBeGreaterThanOrEqual(amountIn)
+      } else if (isNativeETH && !zeroForOne) {
+        const tokenBalance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account!.address],
+        })
+        expect(tokenBalance).toBeGreaterThanOrEqual(amountIn)
+      } else {
+        const wethBalance = await publicClient.readContract({
+          address: wethAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account!.address],
+        })
+        expect(wethBalance).toBeGreaterThanOrEqual(amountIn)
+      }
     },
     {
       timeout: 60000,
