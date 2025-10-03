@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { formatUnits, parseUnits } from 'viem'
+import { erc20Abi, formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
@@ -12,6 +12,9 @@ import { useProject } from './use-project'
 export type UseStakeParams = {
   clankerToken?: `0x${string}`
   enabled?: boolean
+
+  onApproveSuccess?: (receipt: TransactionReceipt) => void
+  onApproveError?: (error: unknown) => void
 
   onStakeSuccess?: (receipt: TransactionReceipt) => void
   onStakeError?: (error: unknown) => void
@@ -26,6 +29,9 @@ export type UseStakeParams = {
 export function useStake({
   clankerToken,
   enabled = true,
+
+  onApproveSuccess,
+  onApproveError,
 
   onStakeSuccess,
   onStakeError,
@@ -42,6 +48,34 @@ export function useStake({
   const address = wallet.data?.account?.address
 
   const project = useProject({ clankerToken })
+
+  // Approve mutation
+  const approve = useMutation({
+    mutationFn: async (amount: number) => {
+      if (!wallet.data) throw new Error('Wallet is not connected')
+      if (!publicClient) throw new Error('Public client is not connected')
+      if (!project.data) throw new Error('Project is not connected')
+
+      const parsedAmount = parseUnits(amount.toString(), project.data.token.decimals)
+
+      const hash = await wallet.data.writeContract({
+        address: project.data.token.address,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [project.data.staking, parsedAmount],
+      })
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Approve transaction reverted')
+      }
+
+      return receipt
+    },
+    onSuccess: onApproveSuccess,
+    onError: onApproveError,
+  })
 
   // Stake mutation
   const stake = useMutation({
@@ -60,6 +94,10 @@ export function useStake({
       })
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Stake transaction reverted')
+      }
 
       return receipt
     },
@@ -86,6 +124,10 @@ export function useStake({
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
+      if (receipt.status === 'reverted') {
+        throw new Error('Unstake transaction reverted')
+      }
+
       return receipt
     },
     onSuccess: onUnstakeSuccess,
@@ -111,10 +153,32 @@ export function useStake({
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
+      if (receipt.status === 'reverted') {
+        throw new Error('Claim transaction reverted')
+      }
+
       return receipt
     },
     onSuccess: onClaimSuccess,
     onError: onClaimError,
+  })
+
+  // Query: Allowance
+  const allowance = useQuery({
+    queryKey: ['staking', 'allowance', project.data?.token.address, project.data?.staking, address],
+    queryFn: async () => {
+      if (!publicClient || !project.data || !address) return 0n
+
+      const result = await publicClient.readContract({
+        address: project.data.token.address,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [address, project.data.staking],
+      })
+
+      return result
+    },
+    enabled: enabled && !!publicClient && !!project.data && !!address,
   })
 
   // Query: Pool-level data (multicall for efficiency)
@@ -222,15 +286,38 @@ export function useStake({
     enabled: enabled && !!publicClient && !!project.data && !!address,
   })
 
+  // Helper to parse amount consistently
+  const parseAmount = (amount: string | number): bigint => {
+    if (!project.data) throw new Error('Project data not loaded')
+    return parseUnits(amount.toString(), project.data.token.decimals)
+  }
+
+  // Helper to check if approval is needed for an amount
+  const needsApproval = (amount: string | number): boolean => {
+    if (!project.data || allowance.data === undefined) return false
+    try {
+      const parsedAmount = parseAmount(amount)
+      return allowance.data < parsedAmount
+    } catch {
+      return false
+    }
+  }
+
   return {
     // Mutations
+    approve,
     stake,
     unstake,
     claim,
 
     // Queries (grouped by multicall)
+    allowance,
     poolData,
     userData,
+
+    // Helpers
+    parseAmount,
+    needsApproval,
 
     // Convenience accessors for individual values
     stakedBalance: userData.data?.stakedBalance,
