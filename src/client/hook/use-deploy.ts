@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import type { TransactionReceipt } from 'viem'
 
 import { LevrFactory_v1, LevrForwarder_v1 } from '../../abis'
 import { buildCalldatasV4 } from '../../build-calldatas-v4'
@@ -8,7 +9,7 @@ import { useClanker } from './use-clanker'
 
 export type UseDeployParams = {
   treasuryAirdropAmount?: number
-  onSuccess?: (params: { txHash: `0x${string}`; address: `0x${string}` }) => void
+  onSuccess?: (params: { receipt: TransactionReceipt; address: `0x${string}` }) => void
   onError?: (error: unknown) => void
 }
 
@@ -36,7 +37,7 @@ export function useDeploy({
       if (!wallet || !publicClient) throw new Error('Wallet or public client not found')
       if (!chainId) throw new Error('Chain ID not found')
 
-      const { callDatas, clankerTokenAddress } = await buildCalldatasV4({
+      const { callDatas, clankerTokenAddress, totalValue } = await buildCalldatasV4({
         c,
         clanker: clanker.data,
         publicClient,
@@ -56,12 +57,17 @@ export function useDeploy({
         abi: LevrForwarder_v1,
         functionName: 'executeMulticall',
         args: [callDatas],
+        value: totalValue,
       })
 
-      await publicClient.waitForTransactionReceipt({ hash: txHash })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Deployment transaction reverted')
+      }
 
       return {
-        txHash,
+        receipt,
         address: clankerTokenAddress,
       }
     },

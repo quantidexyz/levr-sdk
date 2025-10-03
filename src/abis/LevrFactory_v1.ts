@@ -79,7 +79,7 @@ export default [
         internalType: 'bytes',
       },
     ],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',

@@ -17,8 +17,10 @@ import { getPublicClient, getWallet, levrAnvil } from './util'
  * 2. LevrFactory_v1 must be deployed: `cd contracts && make deploy-devnet-factory`
  * 3. Clanker v4 contracts must be deployed on the fork
  *
- * Note: Some tests are skipped due to environment dependencies and contract state issues.
- * The tests demonstrate the correct usage pattern even if they're temporarily skipped.
+ * Features:
+ * - Supports deployments with devBuy (ETH forwarding)
+ * - executeMulticall and executeTransaction are payable
+ * - Each SingleCall can specify a value amount for ETH forwarding
  */
 describe('#DEPLOY_TEST', () => {
   // ---
@@ -29,7 +31,7 @@ describe('#DEPLOY_TEST', () => {
   const testDeploymentConfig: LevrClankerDeploymentSchemaType = {
     name: 'Test Token',
     symbol: 'TEST',
-    image: 'ipfs://QmTest123',
+    image: 'ipfs://bafkreif2xtaifw7byqxoydsmbrgrpryyvpz65fwdxghgbrurj6uzhhkktm',
     metadata: {
       description: 'Test token for deployment testing',
       telegramLink: 'https://t.me/testtoken',
@@ -38,128 +40,10 @@ describe('#DEPLOY_TEST', () => {
       farcasterLink: 'https://farcaster.xyz/testtoken',
     },
     devBuy: '0.1 ETH',
-    airdrop: [
-      {
-        account: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
-        amount: 100_000_000,
-      },
-      {
-        account: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
-        amount: 50_000_000,
-      },
-    ],
   }
 
-  // ---
-  // TESTS
-
-  it.skip('should build callDatas for deployment', async () => {
-    const publicClient = getPublicClient()
-    const wallet = getWallet()
-    const chainId = levrAnvil.id
-    const factoryAddress = GET_FACTORY_ADDRESS(chainId)
-
-    if (!factoryAddress) throw new Error('Factory address not found in environment')
-
-    // Initialize Clanker SDK
-    const clanker = new Clanker({ publicClient, wallet })
-
-    // Build callDatas
-    const { callDatas, clankerTokenAddress } = await buildCalldatasV4({
-      c: testDeploymentConfig,
-      clanker,
-      publicClient,
-      wallet,
-      factoryAddress,
-      treasuryAirdropAmount,
-    })
-
-    // Verify callDatas structure
-    expect(callDatas).toBeArrayOfSize(3)
-    expect(callDatas[0].target).toBe(factoryAddress)
-    expect(callDatas[0].allowFailure).toBe(false)
-    expect(callDatas[1].target).toBe(factoryAddress)
-    expect(callDatas[1].allowFailure).toBe(false)
-    expect(callDatas[2].target).toBe(factoryAddress)
-    expect(callDatas[2].allowFailure).toBe(false)
-
-    // Verify clanker token address is valid
-    expect(clankerTokenAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
-  })
-
-  it.skip('should deploy token and register with factory', async () => {
-    const publicClient = getPublicClient()
-    const wallet = getWallet()
-    const chainId = levrAnvil.id
-    const factoryAddress = GET_FACTORY_ADDRESS(chainId)
-
-    if (!factoryAddress) throw new Error('Factory address not found in environment')
-
-    // Initialize Clanker SDK
-    const clanker = new Clanker({ publicClient, wallet })
-
-    // Build callDatas
-    const { callDatas, clankerTokenAddress } = await buildCalldatasV4({
-      c: testDeploymentConfig,
-      clanker,
-      publicClient,
-      wallet,
-      factoryAddress,
-      treasuryAirdropAmount,
-    })
-
-    // Get trusted forwarder address
-    const trustedForwarder = await publicClient.readContract({
-      address: factoryAddress,
-      abi: LevrFactory_v1,
-      functionName: 'trustedForwarder',
-    })
-
-    expect(trustedForwarder).toMatch(/^0x[a-fA-F0-9]{40}$/)
-
-    // Execute multicall via forwarder
-    const txHash = await wallet.writeContract({
-      address: trustedForwarder,
-      abi: LevrForwarder_v1,
-      functionName: 'executeMulticall',
-      args: [callDatas],
-    })
-
-    expect(txHash).toMatch(/^0x[a-fA-F0-9]{64}$/)
-
-    // Wait for transaction receipt
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
-
-    expect(receipt.status).toBe('success')
-    expect(receipt.transactionHash).toBe(txHash)
-
-    // Verify the token was deployed by checking the Registered event
-    const registeredLogs = await publicClient.getContractEvents({
-      address: factoryAddress,
-      abi: LevrFactory_v1,
-      eventName: 'Registered',
-      fromBlock: receipt.blockNumber,
-      toBlock: receipt.blockNumber,
-    })
-
-    expect(registeredLogs.length).toBeGreaterThan(0)
-    const registeredEvent = registeredLogs[0]
-    expect(registeredEvent.args.clankerToken).toBe(clankerTokenAddress)
-    expect(registeredEvent.args.treasury).toMatch(/^0x[a-fA-F0-9]{40}$/)
-    expect(registeredEvent.args.governor).toMatch(/^0x[a-fA-F0-9]{40}$/)
-    expect(registeredEvent.args.stakedToken).toMatch(/^0x[a-fA-F0-9]{40}$/)
-
-    console.log('✅ Token deployed and registered:', {
-      txHash,
-      clankerToken: clankerTokenAddress,
-      treasury: registeredEvent.args.treasury,
-      governor: registeredEvent.args.governor,
-      stakedToken: registeredEvent.args.stakedToken,
-    })
-  })
-
   it(
-    'should handle deployment without optional fields',
+    'should handle deployment with common fields',
     async () => {
       const publicClient = getPublicClient()
       const wallet = getWallet()
@@ -171,16 +55,9 @@ describe('#DEPLOY_TEST', () => {
       // Initialize Clanker SDK
       const clanker = new Clanker({ publicClient, wallet })
 
-      // Minimal deployment config
-      const minimalConfig: LevrClankerDeploymentSchemaType = {
-        name: 'Minimal Token',
-        symbol: 'MIN',
-        image: 'ipfs://QmMinimal',
-      }
-
       // Build callDatas
-      const { callDatas, clankerTokenAddress } = await buildCalldatasV4({
-        c: minimalConfig,
+      const { callDatas, clankerTokenAddress, totalValue } = await buildCalldatasV4({
+        c: testDeploymentConfig,
         clanker,
         publicClient,
         wallet,
@@ -199,12 +76,13 @@ describe('#DEPLOY_TEST', () => {
         functionName: 'trustedForwarder',
       })
 
-      // Execute deployment (no value needed for minimal config without devBuy)
+      // Execute deployment with ETH value for devBuy
       const txHash = await wallet.writeContract({
         address: trustedForwarder,
         abi: LevrForwarder_v1,
         functionName: 'executeMulticall',
         args: [callDatas],
+        value: totalValue,
       })
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })

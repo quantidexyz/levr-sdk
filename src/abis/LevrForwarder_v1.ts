@@ -234,6 +234,11 @@ export default [
             internalType: 'bool',
           },
           {
+            name: 'value',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
             name: 'callData',
             type: 'bytes',
             internalType: 'bytes',
@@ -260,7 +265,7 @@ export default [
         ],
       },
     ],
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -386,6 +391,11 @@ export default [
             name: 'allowFailure',
             type: 'bool',
             internalType: 'bool',
+          },
+          {
+            name: 'value',
+            type: 'uint256',
+            internalType: 'uint256',
           },
           {
             name: 'callData',

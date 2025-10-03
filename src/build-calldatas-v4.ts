@@ -1,16 +1,19 @@
 import { CLANKERS } from 'clanker-sdk'
 import type { Clanker } from 'clanker-sdk/v4'
-import { Schema } from 'effect'
 import { decodeFunctionResult, encodeFunctionData } from 'viem'
 import type { PublicClient, WalletClient } from 'viem'
 import * as chains from 'viem/chains'
 
 import { LevrFactory_v1 } from './abis'
 import { buildClankerV4 } from './build-clanker-v4'
-import { ClankerDeploymentSchema } from './schema'
 import type { LevrClankerDeploymentSchemaType } from './schema'
 
-export type CallData = { target: `0x${string}`; allowFailure: boolean; callData: `0x${string}` }
+export type CallData = {
+  target: `0x${string}`
+  allowFailure: boolean
+  value: bigint
+  callData: `0x${string}`
+}
 
 export type BuildCalldatasV4Params = {
   c: LevrClankerDeploymentSchemaType
@@ -24,6 +27,7 @@ export type BuildCalldatasV4Params = {
 export type BuildCalldatasV4ReturnType = {
   callDatas: CallData[]
   clankerTokenAddress: `0x${string}`
+  totalValue: bigint
 }
 
 export const clankerV4Factory: Record<number, `0x${string}`> = {
@@ -80,16 +84,22 @@ export const buildCalldatasV4 = async ({
     chainId,
   })
 
-  // Validate the config
-  Schema.decode(ClankerDeploymentSchema)(config)
-
+  // Validate and get the deployment transaction
+  // The SDK computes the token address deterministically when vanity is enabled
   const deployContractCall = await clanker.getDeployTransaction(config)
+
+  // Extract the expected token address from the deployment call
+  // When vanity: true, the SDK uses CREATE2 and computes the address in advance
+  const tokenAddress = deployContractCall.expectedAddress
+  if (!tokenAddress) {
+    throw new Error('Expected token address not found - ensure vanity is enabled')
+  }
+
   const deployTransaction = encodeFunctionData({
     abi: deployContractCall.abi,
     functionName: deployContractCall.functionName,
     args: deployContractCall.args,
   })
-  const { result: tokenAddress } = await publicClient.simulateContract(deployContractCall)
 
   const proxyDeployTransaction = encodeFunctionData({
     abi: LevrFactory_v1,
@@ -97,20 +107,26 @@ export const buildCalldatasV4 = async ({
     args: [clankerFactory, deployTransaction],
   })
 
-  const callDatas = [
+  // Calculate the ETH value needed for devBuy (if specified)
+  const devBuyValue = config.devBuy ? BigInt(Math.floor(config.devBuy.ethAmount * 1e18)) : 0n
+
+  const callDatas: CallData[] = [
     {
       target: factoryAddress,
       allowFailure: false,
+      value: 0n,
       callData: prepareForDeploymentTransaction,
     },
     {
       target: factoryAddress,
       allowFailure: false,
+      value: devBuyValue, // ETH forwarded through executeTransaction to Clanker deployment
       callData: proxyDeployTransaction,
     },
     {
       target: factoryAddress,
       allowFailure: false,
+      value: 0n,
       callData: encodeFunctionData({
         abi: LevrFactory_v1,
         functionName: 'register',
@@ -119,5 +135,9 @@ export const buildCalldatasV4 = async ({
     },
   ]
 
-  return { callDatas, clankerTokenAddress: tokenAddress }
+  return {
+    callDatas,
+    clankerTokenAddress: tokenAddress,
+    totalValue: devBuyValue, // Total ETH to send with executeMulticall
+  }
 }
