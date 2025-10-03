@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { Clanker } from 'clanker-sdk/v4'
 
-import { LevrFactory_v1, LevrForwarder_v1 } from '../src/abis'
-import { buildCalldatasV4 } from '../src/build-calldatas-v4'
 import { GET_FACTORY_ADDRESS } from '../src/constants'
+import { deployV4 } from '../src/deploy-v4'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { getPublicClient, getWallet, levrAnvil } from './util'
 
@@ -25,8 +24,6 @@ import { getPublicClient, getWallet, levrAnvil } from './util'
 describe('#DEPLOY_TEST', () => {
   // ---
   // CONSTANTS
-
-  const treasuryAirdropAmount = 100_000_000
 
   const testDeploymentConfig: LevrClankerDeploymentSchemaType = {
     name: 'Test Token',
@@ -55,42 +52,16 @@ describe('#DEPLOY_TEST', () => {
       // Initialize Clanker SDK
       const clanker = new Clanker({ publicClient, wallet })
 
-      // Build callDatas
-      const { callDatas, clankerTokenAddress, totalValue } = await buildCalldatasV4({
+      const { receipt, address: clankerToken } = await deployV4({
         c: testDeploymentConfig,
         clanker,
-        publicClient,
-        wallet,
-        factoryAddress,
-        treasuryAirdropAmount,
       })
-
-      // Verify callDatas were built successfully
-      expect(callDatas).toBeArrayOfSize(3)
-      expect(clankerTokenAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
-
-      // Get trusted forwarder
-      const trustedForwarder = await publicClient.readContract({
-        address: factoryAddress,
-        abi: LevrFactory_v1,
-        functionName: 'trustedForwarder',
-      })
-
-      // Execute deployment with ETH value for devBuy
-      const txHash = await wallet.writeContract({
-        address: trustedForwarder,
-        abi: LevrForwarder_v1,
-        functionName: 'executeMulticall',
-        args: [callDatas],
-        value: totalValue,
-      })
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+      const txHash = receipt.transactionHash
       expect(receipt.status).toBe('success')
 
-      console.log('✅ Minimal token deployed:', {
+      console.log('✅ Clanker token deployed and registered to Levr:', {
         txHash,
-        clankerToken: clankerTokenAddress,
+        clankerToken,
       })
     },
     {
