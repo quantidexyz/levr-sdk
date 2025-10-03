@@ -8,7 +8,7 @@ import { deployV4 } from '../src/deploy-v4'
 import { quoteV4 } from '../src/quote-v4'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { swapV4 } from '../src/swap-v4'
-import { getPublicClient, getWallet, levrAnvil } from './util'
+import { getPublicClient, getWallet, levrAnvil, warpAnvil } from './util'
 
 /**
  * Deploy and Swap Tests
@@ -229,6 +229,10 @@ describe('#DEPLOY_SWAP_TEST', () => {
         args: [wallet.account.address],
       })
 
+      // Wait for MEV protection delay (120 seconds)
+      console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
+      await warpAnvil(120)
+
       console.log('\nExecuting swap with:')
       console.log('  Pool hook:', poolKey.hooks)
       console.log('  Direction: WETH → Token')
@@ -295,6 +299,213 @@ describe('#DEPLOY_SWAP_TEST', () => {
       console.log('  ✓ Swap executes without reverting')
       console.log('  ✓ Output tokens received')
       console.log('  ✓ Balance changes tracked correctly')
+    },
+    {
+      timeout: 60000,
+    }
+  )
+
+  it(
+    'should execute swap - Token to Native ETH (reverse direction)',
+    async () => {
+      // Use deployed token from previous test
+      expect(deployedTokenAddress).toBeDefined()
+
+      const publicClient = getPublicClient()
+      const wallet = getWallet()
+      const chainId = levrAnvil.id
+      const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+
+      if (!lpLockerAddress) throw new Error('LP Locker address not found')
+      if (!wallet.account) throw new Error('Wallet account not found')
+
+      console.log('\n=== REVERSE SWAP: Token → WETH ===')
+      console.log('Using deployed token:', deployedTokenAddress)
+
+      // Get pool information from LP locker
+      const tokenRewards = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLPLocker,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      const poolKey = tokenRewards.poolKey
+
+      // Get WETH address
+      const wethAddress = WETH(chainId)?.address
+      if (!wethAddress) throw new Error('WETH address not found')
+
+      // Reverse direction: Token → WETH
+      // Determine swap direction based on pool
+      const isTokenCurrency0 =
+        poolKey.currency0.toLowerCase() === deployedTokenAddress.toLowerCase()
+
+      // zeroForOne: if token is currency0, we're swapping currency0 → currency1
+      const zeroForOne = isTokenCurrency0
+
+      // Use tokens from previous swap
+      const tokenBalance = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('Token balance:', tokenBalance.toString())
+      expect(tokenBalance).toBeGreaterThan(0n)
+
+      // Swap half of our tokens back to WETH
+      const amountIn = tokenBalance / 2n
+
+      // Determine input/output currencies
+      const inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1
+      const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
+
+      console.log('\nSwap parameters:')
+      console.log('  Direction:', zeroForOne ? 'Token → WETH' : 'WETH → Token')
+      console.log('  Input currency:', inputCurrency)
+      console.log('  Output currency:', outputCurrency)
+      console.log('  Amount in:', amountIn.toString())
+
+      // Get initial WETH balance
+      const initialWethBalance = await publicClient.readContract({
+        address: wethAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('Initial WETH balance:', initialWethBalance.toString())
+
+      // Execute the reverse swap (no need to warp again, already past MEV delay)
+      const { txHash, receipt } = await swapV4({
+        publicClient,
+        wallet,
+        chainId,
+        poolKey,
+        zeroForOne,
+        amountIn,
+        amountOutMinimum: 0n, // Accept any amount for this test
+      })
+
+      expect(receipt.status).toBe('success')
+      expect(txHash).toBeDefined()
+
+      console.log('\n✅ Reverse swap executed successfully:')
+      console.log('  Tx hash:', txHash)
+      console.log('  Gas used:', receipt.gasUsed?.toString())
+
+      // Get final WETH balance
+      const finalWethBalance = await publicClient.readContract({
+        address: wethAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      const wethReceived = finalWethBalance - initialWethBalance
+
+      console.log('  WETH received:', wethReceived.toString())
+
+      // Verify we received WETH
+      expect(wethReceived).toBeGreaterThan(0n)
+
+      console.log('\n✅ Reverse swap validated:')
+      console.log('  ✓ Token → WETH swap successful')
+      console.log('  ✓ WETH received from token sale')
+      console.log('  ✓ Round-trip trading works')
+    },
+    {
+      timeout: 60000,
+    }
+  )
+
+  it(
+    'should execute swap - Native ETH to Token (using ETH directly)',
+    async () => {
+      // Use deployed token from previous test
+      expect(deployedTokenAddress).toBeDefined()
+
+      const publicClient = getPublicClient()
+      const wallet = getWallet()
+      const chainId = levrAnvil.id
+      const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+
+      if (!lpLockerAddress) throw new Error('LP Locker address not found')
+      if (!wallet.account) throw new Error('Wallet account not found')
+
+      console.log('\n=== NATIVE ETH SWAP: ETH → Token (via WETH wrapping) ===')
+      console.log('Using deployed token:', deployedTokenAddress)
+
+      // Get pool information from LP locker
+      const tokenRewards = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLPLocker,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      const poolKey = tokenRewards.poolKey
+
+      // Get WETH address
+      const wethAddress = WETH(chainId)?.address
+      if (!wethAddress) throw new Error('WETH address not found')
+
+      // Swap WETH → Token
+      const isWETHCurrency0 = poolKey.currency0.toLowerCase() === wethAddress.toLowerCase()
+      const zeroForOne = isWETHCurrency0
+
+      const amountIn = parseEther('0.001') // 0.001 ETH
+
+      // Get initial token balance
+      const initialTokenBalance = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('Initial token balance:', initialTokenBalance.toString())
+      console.log('Swapping', amountIn.toString(), 'wei of ETH (via WETH)')
+
+      // Execute the swap (swap-v4 will automatically wrap ETH to WETH)
+      const { txHash, receipt } = await swapV4({
+        publicClient,
+        wallet,
+        chainId,
+        poolKey,
+        zeroForOne,
+        amountIn,
+        amountOutMinimum: 0n,
+      })
+
+      expect(receipt.status).toBe('success')
+      expect(txHash).toBeDefined()
+
+      console.log('\n✅ Native ETH swap executed successfully:')
+      console.log('  Tx hash:', txHash)
+      console.log('  Gas used:', receipt.gasUsed?.toString())
+
+      // Get final token balance
+      const finalTokenBalance = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      const tokensReceived = finalTokenBalance - initialTokenBalance
+
+      console.log('  Tokens received:', tokensReceived.toString())
+
+      // Verify we received tokens
+      expect(tokensReceived).toBeGreaterThan(0n)
+
+      console.log('\n✅ Native ETH swap validated:')
+      console.log('  ✓ ETH automatically wrapped to WETH')
+      console.log('  ✓ WETH → Token swap successful')
+      console.log('  ✓ Tokens received from ETH payment')
     },
     {
       timeout: 60000,

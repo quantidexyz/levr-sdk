@@ -1,7 +1,8 @@
 import { encodeAbiParameters, encodePacked, erc20Abi } from 'viem'
 import type { PublicClient, WalletClient } from 'viem'
 
-import { UNISWAP_V4_UNIVERSAL_ROUTER } from './constants'
+import Permit2Abi from './abis/Permit2'
+import { UNISWAP_V4_PERMIT2, UNISWAP_V4_UNIVERSAL_ROUTER, WETH } from './constants'
 import type { PoolKey } from './types'
 
 export type SwapV4Params = {
@@ -50,15 +51,15 @@ const isNativeETH = (currency: `0x${string}`): boolean => {
 }
 
 /**
- * @description Check if a currency is WETH (which V4Router handles specially)
+ * @description Check if a currency is WETH
  * @param currency Currency address
  * @param chainId Chain ID to get WETH address
  * @returns True if WETH
  */
 const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
-  // WETH address on Base: 0x4200000000000000000000000000000000000006
-  const wethAddress = '0x4200000000000000000000000000000000000006'
-  return currency.toLowerCase() === wethAddress.toLowerCase()
+  const wethInfo = WETH(chainId)
+  if (!wethInfo) return false
+  return currency.toLowerCase() === wethInfo.address.toLowerCase()
 }
 
 /**
@@ -71,8 +72,8 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  * - Uses execute(bytes commands, bytes[] inputs)
  * - Commands: V4_SWAP (0x10)
  * - Inputs contain encoded V4 actions: SWAP_EXACT_IN_SINGLE (0x06), SETTLE_ALL (0x0c), TAKE_ALL (0x0f)
- * - Direct ERC20 approvals to router (NOT Permit2 for V4)
- * - Native ETH supported via msg.value for WETH swaps
+ * - ERC20 approvals via Permit2 (required for V4)
+ * - Native ETH not directly supported - must use WETH
  *
  * @note Encoding pattern (from article):
  * 1. commands = solidityPack(["uint8"], [0x10])
@@ -115,6 +116,9 @@ export const swapV4 = async ({
   const routerAddress = UNISWAP_V4_UNIVERSAL_ROUTER(chainId)
   if (!routerAddress) throw new Error('V4 Router address not found for chain')
 
+  const permit2Address = UNISWAP_V4_PERMIT2(chainId)
+  if (!permit2Address) throw new Error('Permit2 address not found for chain')
+
   const inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1
   const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
   const isInputNative = isNativeETH(inputCurrency)
@@ -154,8 +158,8 @@ export const swapV4 = async ({
     }
   }
 
-  // Step 2: Handle approvals for ERC20 inputs
-  // Note: V4Router uses direct ERC20 approvals to the router contract, NOT Permit2
+  // Step 2: Handle approvals for ERC20 inputs via Permit2
+  // V4 Universal Router requires Permit2 for ERC20 token approvals
   if (!isInputNative) {
     // Check balance
     const balance = await publicClient.readContract({
@@ -169,26 +173,52 @@ export const swapV4 = async ({
       throw new Error(`Insufficient token balance: have ${balance}, need ${amountIn}`)
     }
 
-    // Check and approve V4Router directly (not Permit2)
-    const routerAllowance = await publicClient.readContract({
+    // Step 2a: Approve Permit2 to spend input token
+    const permit2Allowance = await publicClient.readContract({
       address: inputCurrency,
       abi: erc20Abi,
       functionName: 'allowance',
-      args: [wallet.account.address, routerAddress],
+      args: [wallet.account.address, permit2Address],
     })
 
-    // Use max approval to save gas on future swaps
     const MAX_UINT256 = 2n ** 256n - 1n
-    if (routerAllowance < amountIn) {
+    if (permit2Allowance < amountIn) {
       const approveTx = await wallet.writeContract({
         address: inputCurrency,
         abi: erc20Abi,
         functionName: 'approve',
-        args: [routerAddress, MAX_UINT256],
+        args: [permit2Address, MAX_UINT256],
         account: wallet.account,
         chain: wallet.chain,
       })
       await publicClient.waitForTransactionReceipt({ hash: approveTx })
+    }
+
+    // Step 2b: Approve Universal Router via Permit2
+    const routerAllowance = await publicClient.readContract({
+      address: permit2Address,
+      abi: Permit2Abi,
+      functionName: 'allowance',
+      args: [wallet.account.address, inputCurrency, routerAddress],
+    })
+
+    // Check if allowance is sufficient and not expired
+    const currentTime = BigInt(Math.floor(Date.now() / 1000))
+    const MAX_UINT160 = 2n ** 160n - 1n
+    const needsApproval = routerAllowance[0] < amountIn || routerAllowance[1] < currentTime
+
+    if (needsApproval) {
+      // Approve with 30 days expiration (uint48)
+      const expirationBigInt = currentTime + BigInt(30 * 24 * 60 * 60)
+      const permit2ApproveTx = await wallet.writeContract({
+        address: permit2Address,
+        abi: Permit2Abi,
+        functionName: 'approve',
+        args: [inputCurrency, routerAddress, MAX_UINT160, Number(expirationBigInt)],
+        account: wallet.account,
+        chain: wallet.chain,
+      })
+      await publicClient.waitForTransactionReceipt({ hash: permit2ApproveTx })
     }
   }
 

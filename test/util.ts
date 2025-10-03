@@ -34,3 +34,23 @@ export const getWallet = () => {
     transport: getLocalAnvilTransport(),
   })
 }
+
+/**
+ * Warp anvil forward in time
+ * @param seconds Number of seconds to warp forward
+ */
+export const warpAnvil = async (seconds: number) => {
+  const publicClient = getPublicClient()
+
+  // Use evm_increaseTime to move forward in time
+  await publicClient.transport.request({
+    method: 'evm_increaseTime',
+    params: [seconds],
+  })
+
+  // Mine a new block to apply the time change
+  await publicClient.transport.request({
+    method: 'evm_mine',
+    params: [],
+  })
+}
