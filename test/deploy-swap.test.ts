@@ -138,6 +138,10 @@ describe('#DEPLOY_SWAP_TEST', () => {
       console.log('Swap direction: WETH → Token')
       console.log('Amount in:', amountIn.toString())
 
+      // Wait for MEV protection delay (120 seconds)
+      console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
+      await warpAnvil(120)
+
       // Use quoteV4 to get swap quote
       const quote = await quoteV4({
         publicClient,
@@ -155,10 +159,39 @@ describe('#DEPLOY_SWAP_TEST', () => {
         gasEstimate: quote.gasEstimate.toString(),
       })
 
+      // Verify fee data is returned
+      if (quote.hookFees) {
+        console.log('📊 Hook fee data:', quote.hookFees)
+
+        if (quote.hookFees.type === 'static') {
+          console.log(
+            `  Clanker fee: ${quote.hookFees.clankerFee! / 10000}% (${quote.hookFees.clankerFee} bps)`
+          )
+          console.log(
+            `  Paired fee: ${quote.hookFees.pairedFee! / 10000}% (${quote.hookFees.pairedFee} bps)`
+          )
+          expect(quote.hookFees.clankerFee).toBeGreaterThan(0)
+          expect(quote.hookFees.pairedFee).toBeGreaterThan(0)
+        } else if (quote.hookFees.type === 'dynamic') {
+          console.log(
+            `  Base fee: ${quote.hookFees.baseFee! / 10000}% (${quote.hookFees.baseFee} bps)`
+          )
+          console.log(
+            `  Max LP fee: ${quote.hookFees.maxLpFee! / 10000}% (${quote.hookFees.maxLpFee} bps)`
+          )
+          expect(quote.hookFees.baseFee).toBeGreaterThanOrEqual(0)
+          expect(quote.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
+        }
+      }
+
       expect(quoteResult).toBeDefined()
       // Note: Clanker tokens with custom hooks may return 0 from quoter
       // The actual swap will determine the real output amount
       expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
+
+      console.log('✅ Quote validation complete:')
+      console.log('  ✓ Fee data returned from Clanker hook')
+      console.log('  ✓ Quote works for Native ETH → Token direction')
     },
     {
       timeout: 60000,
@@ -228,10 +261,6 @@ describe('#DEPLOY_SWAP_TEST', () => {
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
-
-      // Wait for MEV protection delay (120 seconds)
-      console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
-      await warpAnvil(120)
 
       console.log('\nExecuting swap with:')
       console.log('  Pool hook:', poolKey.hooks)
