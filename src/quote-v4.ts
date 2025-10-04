@@ -32,7 +32,7 @@ export type QuoteV4ReturnType = {
 }
 
 /**
- * @description Try to get static fees from a Clanker hook
+ * @description Try to get static fees from a Clanker hook using multicall
  * @param publicClient Public client
  * @param hookAddress Hook address
  * @param poolId Pool ID
@@ -44,21 +44,30 @@ const tryGetStaticFees = async (
   poolId: `0x${string}`
 ): Promise<{ clankerFee: number; pairedFee: number } | undefined> => {
   try {
-    const [clankerFee, pairedFee] = await Promise.all([
-      publicClient.readContract({
-        address: hookAddress,
-        abi: IClankerHookStaticFee,
-        functionName: 'clankerFee',
-        args: [poolId],
-      }),
-      publicClient.readContract({
-        address: hookAddress,
-        abi: IClankerHookStaticFee,
-        functionName: 'pairedFee',
-        args: [poolId],
-      }),
-    ])
-    return { clankerFee: Number(clankerFee), pairedFee: Number(pairedFee) }
+    const results = await publicClient.multicall({
+      contracts: [
+        {
+          address: hookAddress,
+          abi: IClankerHookStaticFee,
+          functionName: 'clankerFee',
+          args: [poolId],
+        },
+        {
+          address: hookAddress,
+          abi: IClankerHookStaticFee,
+          functionName: 'pairedFee',
+          args: [poolId],
+        },
+      ],
+    })
+
+    if (results[0].status === 'success' && results[1].status === 'success') {
+      return {
+        clankerFee: Number(results[0].result),
+        pairedFee: Number(results[1].result),
+      }
+    }
+    return undefined
   } catch {
     return undefined
   }

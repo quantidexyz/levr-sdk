@@ -124,18 +124,45 @@ export const swapV4 = async ({
   const isInputNative = isNativeETH(inputCurrency)
   const isInputWETH = isWETH(inputCurrency, chainId)
 
-  // Step 1: Wrap ETH to WETH if needed
-  if (isInputWETH) {
-    // Check WETH balance
-    const wethBalance = await publicClient.readContract({
-      address: inputCurrency,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [wallet.account.address],
+  // Step 1 & 2: Batch all balance and allowance checks using multicall for efficiency
+  if (!isInputNative) {
+    // Use multicall to batch balance and allowance checks
+    const multicallResults = await publicClient.multicall({
+      contracts: [
+        // 0: Token balance
+        {
+          address: inputCurrency,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account.address],
+        },
+        // 1: Permit2 allowance
+        {
+          address: inputCurrency,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [wallet.account.address, permit2Address],
+        },
+        // 2: Router allowance via Permit2
+        {
+          address: permit2Address,
+          abi: Permit2Abi,
+          functionName: 'allowance',
+          args: [wallet.account.address, inputCurrency, routerAddress],
+        },
+      ],
     })
 
-    // If insufficient WETH, wrap some ETH
-    if (wethBalance < amountIn) {
+    const balance = multicallResults[0].status === 'success' ? multicallResults[0].result : 0n
+    const permit2Allowance =
+      multicallResults[1].status === 'success' ? multicallResults[1].result : 0n
+    const routerAllowance =
+      multicallResults[2].status === 'success'
+        ? multicallResults[2].result
+        : ([0n, 0n, 0n] as const)
+
+    // Step 1: Wrap ETH to WETH if needed
+    if (isInputWETH && balance < amountIn) {
       const wethAbi = [
         {
           inputs: [],
@@ -150,37 +177,20 @@ export const swapV4 = async ({
         address: inputCurrency,
         abi: wethAbi,
         functionName: 'deposit',
-        value: amountIn - wethBalance,
+        value: amountIn - balance,
         account: wallet.account,
         chain: wallet.chain,
       })
       await publicClient.waitForTransactionReceipt({ hash: wrapTx })
     }
-  }
 
-  // Step 2: Handle approvals for ERC20 inputs via Permit2
-  // V4 Universal Router requires Permit2 for ERC20 token approvals
-  if (!isInputNative) {
-    // Check balance
-    const balance = await publicClient.readContract({
-      address: inputCurrency,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [wallet.account.address],
-    })
-
-    if (balance < amountIn) {
-      throw new Error(`Insufficient token balance: have ${balance}, need ${amountIn}`)
+    // Verify sufficient balance (after potential wrapping)
+    const finalBalance = isInputWETH && balance < amountIn ? amountIn : balance
+    if (finalBalance < amountIn) {
+      throw new Error(`Insufficient token balance: have ${finalBalance}, need ${amountIn}`)
     }
 
-    // Step 2a: Approve Permit2 to spend input token
-    const permit2Allowance = await publicClient.readContract({
-      address: inputCurrency,
-      abi: erc20Abi,
-      functionName: 'allowance',
-      args: [wallet.account.address, permit2Address],
-    })
-
+    // Step 2a: Approve Permit2 to spend input token if needed
     const MAX_UINT256 = 2n ** 256n - 1n
     if (permit2Allowance < amountIn) {
       const approveTx = await wallet.writeContract({
@@ -194,15 +204,7 @@ export const swapV4 = async ({
       await publicClient.waitForTransactionReceipt({ hash: approveTx })
     }
 
-    // Step 2b: Approve Universal Router via Permit2
-    const routerAllowance = await publicClient.readContract({
-      address: permit2Address,
-      abi: Permit2Abi,
-      functionName: 'allowance',
-      args: [wallet.account.address, inputCurrency, routerAddress],
-    })
-
-    // Check if allowance is sufficient and not expired
+    // Step 2b: Approve Universal Router via Permit2 if needed
     const currentTime = BigInt(Math.floor(Date.now() / 1000))
     const MAX_UINT160 = 2n ** 160n - 1n
     const needsApproval = routerAllowance[0] < amountIn || routerAllowance[1] < currentTime
