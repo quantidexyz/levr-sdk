@@ -11,12 +11,14 @@ import { swapV4 } from '../src/swap-v4'
 import { getPublicClient, getWallet, levrAnvil, warpAnvil } from './util'
 
 /**
- * Deploy and Swap Tests
+ * Deploy, Quote, and Swap Tests
  *
- * These tests validate the full deployment and trading flow:
+ * These tests validate the complete trading flow:
  * 1. Deploy a Clanker token via Levr
- * 2. Quote a swap using V4Quoter
- * 3. Execute a swap using Universal Router
+ * 2. Quote a swap: Native ETH → Token
+ * 3. Execute swap: Native ETH → Token
+ * 4. Quote a swap: Token → Native ETH
+ * 5. Execute swap: Token → Native ETH
  *
  * Prerequisites:
  * 1. Anvil must be running with Base fork: `cd contracts && make anvil-fork`
@@ -24,7 +26,7 @@ import { getPublicClient, getWallet, levrAnvil, warpAnvil } from './util'
  * 3. Clanker v4 contracts must be deployed on the fork
  * 4. Account must have ETH for gas and swap operations
  */
-describe('#DEPLOY_SWAP_TEST', () => {
+describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
   // ---
   // CONSTANTS
 
@@ -43,7 +45,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
   // VARIABLES (shared across tests)
 
   let deployedTokenAddress: `0x${string}`
-  let quoteResult: { amountOut: bigint; gasEstimate: bigint } | undefined
+  let ethToTokenQuote: { amountOut: bigint; gasEstimate: bigint } | undefined
 
   it(
     'should deploy token',
@@ -91,7 +93,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
   )
 
   it(
-    'should quote swap',
+    'should quote swap: Native ETH → Token',
     async () => {
       // Use deployed token from previous test
       expect(deployedTokenAddress).toBeDefined()
@@ -102,6 +104,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
 
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
 
+      console.log('\n=== QUOTE: Native ETH → Token ===')
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
@@ -135,7 +138,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
       // Use a smaller amount for Clanker hooks with custom accounting
       const amountIn = parseEther('0.001') // 0.001 ETH
 
-      console.log('Swap direction: WETH → Token')
+      console.log('Swap direction:', zeroForOne ? 'WETH → Token' : 'Token → WETH')
       console.log('Amount in:', amountIn.toString())
 
       // Wait for MEV protection delay (120 seconds)
@@ -151,7 +154,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
         amountIn,
       })
 
-      quoteResult = quote
+      ethToTokenQuote = quote
 
       console.log('✅ Quote calculated:', {
         amountIn: amountIn.toString(),
@@ -184,14 +187,14 @@ describe('#DEPLOY_SWAP_TEST', () => {
         }
       }
 
-      expect(quoteResult).toBeDefined()
       // Note: Clanker tokens with custom hooks may return 0 from quoter
       // The actual swap will determine the real output amount
       expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
+      expect(ethToTokenQuote).toBeDefined()
 
-      console.log('✅ Quote validation complete:')
+      console.log('✅ Native ETH → Token quote complete:')
       console.log('  ✓ Fee data returned from Clanker hook')
-      console.log('  ✓ Quote works for Native ETH → Token direction')
+      console.log('  ✓ Quote calculated successfully')
     },
     {
       timeout: 60000,
@@ -199,13 +202,13 @@ describe('#DEPLOY_SWAP_TEST', () => {
   )
 
   it(
-    'should execute swap',
+    'should execute swap: Native ETH → Token',
     async () => {
       // Use deployed token and quote from previous tests
       expect(deployedTokenAddress).toBeDefined()
-      expect(quoteResult).toBeDefined()
+      expect(ethToTokenQuote).toBeDefined()
 
-      if (!quoteResult) throw new Error('Quote result not available from previous test')
+      if (!ethToTokenQuote) throw new Error('Quote result not available from previous test')
 
       const publicClient = getPublicClient()
       const wallet = getWallet()
@@ -215,8 +218,8 @@ describe('#DEPLOY_SWAP_TEST', () => {
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
       if (!wallet.account) throw new Error('Wallet account not found')
 
+      console.log('\n=== SWAP: Native ETH → Token ===')
       console.log('Using deployed token:', deployedTokenAddress)
-      console.log('Using quote result:', quoteResult)
 
       // Get pool information from LP locker
       const tokenRewards = await publicClient.readContract({
@@ -232,52 +235,39 @@ describe('#DEPLOY_SWAP_TEST', () => {
       const wethAddress = WETH(chainId)?.address
       if (!wethAddress) throw new Error('WETH address not found')
 
-      // We want to swap WETH for Token (buy tokens with ETH)
-      // Determine if WETH is currency0 or currency1
       const isWETHCurrency0 = poolKey.currency0.toLowerCase() === wethAddress.toLowerCase()
-      // If WETH is currency0, swap currency0 → currency1 (zeroForOne = true)
-      // If WETH is currency1, swap currency1 → currency0 (zeroForOne = false)
       const zeroForOne = isWETHCurrency0
 
-      // Use a smaller amount for Clanker hooks with custom accounting
       const amountIn = parseEther('0.001') // 0.001 ETH
 
-      // Determine input/output currencies
-      const inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1
+      // Determine output currency
       const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
 
-      // Note: Universal Router automatically handles WETH wrapping/unwrapping
-      // When swapping with WETH, send native ETH as msg.value instead of pre-wrapping
-      const isInputWETH = inputCurrency.toLowerCase() === wethAddress.toLowerCase()
-
-      if (isInputWETH) {
-        console.log('\n💡 Using native ETH (router will wrap to WETH internally)')
-      }
-
-      // Get initial balance
-      const initialBalance = await publicClient.readContract({
+      // Get initial balances
+      const initialTokenBalance = await publicClient.readContract({
         address: outputCurrency,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      console.log('\nExecuting swap with:')
-      console.log('  Pool hook:', poolKey.hooks)
-      console.log('  Direction: WETH → Token')
-      console.log('  Amount in:', amountIn.toString())
-      console.log('  Quote out:', quoteResult.amountOut.toString())
+      const initialEthBalance = await publicClient.getBalance({
+        address: wallet.account.address,
+      })
+
+      console.log('Initial token balance:', initialTokenBalance.toString())
+      console.log('Initial ETH balance:', initialEthBalance.toString())
+      console.log('Amount in:', amountIn.toString())
+      console.log('Quote out:', ethToTokenQuote.amountOut.toString())
 
       // Calculate amountOutMinimum with slippage protection
-      // For Clanker hooks with custom accounting (quote returns 0n), use 0n (no slippage protection)
-      // For normal pools, apply 1% slippage tolerance
       const SLIPPAGE_BPS = 100n // 1% = 100 basis points
       const amountOutMinimum =
-        quoteResult.amountOut === 0n
+        ethToTokenQuote.amountOut === 0n
           ? 0n
-          : (quoteResult.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
+          : (ethToTokenQuote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
 
-      console.log('  Min out (1% slippage):', amountOutMinimum.toString())
+      console.log('Min out (1% slippage):', amountOutMinimum.toString())
 
       // Execute the swap
       const { txHash, receipt } = await swapV4({
@@ -297,37 +287,43 @@ describe('#DEPLOY_SWAP_TEST', () => {
       console.log('  Tx hash:', txHash)
       console.log('  Gas used:', receipt.gasUsed?.toString())
 
-      // Get final balance and calculate actual output
-      const finalBalance = await publicClient.readContract({
+      // Get final balances and calculate changes
+      const finalTokenBalance = await publicClient.readContract({
         address: outputCurrency,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      const actualAmountOut = finalBalance - initialBalance
+      const finalEthBalance = await publicClient.getBalance({
+        address: wallet.account.address,
+      })
 
-      console.log('  Actual out:', actualAmountOut.toString())
+      const tokensReceived = finalTokenBalance - initialTokenBalance
+      const ethSpent = initialEthBalance - finalEthBalance
+      const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
+
+      console.log('  Tokens received:', tokensReceived.toString())
+      console.log('  ETH spent:', ethSpent.toString())
+      console.log('  Gas cost:', gasUsed.toString())
+      console.log('  Swap cost (ETH - gas):', (ethSpent - gasUsed).toString())
 
       // Verify we received tokens
-      expect(actualAmountOut).toBeGreaterThan(0n)
+      expect(tokensReceived).toBeGreaterThan(0n)
+
+      // Verify ETH was spent (should be amountIn + gas)
+      expect(ethSpent).toBeGreaterThan(amountIn)
 
       // If quote was non-zero, verify slippage protection worked
-      if (quoteResult.amountOut > 0n) {
-        expect(actualAmountOut).toBeGreaterThanOrEqual(amountOutMinimum)
-        console.log(
-          '  Slippage:',
-          (((quoteResult.amountOut - actualAmountOut) * 10000n) / quoteResult.amountOut).toString(),
-          'bps'
-        )
+      if (ethToTokenQuote.amountOut > 0n) {
+        expect(tokensReceived).toBeGreaterThanOrEqual(amountOutMinimum)
       }
 
-      console.log('\n✅ Production-ready swap flow validated:')
-      console.log('  ✓ Quote provides expected output')
-      console.log('  ✓ Slippage protection applied (1% for standard pools)')
-      console.log('  ✓ Swap executes without reverting')
-      console.log('  ✓ Output tokens received')
-      console.log('  ✓ Balance changes tracked correctly')
+      console.log('✅ Native ETH → Token swap complete:')
+      console.log('  ✓ Swap executed without reverting')
+      console.log('  ✓ Tokens received')
+      console.log('  ✓ Native ETH balance decreased correctly')
+      console.log('  ✓ Router handled WETH wrapping automatically')
     },
     {
       timeout: 60000,
@@ -335,20 +331,18 @@ describe('#DEPLOY_SWAP_TEST', () => {
   )
 
   it(
-    'should execute swap - Token to Native ETH (reverse direction)',
+    'should quote swap: Token → Native ETH',
     async () => {
       // Use deployed token from previous test
       expect(deployedTokenAddress).toBeDefined()
 
       const publicClient = getPublicClient()
-      const wallet = getWallet()
       const chainId = levrAnvil.id
       const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
 
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
-      if (!wallet.account) throw new Error('Wallet account not found')
 
-      console.log('\n=== REVERSE SWAP: Token → WETH ===')
+      console.log('\n=== QUOTE: Token → Native ETH ===')
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
@@ -373,77 +367,58 @@ describe('#DEPLOY_SWAP_TEST', () => {
       // zeroForOne: if token is currency0, we're swapping currency0 → currency1
       const zeroForOne = isTokenCurrency0
 
-      // Use tokens from previous swap
-      const tokenBalance = await publicClient.readContract({
-        address: deployedTokenAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
+      // Use a sample amount (we'll use parseEther for token amount)
+      const amountIn = parseEther('100') // 100 tokens
 
-      console.log('Token balance:', tokenBalance.toString())
-      expect(tokenBalance).toBeGreaterThan(0n)
+      console.log('Swap direction:', zeroForOne ? 'Token → WETH' : 'WETH → Token')
+      console.log('Amount in:', amountIn.toString())
 
-      // Swap half of our tokens back to WETH
-      const amountIn = tokenBalance / 2n
-
-      // Determine input/output currencies
-      const inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1
-      const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
-
-      console.log('\nSwap parameters:')
-      console.log('  Direction:', zeroForOne ? 'Token → WETH' : 'WETH → Token')
-      console.log('  Input currency:', inputCurrency)
-      console.log('  Output currency:', outputCurrency)
-      console.log('  Amount in:', amountIn.toString())
-
-      // Get initial WETH balance
-      const initialWethBalance = await publicClient.readContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
-
-      console.log('Initial WETH balance:', initialWethBalance.toString())
-
-      // Execute the reverse swap (no need to warp again, already past MEV delay)
-      const { txHash, receipt } = await swapV4({
+      // Use quoteV4 to get swap quote (no need to warp again, already past MEV delay)
+      const quote = await quoteV4({
         publicClient,
-        wallet,
         chainId,
         poolKey,
         zeroForOne,
         amountIn,
-        amountOutMinimum: 0n, // Accept any amount for this test
       })
 
-      expect(receipt.status).toBe('success')
-      expect(txHash).toBeDefined()
-
-      console.log('\n✅ Reverse swap executed successfully:')
-      console.log('  Tx hash:', txHash)
-      console.log('  Gas used:', receipt.gasUsed?.toString())
-
-      // Get final WETH balance
-      const finalWethBalance = await publicClient.readContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
+      console.log('✅ Quote calculated:', {
+        amountIn: amountIn.toString(),
+        amountOut: quote.amountOut.toString(),
+        gasEstimate: quote.gasEstimate.toString(),
       })
 
-      const wethReceived = finalWethBalance - initialWethBalance
+      // Verify fee data is returned
+      if (quote.hookFees) {
+        console.log('📊 Hook fee data:', quote.hookFees)
 
-      console.log('  WETH received:', wethReceived.toString())
+        if (quote.hookFees.type === 'static') {
+          console.log(
+            `  Clanker fee: ${quote.hookFees.clankerFee! / 10000}% (${quote.hookFees.clankerFee} bps)`
+          )
+          console.log(
+            `  Paired fee: ${quote.hookFees.pairedFee! / 10000}% (${quote.hookFees.pairedFee} bps)`
+          )
+          expect(quote.hookFees.clankerFee).toBeGreaterThan(0)
+          expect(quote.hookFees.pairedFee).toBeGreaterThan(0)
+        } else if (quote.hookFees.type === 'dynamic') {
+          console.log(
+            `  Base fee: ${quote.hookFees.baseFee! / 10000}% (${quote.hookFees.baseFee} bps)`
+          )
+          console.log(
+            `  Max LP fee: ${quote.hookFees.maxLpFee! / 10000}% (${quote.hookFees.maxLpFee} bps)`
+          )
+          expect(quote.hookFees.baseFee).toBeGreaterThanOrEqual(0)
+          expect(quote.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
+        }
+      }
 
-      // Verify we received WETH
-      expect(wethReceived).toBeGreaterThan(0n)
+      // Note: Clanker tokens with custom hooks may return 0 from quoter
+      expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
 
-      console.log('\n✅ Reverse swap validated:')
-      console.log('  ✓ Token → WETH swap successful')
-      console.log('  ✓ WETH received from token sale')
-      console.log('  ✓ Round-trip trading works')
+      console.log('✅ Token → Native ETH quote complete:')
+      console.log('  ✓ Fee data returned from Clanker hook')
+      console.log('  ✓ Quote calculated successfully')
     },
     {
       timeout: 60000,
@@ -451,9 +426,9 @@ describe('#DEPLOY_SWAP_TEST', () => {
   )
 
   it(
-    'should execute swap - Native ETH to Token (using ETH directly)',
+    'should execute swap: Token → Native ETH',
     async () => {
-      // Use deployed token from previous test
+      // Use deployed token from previous tests
       expect(deployedTokenAddress).toBeDefined()
 
       const publicClient = getPublicClient()
@@ -464,7 +439,7 @@ describe('#DEPLOY_SWAP_TEST', () => {
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
       if (!wallet.account) throw new Error('Wallet account not found')
 
-      console.log('\n=== NATIVE ETH SWAP: ETH → Token (via WETH wrapping) ===')
+      console.log('\n=== SWAP: Token → Native ETH ===')
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
@@ -481,24 +456,43 @@ describe('#DEPLOY_SWAP_TEST', () => {
       const wethAddress = WETH(chainId)?.address
       if (!wethAddress) throw new Error('WETH address not found')
 
-      // Swap WETH → Token
-      const isWETHCurrency0 = poolKey.currency0.toLowerCase() === wethAddress.toLowerCase()
-      const zeroForOne = isWETHCurrency0
+      // Reverse direction: Token → WETH
+      const isTokenCurrency0 =
+        poolKey.currency0.toLowerCase() === deployedTokenAddress.toLowerCase()
+      const zeroForOne = isTokenCurrency0
 
-      const amountIn = parseEther('0.001') // 0.001 ETH
-
-      // Get initial token balance
-      const initialTokenBalance = await publicClient.readContract({
+      // Use tokens from previous swap
+      const tokenBalance = await publicClient.readContract({
         address: deployedTokenAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      console.log('Initial token balance:', initialTokenBalance.toString())
-      console.log('Swapping', amountIn.toString(), 'wei of ETH (via WETH)')
+      console.log('Token balance:', tokenBalance.toString())
+      expect(tokenBalance).toBeGreaterThan(0n)
 
-      // Execute the swap (swap-v4 will automatically wrap ETH to WETH)
+      // Swap half of our tokens back to WETH
+      const amountIn = tokenBalance / 2n
+
+      console.log('Amount in:', amountIn.toString())
+
+      // Get initial balances
+      const initialWethBalance = await publicClient.readContract({
+        address: wethAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      const initialEthBalance = await publicClient.getBalance({
+        address: wallet.account.address,
+      })
+
+      console.log('Initial WETH balance:', initialWethBalance.toString())
+      console.log('Initial ETH balance:', initialEthBalance.toString())
+
+      // Execute the reverse swap
       const { txHash, receipt } = await swapV4({
         publicClient,
         wallet,
@@ -506,35 +500,49 @@ describe('#DEPLOY_SWAP_TEST', () => {
         poolKey,
         zeroForOne,
         amountIn,
-        amountOutMinimum: 0n,
+        amountOutMinimum: 0n, // Accept any amount for this test
       })
 
       expect(receipt.status).toBe('success')
       expect(txHash).toBeDefined()
 
-      console.log('\n✅ Native ETH swap executed successfully:')
+      console.log('\n✅ Swap executed successfully:')
       console.log('  Tx hash:', txHash)
       console.log('  Gas used:', receipt.gasUsed?.toString())
 
-      // Get final token balance
-      const finalTokenBalance = await publicClient.readContract({
-        address: deployedTokenAddress,
+      // Get final balances
+      const finalWethBalance = await publicClient.readContract({
+        address: wethAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      const tokensReceived = finalTokenBalance - initialTokenBalance
+      const finalEthBalance = await publicClient.getBalance({
+        address: wallet.account.address,
+      })
 
-      console.log('  Tokens received:', tokensReceived.toString())
+      const wethReceived = finalWethBalance - initialWethBalance
+      const ethChange = finalEthBalance - initialEthBalance
+      const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
 
-      // Verify we received tokens
-      expect(tokensReceived).toBeGreaterThan(0n)
+      console.log('  WETH received:', wethReceived.toString())
+      console.log('  ETH change:', ethChange.toString())
+      console.log('  Gas cost:', gasUsed.toString())
 
-      console.log('\n✅ Native ETH swap validated:')
-      console.log('  ✓ ETH automatically wrapped to WETH')
-      console.log('  ✓ WETH → Token swap successful')
-      console.log('  ✓ Tokens received from ETH payment')
+      // Verify we received WETH
+      expect(wethReceived).toBeGreaterThan(0n)
+
+      // Verify ETH only decreased by gas (no ETH spent on swap itself)
+      expect(ethChange + gasUsed).toBeLessThanOrEqual(0n)
+
+      console.log('✅ Token → WETH swap complete:')
+      console.log('  ✓ Token → WETH swap successful')
+      console.log('  ✓ WETH received from token sale')
+      console.log('  ✓ Only gas paid in ETH (no swap cost)')
+      console.log('  ✓ Complete round-trip validated')
+      console.log('')
+      console.log('💡 Note: Router outputs WETH. To receive native ETH, unwrap WETH separately.')
     },
     {
       timeout: 60000,

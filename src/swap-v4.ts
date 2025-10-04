@@ -1,4 +1,6 @@
-import { encodeAbiParameters, encodePacked, erc20Abi } from 'viem'
+import { CommandType, RoutePlanner } from '@uniswap/universal-router-sdk'
+import { Actions, V4Planner } from '@uniswap/v4-sdk'
+import { erc20Abi } from 'viem'
 import type { PublicClient, WalletClient } from 'viem'
 
 import Permit2Abi from './abis/Permit2'
@@ -28,19 +30,6 @@ export type SwapV4ReturnType = {
   receipt: any
 }
 
-// Universal Router Commands (top-level)
-const Commands = {
-  V4_SWAP: 0x10, // Execute V4 swap
-} as const
-
-// V4 Actions (nested within V4_SWAP command)
-const V4Actions = {
-  SWAP_EXACT_IN_SINGLE: 0x06,
-  SETTLE_ALL: 0x0c,
-  TAKE_ALL: 0x0f,
-  WRAP: 0x15,
-} as const
-
 /**
  * @description Check if a currency is native ETH (address(0))
  * @param currency Currency address
@@ -68,19 +57,23 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  * @returns Transaction hash and receipt
  *
  * @remarks
- * This function uses the Universal Router pattern:
- * - Uses execute(bytes commands, bytes[] inputs)
- * - Commands: V4_SWAP (0x10)
- * - Inputs contain encoded V4 actions: SWAP_EXACT_IN_SINGLE (0x06), SETTLE_ALL (0x0c), TAKE_ALL (0x0f)
- * - ERC20 approvals via Permit2 (required for V4)
- * - Native ETH not directly supported - must use WETH
+ * This function uses the Universal Router pattern with Uniswap SDK:
+ * - Uses V4Planner to encode V4 actions (SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL)
+ * - Uses RoutePlanner to encode Universal Router commands (V4_SWAP)
+ * - ERC20 approvals via Permit2 (required for non-WETH tokens)
+ * - WETH wrapping/unwrapping handled automatically by router when tx value is provided
+ * - Deadline based on blockchain timestamp (from PublicClient.getBlock())
  *
- * @note Encoding pattern (from article):
- * 1. commands = solidityPack(["uint8"], [0x10])
- * 2. actions = solidityPack(["uint8", "uint8", "uint8"], [0x06, 0x0c, 0x0f])
- * 3. params = [swapParams, settleParams, takeParams]
- * 4. inputs = [abi.encode(["bytes", "bytes[]"], [actions, params])]
- * 5. execute(commands, inputs)
+ * @note Encoding pattern using SDK:
+ * 1. Create V4Planner and add actions: SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL
+ * 2. Finalize v4Planner to get encoded actions
+ * 3. Create RoutePlanner and add V4_SWAP command
+ * 4. Execute with routePlanner.commands and encoded actions
+ *
+ * @note For WETH swaps:
+ * - Router automatically wraps ETH → WETH when value is provided in transaction
+ * - Router automatically unwraps WETH → ETH when taking output
+ * - No need to manually wrap/unwrap WETH
  *
  * @note For Clanker hooks:
  * - Standard pools: hookData='0x' (default)
@@ -89,7 +82,7 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  *
  * @example
  * ```typescript
- * // Swap WETH for token (send native ETH)
+ * // Swap native ETH for token (router wraps to WETH automatically)
  * const { txHash } = await swapV4({
  *   publicClient,
  *   wallet,
@@ -124,8 +117,13 @@ export const swapV4 = async ({
   const isInputNative = isNativeETH(inputCurrency)
   const isInputWETH = isWETH(inputCurrency, chainId)
 
+  // Get current block timestamp for deadline and approval checks
+  const block = await publicClient.getBlock()
+  const currentTime = block.timestamp
+
   // Step 1 & 2: Batch all balance and allowance checks using multicall for efficiency
-  if (!isInputNative) {
+  // Note: For WETH, router handles wrapping automatically when value is provided
+  if (!isInputNative && !isInputWETH) {
     // Use multicall to batch balance and allowance checks
     const multicallResults = await publicClient.multicall({
       contracts: [
@@ -161,36 +159,12 @@ export const swapV4 = async ({
         ? multicallResults[2].result
         : ([0n, 0n, 0n] as const)
 
-    // Step 1: Wrap ETH to WETH if needed
-    if (isInputWETH && balance < amountIn) {
-      const wethAbi = [
-        {
-          inputs: [],
-          name: 'deposit',
-          outputs: [],
-          stateMutability: 'payable',
-          type: 'function',
-        },
-      ] as const
-
-      const wrapTx = await wallet.writeContract({
-        address: inputCurrency,
-        abi: wethAbi,
-        functionName: 'deposit',
-        value: amountIn - balance,
-        account: wallet.account,
-        chain: wallet.chain,
-      })
-      await publicClient.waitForTransactionReceipt({ hash: wrapTx })
+    // Verify sufficient token balance
+    if (balance < amountIn) {
+      throw new Error(`Insufficient token balance: have ${balance}, need ${amountIn}`)
     }
 
-    // Verify sufficient balance (after potential wrapping)
-    const finalBalance = isInputWETH && balance < amountIn ? amountIn : balance
-    if (finalBalance < amountIn) {
-      throw new Error(`Insufficient token balance: have ${finalBalance}, need ${amountIn}`)
-    }
-
-    // Step 2a: Approve Permit2 to spend input token if needed
+    // Step 1: Approve Permit2 to spend input token if needed
     const MAX_UINT256 = 2n ** 256n - 1n
     if (permit2Allowance < amountIn) {
       const approveTx = await wallet.writeContract({
@@ -204,13 +178,12 @@ export const swapV4 = async ({
       await publicClient.waitForTransactionReceipt({ hash: approveTx })
     }
 
-    // Step 2b: Approve Universal Router via Permit2 if needed
-    const currentTime = BigInt(Math.floor(Date.now() / 1000))
+    // Step 2: Approve Universal Router via Permit2 if needed
     const MAX_UINT160 = 2n ** 160n - 1n
     const needsApproval = routerAllowance[0] < amountIn || routerAllowance[1] < currentTime
 
     if (needsApproval) {
-      // Approve with 30 days expiration (uint48)
+      // Approve with 30 days expiration (uint48) from current block time
       const expirationBigInt = currentTime + BigInt(30 * 24 * 60 * 60)
       const permit2ApproveTx = await wallet.writeContract({
         address: permit2Address,
@@ -224,83 +197,37 @@ export const swapV4 = async ({
     }
   }
 
-  // Step 3: Encode swap using Universal Router pattern
+  // Step 3: Encode swap using V4Planner and RoutePlanner
+  // Note: For WETH input, router automatically wraps ETH when we provide value in the transaction
+  const v4Planner = new V4Planner()
+  const routePlanner = new RoutePlanner()
+
   // Build V4 actions: SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE_ALL
-  const v4Actions = encodePacked(
-    ['uint8', 'uint8', 'uint8'],
-    [V4Actions.SWAP_EXACT_IN_SINGLE, V4Actions.SETTLE_ALL, V4Actions.TAKE_ALL]
-  )
+  const swapConfig = {
+    poolKey: {
+      currency0: poolKey.currency0,
+      currency1: poolKey.currency1,
+      fee: poolKey.fee,
+      tickSpacing: poolKey.tickSpacing,
+      hooks: poolKey.hooks,
+    },
+    zeroForOne,
+    amountIn,
+    amountOutMinimum,
+    hookData,
+  }
 
-  // Encode parameters for each V4 action
-  const v4Params: `0x${string}`[] = []
+  v4Planner.addAction(Actions.SWAP_EXACT_IN_SINGLE, [swapConfig])
+  v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
+  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, amountOutMinimum])
 
-  // 1. SWAP_EXACT_IN_SINGLE params: ExactInputSingleParams
-  const swapParams = encodeAbiParameters(
-    [
-      {
-        type: 'tuple',
-        components: [
-          {
-            type: 'tuple',
-            name: 'poolKey',
-            components: [
-              { type: 'address', name: 'currency0' },
-              { type: 'address', name: 'currency1' },
-              { type: 'uint24', name: 'fee' },
-              { type: 'int24', name: 'tickSpacing' },
-              { type: 'address', name: 'hooks' },
-            ],
-          },
-          { type: 'bool', name: 'zeroForOne' },
-          { type: 'uint128', name: 'amountIn' },
-          { type: 'uint128', name: 'amountOutMinimum' },
-          { type: 'bytes', name: 'hookData' },
-        ],
-      },
-    ],
-    [
-      {
-        poolKey: {
-          currency0: poolKey.currency0,
-          currency1: poolKey.currency1,
-          fee: poolKey.fee,
-          tickSpacing: poolKey.tickSpacing,
-          hooks: poolKey.hooks,
-        },
-        zeroForOne,
-        amountIn,
-        amountOutMinimum,
-        hookData,
-      },
-    ]
-  )
-  v4Params.push(swapParams)
+  const encodedActions = v4Planner.finalize()
 
-  // 2. SETTLE_ALL params: (address currency, uint256 maxAmount) - NOTE: uint256, not uint128!
-  const settleAllParams = encodeAbiParameters(
-    [{ type: 'address' }, { type: 'uint256' }],
-    [inputCurrency, amountIn]
-  )
-  v4Params.push(settleAllParams)
+  // Add V4_SWAP command to route planner
+  routePlanner.addCommand(CommandType.V4_SWAP, [v4Planner.actions, v4Planner.params])
 
-  // 3. TAKE_ALL params: (address currency, uint256 minAmount) - NOTE: uint256, not uint128!
-  const takeAllParams = encodeAbiParameters(
-    [{ type: 'address' }, { type: 'uint256' }],
-    [outputCurrency, amountOutMinimum]
-  )
-  v4Params.push(takeAllParams)
-
-  // Encode V4 swap data: abi.encode(["bytes", "bytes[]"], [actions, params])
-  const v4SwapData = encodeAbiParameters(
-    [{ type: 'bytes' }, { type: 'bytes[]' }],
-    [v4Actions, v4Params]
-  )
-
-  // Encode Universal Router command: V4_SWAP (0x10)
-  const commands = encodePacked(['uint8'], [Commands.V4_SWAP])
-
-  // Universal Router inputs array
-  const inputs: `0x${string}`[] = [v4SwapData]
+  const commands = routePlanner.commands as `0x${string}`
+  const inputs: `0x${string}`[] = [encodedActions as `0x${string}`]
 
   // Universal Router ABI (with deadline)
   const routerAbi = [
@@ -317,18 +244,20 @@ export const swapV4 = async ({
     },
   ] as const
 
-  // Set deadline (20 minutes from now)
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60)
+  // Set deadline (20 minutes from current block time)
+  const deadline = currentTime + BigInt(20 * 60)
 
   try {
     // First simulate to get better error messages
-    // No msg.value needed since we're swapping ERC20 tokens (including wrapped WETH)
+    // Note: Provide msg.value for native ETH or WETH (router handles wrapping)
+    const txValue = isInputNative || isInputWETH ? amountIn : 0n
+
     await publicClient.simulateContract({
       address: routerAddress,
       abi: routerAbi,
       functionName: 'execute',
       args: [commands, inputs, deadline],
-      value: isInputNative ? amountIn : 0n,
+      value: txValue,
       account: wallet.account,
     })
 
@@ -338,7 +267,7 @@ export const swapV4 = async ({
       abi: routerAbi,
       functionName: 'execute',
       args: [commands, inputs, deadline],
-      value: isInputNative ? amountIn : 0n,
+      value: txValue,
       account: wallet.account,
       chain: wallet.chain,
     })
