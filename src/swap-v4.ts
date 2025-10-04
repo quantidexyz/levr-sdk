@@ -71,9 +71,9 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  * 4. Execute with routePlanner.commands and encoded actions
  *
  * @note For WETH swaps:
- * - Router automatically wraps ETH → WETH when value is provided in transaction
- * - Router automatically unwraps WETH → ETH when taking output
- * - No need to manually wrap/unwrap WETH
+ * - Input: Router automatically wraps ETH → WETH when value is provided in transaction
+ * - Output: Router automatically unwraps WETH → ETH using UNWRAP action
+ * - No need to manually wrap/unwrap WETH before/after swap
  *
  * @note For Clanker hooks:
  * - Standard pools: hookData='0x' (default)
@@ -82,7 +82,7 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  *
  * @example
  * ```typescript
- * // Swap native ETH for token (router wraps to WETH automatically)
+ * // Example 1: Swap native ETH for token (router wraps to WETH automatically)
  * const { txHash } = await swapV4({
  *   publicClient,
  *   wallet,
@@ -90,6 +90,17 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  *   poolKey,
  *   zeroForOne: true,  // currency0 (WETH) → currency1 (token)
  *   amountIn: parseEther('0.01'),
+ *   amountOutMinimum: 0n,
+ * })
+ *
+ * // Example 2: Swap token for native ETH (router unwraps WETH automatically)
+ * const { txHash } = await swapV4({
+ *   publicClient,
+ *   wallet,
+ *   chainId: base.id,
+ *   poolKey,
+ *   zeroForOne: false,  // currency1 (token) → currency0 (WETH) → native ETH
+ *   amountIn: parseUnits('100', 18),
  *   amountOutMinimum: 0n,
  * })
  * ```
@@ -116,6 +127,7 @@ export const swapV4 = async ({
   const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
   const isInputNative = isNativeETH(inputCurrency)
   const isInputWETH = isWETH(inputCurrency, chainId)
+  const isOutputWETH = isWETH(outputCurrency, chainId)
 
   // Get current block timestamp for deadline and approval checks
   const block = await publicClient.getBlock()
@@ -224,10 +236,14 @@ export const swapV4 = async ({
   const encodedActions = v4Planner.finalize()
 
   // Add V4_SWAP command to route planner
-  routePlanner.addCommand(CommandType.V4_SWAP, [v4Planner.actions, v4Planner.params])
+  routePlanner.addCommand(CommandType.V4_SWAP, [encodedActions])
+  // If output is WETH, unwrap it to native ETH
+  if (isOutputWETH) {
+    routePlanner.addCommand(CommandType.UNWRAP_WETH, [wallet.account.address, amountOutMinimum])
+  }
 
   const commands = routePlanner.commands as `0x${string}`
-  const inputs: `0x${string}`[] = [encodedActions as `0x${string}`]
+  const inputs = routePlanner.inputs as `0x${string}`[]
 
   // Universal Router ABI (with deadline)
   const routerAbi = [

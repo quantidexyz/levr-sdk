@@ -439,7 +439,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
       if (!wallet.account) throw new Error('Wallet account not found')
 
-      console.log('\n=== SWAP: Token → Native ETH ===')
+      console.log('\n=== SWAP: Token → Native ETH (with automatic WETH unwrap) ===')
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
@@ -477,19 +477,11 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
 
       console.log('Amount in:', amountIn.toString())
 
-      // Get initial balances
-      const initialWethBalance = await publicClient.readContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
-
+      // Get initial ETH balance (router will unwrap WETH to native ETH)
       const initialEthBalance = await publicClient.getBalance({
         address: wallet.account.address,
       })
 
-      console.log('Initial WETH balance:', initialWethBalance.toString())
       console.log('Initial ETH balance:', initialEthBalance.toString())
 
       // Execute the reverse swap
@@ -510,39 +502,28 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       console.log('  Tx hash:', txHash)
       console.log('  Gas used:', receipt.gasUsed?.toString())
 
-      // Get final balances
-      const finalWethBalance = await publicClient.readContract({
-        address: wethAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
-
+      // Get final ETH balance
       const finalEthBalance = await publicClient.getBalance({
         address: wallet.account.address,
       })
 
-      const wethReceived = finalWethBalance - initialWethBalance
       const ethChange = finalEthBalance - initialEthBalance
       const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
+      const ethReceived = ethChange + gasUsed // Add back gas to get actual ETH received from swap
 
-      console.log('  WETH received:', wethReceived.toString())
       console.log('  ETH change:', ethChange.toString())
       console.log('  Gas cost:', gasUsed.toString())
+      console.log('  ETH received (excluding gas):', ethReceived.toString())
 
-      // Verify we received WETH
-      expect(wethReceived).toBeGreaterThan(0n)
+      // Verify we received ETH (accounting for gas costs)
+      // ethChange should be positive minus gas, meaning we got more ETH than we spent on gas
+      expect(ethReceived).toBeGreaterThan(0n)
 
-      // Verify ETH only decreased by gas (no ETH spent on swap itself)
-      expect(ethChange + gasUsed).toBeLessThanOrEqual(0n)
-
-      console.log('✅ Token → WETH swap complete:')
-      console.log('  ✓ Token → WETH swap successful')
-      console.log('  ✓ WETH received from token sale')
-      console.log('  ✓ Only gas paid in ETH (no swap cost)')
+      console.log('✅ Token → Native ETH swap complete:')
+      console.log('  ✓ Token → WETH → ETH swap successful')
+      console.log('  ✓ Native ETH received from token sale')
+      console.log('  ✓ Router handled WETH unwrapping automatically')
       console.log('  ✓ Complete round-trip validated')
-      console.log('')
-      console.log('💡 Note: Router outputs WETH. To receive native ETH, unwrap WETH separately.')
     },
     {
       timeout: 60000,
