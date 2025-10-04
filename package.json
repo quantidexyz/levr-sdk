@@ -23,6 +23,7 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "lint": "eslint .",
     "fill-placeholders": "sh ./script/fill-placeholders.sh",
+    "warp": "bun -e \"import { warpAnvil } from './test/util.ts'; await warpAnvil(120)\"",
     "build": "bun build:esm && bun build:types",
     "build:esm": "tsc --project ./tsconfig.esm.json && tsc-alias --outDir ./dist/esm && ts-add-js-extension --dir=dist/esm --showprogress=false",
     "build:types": "tsc --project ./tsconfig.types.json && tsc-alias --outDir ./dist/types",

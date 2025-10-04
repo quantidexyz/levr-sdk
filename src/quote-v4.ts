@@ -232,6 +232,32 @@ export const quoteV4 = async ({
     // return 0 amounts but include fee information for reference
     const hookFees = await hookFeesPromise
 
+    // Check for MEV protection error (0x486aa307 = MevModuleEnabled())
+    const isMevProtection = error?.cause?.data?.args?.[0] === '0x486aa307'
+
+    // Log error details for debugging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('QuoteV4 Error:', {
+        message: error.message,
+        cause: error.cause,
+        isMevProtection,
+        poolKey,
+        zeroForOne,
+        amountIn: amountIn.toString(),
+        quoterAddress,
+      })
+    }
+
+    // Re-throw MEV protection errors so they can be handled in the UI
+    if (isMevProtection) {
+      const mevError = new Error(
+        'MEV protection is active. Trading will be enabled 120 seconds after pool creation.'
+      )
+      ;(mevError as any).code = 'MEV_PROTECTION_ACTIVE'
+      ;(mevError as any).originalError = error
+      throw mevError
+    }
+
     return {
       amountOut: 0n,
       gasEstimate: 0n,
