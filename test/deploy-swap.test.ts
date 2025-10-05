@@ -98,7 +98,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
     }
   )
 
-  it.skip(
+  it(
     'should quote and execute swap: Native ETH → Token',
     async () => {
       // Use deployed token from previous test

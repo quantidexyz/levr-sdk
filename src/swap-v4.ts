@@ -129,7 +129,7 @@ export const swapV4 = async ({
   const currentTime = block.timestamp
 
   // Step 1 & 2: Approvals required for all ERC20 tokens including WETH
-  // Note: Even when sending native ETH via msg.value, router needs Permit2 approval
+  // Note: Even when sending native ETH via msg.value for WETH swaps, router needs Permit2 approval
   // because it wraps ETH to WETH and uses Permit2 to transfer into PoolManager
   if (!isInputNative) {
     // Use multicall to batch balance and allowance checks
@@ -167,8 +167,9 @@ export const swapV4 = async ({
         ? multicallResults[2].result
         : ([0n, 0n, 0n] as const)
 
-    // Verify sufficient token balance
-    if (balance < amountIn) {
+    // Verify sufficient token balance (skip check for WETH when using msg.value)
+    // When isInputWETH=true, we send native ETH as msg.value which router wraps automatically
+    if (!isInputWETH && balance < amountIn) {
       throw new Error(`Insufficient token balance: have ${balance}, need ${amountIn}`)
     }
 
