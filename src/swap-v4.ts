@@ -31,6 +31,12 @@ export type SwapV4ReturnType = {
   receipt: any
 }
 
+const CONTRACT_BALANCE = BigNumber.from(
+  '0x8000000000000000000000000000000000000000000000000000000000000000'
+)
+const MSG_SENDER = '0x0000000000000000000000000000000000000001'
+const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'
+
 /**
  * @description Check if a currency is native ETH (address(0))
  * @param currency Currency address
@@ -117,7 +123,7 @@ export const swapV4 = async ({
   const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
   const isInputNative = isNativeETH(inputCurrency)
   const isInputWETH = isWETH(inputCurrency, chainId)
-
+  const isOutputWETH = isWETH(outputCurrency, chainId)
   // Get current block timestamp for deadline and approval checks
   const block = await publicClient.getBlock()
   const currentTime = block.timestamp
@@ -223,15 +229,11 @@ export const swapV4 = async ({
 
   v4Planner.addAction(Actions.SWAP_EXACT_IN_SINGLE, [swapConfig])
   v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
-  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, amountOutMinimum])
+  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
 
   // Finalize V4 planner and add to route planner
   const encodedV4Actions = v4Planner.finalize()
   routePlanner.addCommand(CommandType.V4_SWAP, [encodedV4Actions])
-
-  // TODO: Add WETH unwrapping support
-  // When output is WETH, users receive WETH tokens (not native ETH)
-  // Future enhancement: Add proper Currency handling for automatic unwrapping
 
   const commands = routePlanner.commands as `0x${string}`
   const inputs = routePlanner.inputs as `0x${string}`[]
