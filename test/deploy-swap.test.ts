@@ -46,6 +46,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
 
   let deployedTokenAddress: `0x${string}`
   let ethToTokenQuote: { amountOut: bigint; gasEstimate: bigint } | undefined
+  let tokenToEthQuote: { amountOut: bigint; gasEstimate: bigint } | undefined
 
   it(
     'should deploy token',
@@ -337,6 +338,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       expect(deployedTokenAddress).toBeDefined()
 
       const publicClient = getPublicClient()
+      const wallet = getWallet()
       const chainId = levrAnvil.id
       const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
 
@@ -368,7 +370,13 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       const zeroForOne = isTokenCurrency0
 
       // Use a sample amount (we'll use parseEther for token amount)
-      const amountIn = parseEther('100') // 100 tokens
+      const tokenBalance = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+      const amountIn = tokenBalance / 2n
 
       console.log('Swap direction:', zeroForOne ? 'Token → WETH' : 'WETH → Token')
       console.log('Amount in:', amountIn.toString())
@@ -381,6 +389,8 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         zeroForOne,
         amountIn,
       })
+
+      tokenToEthQuote = quote
 
       console.log('✅ Quote calculated:', {
         amountIn: amountIn.toString(),
@@ -430,6 +440,9 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
     async () => {
       // Use deployed token from previous tests
       expect(deployedTokenAddress).toBeDefined()
+      expect(tokenToEthQuote).toBeDefined()
+
+      if (!tokenToEthQuote) throw new Error('Quote result not available from previous test')
 
       const publicClient = getPublicClient()
       const wallet = getWallet()
@@ -484,6 +497,13 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
 
       console.log('Initial ETH balance:', initialEthBalance.toString())
 
+      // Calculate amountOutMinimum with slippage protection
+      const SLIPPAGE_BPS = 100n // 1% = 100 basis points
+      const amountOutMinimum =
+        tokenToEthQuote.amountOut === 0n
+          ? 0n
+          : (tokenToEthQuote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
+
       // Execute the reverse swap
       const { txHash, receipt } = await swapV4({
         publicClient,
@@ -492,7 +512,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         poolKey,
         zeroForOne,
         amountIn,
-        amountOutMinimum: 0n, // Accept any amount for this test
+        amountOutMinimum,
       })
 
       expect(receipt.status).toBe('success')

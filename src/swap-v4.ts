@@ -30,6 +30,14 @@ export type SwapV4ReturnType = {
   receipt: any
 }
 
+const ADDRESS_THIS = '0x0000000000000000000000000000000000000002' as `0x${string}`
+
+/**
+ * @description Special constant used by Universal Router to indicate "use all available balance"
+ * @remarks This is 2^255, used for commands like UNWRAP_WETH to unwrap all WETH in the router
+ */
+const CONTRACT_BALANCE = 2n ** 255n
+
 /**
  * @description Check if a currency is native ETH (address(0))
  * @param currency Currency address
@@ -59,20 +67,23 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
  * @remarks
  * This function uses the Universal Router pattern with Uniswap SDK:
  * - Uses V4Planner to encode V4 actions (SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL)
- * - Uses RoutePlanner to encode Universal Router commands (V4_SWAP)
+ * - Uses RoutePlanner to encode Universal Router commands (V4_SWAP, UNWRAP_WETH)
  * - ERC20 approvals via Permit2 (required for non-WETH tokens)
  * - WETH wrapping/unwrapping handled automatically by router when tx value is provided
  * - Deadline based on blockchain timestamp (from PublicClient.getBlock())
  *
  * @note Encoding pattern using SDK:
- * 1. Create V4Planner and add actions: SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL
+ * 1. Create V4Planner and add actions: SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE/TAKE_ALL
+ *    - Use TAKE with ADDRESS_THIS when unwrapping WETH (keeps tokens in router)
+ *    - Use TAKE_ALL for direct token transfers to user
  * 2. Finalize v4Planner to get encoded actions
- * 3. Create RoutePlanner and add V4_SWAP command
+ * 3. Create RoutePlanner and add V4_SWAP command (and UNWRAP_WETH for native ETH output)
  * 4. Execute with routePlanner.commands and encoded actions
  *
  * @note For WETH swaps:
  * - Input: Router automatically wraps ETH → WETH when value is provided in transaction
- * - Output: Router automatically unwraps WETH → ETH using UNWRAP action
+ * - Output: Router automatically unwraps WETH → ETH using UNWRAP_WETH command after V4_SWAP
+ * - TAKE action takes WETH to router (ADDRESS_THIS), then UNWRAP_WETH unwraps to user
  * - No need to manually wrap/unwrap WETH before/after swap
  *
  * @note For Clanker hooks:
@@ -214,7 +225,7 @@ export const swapV4 = async ({
   const v4Planner = new V4Planner()
   const routePlanner = new RoutePlanner()
 
-  // Build V4 actions: SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE_ALL
+  // Build V4 actions: SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE/TAKE_ALL
   const swapConfig = {
     poolKey: {
       currency0: poolKey.currency0,
@@ -231,16 +242,12 @@ export const swapV4 = async ({
 
   v4Planner.addAction(Actions.SWAP_EXACT_IN_SINGLE, [swapConfig])
   v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
-  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, amountOutMinimum])
+  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
 
   const encodedActions = v4Planner.finalize()
 
   // Add V4_SWAP command to route planner
   routePlanner.addCommand(CommandType.V4_SWAP, [encodedActions])
-  // If output is WETH, unwrap it to native ETH
-  if (isOutputWETH) {
-    routePlanner.addCommand(CommandType.UNWRAP_WETH, [wallet.account.address, amountOutMinimum])
-  }
 
   const commands = routePlanner.commands as `0x${string}`
   const inputs = routePlanner.inputs as `0x${string}`[]
@@ -268,23 +275,20 @@ export const swapV4 = async ({
     // Note: Provide msg.value for native ETH or WETH (router handles wrapping)
     const txValue = isInputNative || isInputWETH ? amountIn : 0n
 
-    await publicClient.simulateContract({
+    const params = {
       address: routerAddress,
       abi: routerAbi,
       functionName: 'execute',
       args: [commands, inputs, deadline],
       value: txValue,
       account: wallet.account,
-    })
+    } as const
+
+    await publicClient.simulateContract(params)
 
     // If simulation passes, execute the swap
     const txHash = await wallet.writeContract({
-      address: routerAddress,
-      abi: routerAbi,
-      functionName: 'execute',
-      args: [commands, inputs, deadline],
-      value: txValue,
-      account: wallet.account,
+      ...params,
       chain: wallet.chain,
     })
 
