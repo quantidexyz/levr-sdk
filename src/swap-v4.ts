@@ -7,6 +7,12 @@ import Permit2Abi from './abis/Permit2'
 import { UNISWAP_V4_PERMIT2, UNISWAP_V4_UNIVERSAL_ROUTER, WETH } from './constants'
 import type { PoolKey } from './types'
 
+/**
+ * @description Special address constant that represents the router/caller
+ * @remarks Used with TAKE action to keep tokens in router for UNWRAP_WETH
+ */
+const MSG_SENDER = '0x0000000000000000000000000000000000000001'
+
 export type SwapV4Params = {
   publicClient: PublicClient
   wallet: WalletClient
@@ -29,14 +35,6 @@ export type SwapV4ReturnType = {
   txHash: `0x${string}`
   receipt: any
 }
-
-const ADDRESS_THIS = '0x0000000000000000000000000000000000000002' as `0x${string}`
-
-/**
- * @description Special constant used by Universal Router to indicate "use all available balance"
- * @remarks This is 2^255, used for commands like UNWRAP_WETH to unwrap all WETH in the router
- */
-const CONTRACT_BALANCE = 2n ** 255n
 
 /**
  * @description Check if a currency is native ETH (address(0))
@@ -242,12 +240,27 @@ export const swapV4 = async ({
 
   v4Planner.addAction(Actions.SWAP_EXACT_IN_SINGLE, [swapConfig])
   v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
-  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
+
+  // For WETH output: Use TAKE with MSG_SENDER to keep WETH in router for unwrapping
+  // For other tokens: Use TAKE_ALL to send directly to user
+  if (isOutputWETH) {
+    v4Planner.addAction(Actions.TAKE, [outputCurrency, MSG_SENDER, 0n])
+  } else {
+    v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
+  }
 
   const encodedActions = v4Planner.finalize()
 
   // Add V4_SWAP command to route planner
   routePlanner.addCommand(CommandType.V4_SWAP, [encodedActions])
+
+  // For WETH output: Add UNWRAP_WETH command to unwrap and send native ETH to user
+  if (isOutputWETH) {
+    // UNWRAP_WETH params: [recipient, amountMin]
+    // recipient: user's address
+    // amountMin: 0 (we already have slippage protection in the swap)
+    routePlanner.addCommand(CommandType.UNWRAP_WETH, [wallet.account.address, 0n])
+  }
 
   const commands = routePlanner.commands as `0x${string}`
   const inputs = routePlanner.inputs as `0x${string}`[]
