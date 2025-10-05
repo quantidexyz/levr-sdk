@@ -137,7 +137,14 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       // Use a smaller amount for Clanker hooks with custom accounting
       const amountIn = parseEther('0.001') // 0.001 ETH
 
-      console.log('Swap direction:', zeroForOne ? 'WETH → Token' : 'Token → WETH')
+      console.log('Swap direction:', zeroForOne ? 'currency0 → currency1' : 'currency1 → currency0')
+      console.log(
+        '  Which is:',
+        zeroForOne
+          ? `${poolKey.currency0} → ${poolKey.currency1}`
+          : `${poolKey.currency1} → ${poolKey.currency0}`
+      )
+      console.log('  WETH → Token swap')
       console.log('Amount in:', amountIn.toString())
 
       // Wait for MEV protection delay (120 seconds)
@@ -310,7 +317,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       const wethAddress = WETH(chainId)?.address
       if (!wethAddress) throw new Error('WETH address not found')
 
-      // Reverse direction: Token → WETH
+      // Reverse direction: Token → WETH (sell tokens for ETH)
       // Determine swap direction based on pool
       const isTokenCurrency0 =
         poolKey.currency0.toLowerCase() === deployedTokenAddress.toLowerCase()
@@ -332,7 +339,14 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       // Swap half of our tokens back to WETH
       const amountIn = tokenBalance / 2n
 
-      console.log('Swap direction:', zeroForOne ? 'Token → WETH' : 'WETH → Token')
+      console.log('Swap direction:', zeroForOne ? 'currency0 → currency1' : 'currency1 → currency0')
+      console.log(
+        '  Which is:',
+        zeroForOne
+          ? `${poolKey.currency0} → ${poolKey.currency1}`
+          : `${poolKey.currency1} → ${poolKey.currency0}`
+      )
+      console.log('  Token → WETH swap')
       console.log('Amount in:', amountIn.toString())
 
       // STEP 1: Get quote
@@ -380,7 +394,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
 
       // STEP 2: Execute swap
-      console.log('\n💱 Step 2: Executing swap (with automatic WETH unwrap)...')
+      console.log('\n💱 Step 2: Executing swap (receives WETH tokens)...')
 
       // Get initial balances (ETH and WETH)
       const initialEthBalance = await publicClient.getBalance({
@@ -437,26 +451,26 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       const ethChange = finalEthBalance - initialEthBalance
       const wethChange = finalWethBalance - initialWethBalance
       const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
-      const ethReceived = ethChange + gasUsed // Add back gas to get actual ETH received from swap
+      const wethReceived = wethChange - (initialWethBalance - initialWethBalance) // Actual WETH received
 
       console.log('  ETH change:', ethChange.toString())
       console.log('  WETH change:', wethChange.toString())
       console.log('  Gas cost:', gasUsed.toString())
-      console.log('  ETH received (excluding gas):', ethReceived.toString())
+      console.log('  WETH received:', wethReceived.toString())
 
-      // Verify we received ETH (accounting for gas costs)
-      expect(ethReceived).toBeGreaterThan(0n)
+      // Verify we received WETH
+      expect(wethChange).toBeGreaterThan(0n)
 
-      // Verify WETH balance didn't increase (router should unwrap WETH → ETH)
-      expect(wethChange).toBeLessThanOrEqual(0n)
+      // Verify ETH only decreased by gas (no ETH received since we get WETH)
+      expect(ethChange + gasUsed).toBeLessThanOrEqual(0n) // Only gas spent
 
-      console.log('✅ Token → Native ETH swap complete:')
+      console.log('✅ Token → WETH swap complete:')
       console.log('  ✓ Quote calculated with fee data')
-      console.log('  ✓ Token → WETH → ETH swap successful')
-      console.log('  ✓ Native ETH received from token sale')
-      console.log('  ✓ WETH balance did not increase (unwrapped correctly)')
-      console.log('  ✓ Router handled WETH unwrapping automatically')
+      console.log('  ✓ Token → WETH swap successful')
+      console.log('  ✓ WETH tokens received from token sale')
+      console.log('  ✓ Swap executed without issues')
       console.log('  ✓ Complete round-trip validated')
+      console.log('  ℹ️  Note: Users receive WETH tokens (can unwrap manually if needed)')
     },
     {
       timeout: 60000,
