@@ -1,19 +1,13 @@
-import { describe, expect, it } from 'bun:test'
-import { Clanker } from 'clanker-sdk/v4'
+import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, parseEther } from 'viem'
 
-import { IClankerLPLocker } from '../src/abis'
-import {
-  GET_LP_LOCKER_ADDRESS,
-  UNISWAP_V4_POOL_MANAGER,
-  UNISWAP_V4_UNIVERSAL_ROUTER,
-  WETH,
-} from '../src/constants'
+import { UNISWAP_V4_POOL_MANAGER, UNISWAP_V4_UNIVERSAL_ROUTER } from '../src/constants'
 import { deployV4 } from '../src/deploy-v4'
 import { quoteV4 } from '../src/quote-v4'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { swapV4 } from '../src/swap-v4'
-import { getPublicClient, getWallet, levrAnvil, warpAnvil } from './util'
+import { getTokenRewards, setupTest, type SetupTestReturnType } from './helper'
+import { warpAnvil } from './util'
 
 /**
  * Deploy, Quote, and Swap Tests
@@ -48,16 +42,20 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
   // VARIABLES (shared across tests)
 
   let deployedTokenAddress: `0x${string}`
+  let clanker: SetupTestReturnType['clanker']
+  let weth: SetupTestReturnType['weth']
+  let publicClient: SetupTestReturnType['publicClient']
+  let wallet: SetupTestReturnType['wallet']
+  let chainId: SetupTestReturnType['chainId']
+  let lpLockerAddress: SetupTestReturnType['lpLockerAddress']
+
+  beforeAll(() => {
+    ;({ publicClient, wallet, chainId, lpLockerAddress, clanker, weth } = setupTest())
+  })
 
   it(
     'should deploy token',
     async () => {
-      const publicClient = getPublicClient()
-      const wallet = getWallet()
-
-      // Initialize Clanker SDK
-      const clanker = new Clanker({ publicClient, wallet })
-
       const { receipt, address: clankerToken } = await deployV4({
         c: testDeploymentConfig,
         clanker,
@@ -104,11 +102,6 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       // Use deployed token from previous test
       expect(deployedTokenAddress).toBeDefined()
 
-      const publicClient = getPublicClient()
-      const wallet = getWallet()
-      const chainId = levrAnvil.id
-      const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
-
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
       if (!wallet.account) throw new Error('Wallet account not found')
 
@@ -116,12 +109,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
-      const tokenRewards = await publicClient.readContract({
-        address: lpLockerAddress,
-        abi: IClankerLPLocker,
-        functionName: 'tokenRewards',
-        args: [deployedTokenAddress],
-      })
+      const tokenRewards = await getTokenRewards(publicClient, deployedTokenAddress)
 
       const poolKey = tokenRewards.poolKey
       console.log('Pool key:', {
@@ -133,7 +121,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       })
 
       // Get WETH address and determine swap direction
-      const wethAddress = WETH(chainId)?.address
+      const wethAddress = weth.address
       if (!wethAddress) throw new Error('WETH address not found')
 
       // We want to swap WETH for Token (buy tokens with ETH)
@@ -297,11 +285,6 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       // Use deployed token from previous test
       expect(deployedTokenAddress).toBeDefined()
 
-      const publicClient = getPublicClient()
-      const wallet = getWallet()
-      const chainId = levrAnvil.id
-      const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
-
       if (!lpLockerAddress) throw new Error('LP Locker address not found')
       if (!wallet.account) throw new Error('Wallet account not found')
 
@@ -309,17 +292,12 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       console.log('Using deployed token:', deployedTokenAddress)
 
       // Get pool information from LP locker
-      const tokenRewards = await publicClient.readContract({
-        address: lpLockerAddress,
-        abi: IClankerLPLocker,
-        functionName: 'tokenRewards',
-        args: [deployedTokenAddress],
-      })
+      const tokenRewards = await getTokenRewards(publicClient, deployedTokenAddress)
 
       const poolKey = tokenRewards.poolKey
 
       // Get WETH address
-      const wethAddress = WETH(chainId)?.address
+      const wethAddress = weth.address
       if (!wethAddress) throw new Error('WETH address not found')
 
       // Reverse direction: Token → WETH (sell tokens for ETH)
