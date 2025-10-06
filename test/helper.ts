@@ -1,7 +1,7 @@
 import { Clanker } from 'clanker-sdk/v4'
 import type { Account, Chain, PublicClient, Transport, WalletClient } from 'viem'
 
-import { IClankerLPLocker } from '../src/abis'
+import { IClankerLPLocker, WETH as WETHAbi } from '../src/abis'
 import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from '../src/constants'
 import { getPublicClient, getWallet } from './util'
 
@@ -19,7 +19,7 @@ export const setupTest = (): {
   factoryAddress: `0x${string}`
   lpLockerAddress: `0x${string}`
   clanker: Clanker
-  weth: NonNullable<ReturnType<typeof WETH>>
+  weth: NonNullable<ReturnType<typeof WETH>> & { abi: typeof WETHAbi }
 } => {
   const publicClient = getPublicClient()
   const wallet = getWallet()
@@ -42,7 +42,7 @@ export const setupTest = (): {
 
   const _weth = WETH(chainId)
   if (!_weth) throw new Error('WETH not found')
-  const weth = _weth
+  const weth = { ..._weth, abi: WETHAbi }
 
   return {
     publicClient,

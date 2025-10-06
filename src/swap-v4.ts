@@ -1,11 +1,17 @@
 import { CommandType, RoutePlanner } from '@uniswap/universal-router-sdk'
 import { Actions, V4Planner } from '@uniswap/v4-sdk'
-import { BigNumber } from 'ethers'
 import { erc20Abi } from 'viem'
 import type { PublicClient, WalletClient } from 'viem'
 
 import Permit2Abi from './abis/Permit2'
-import { UNISWAP_V4_PERMIT2, UNISWAP_V4_UNIVERSAL_ROUTER, WETH } from './constants'
+import {
+  ADDRESS_THIS,
+  CONTRACT_BALANCE,
+  MSG_SENDER,
+  UNISWAP_V4_PERMIT2,
+  UNISWAP_V4_UNIVERSAL_ROUTER,
+  WETH,
+} from './constants'
 import type { PoolKey } from './types'
 
 export type SwapV4Params = {
@@ -31,21 +37,6 @@ export type SwapV4ReturnType = {
   receipt: any
 }
 
-const CONTRACT_BALANCE = BigNumber.from(
-  '0x8000000000000000000000000000000000000000000000000000000000000000'
-)
-const MSG_SENDER = '0x0000000000000000000000000000000000000001'
-const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'
-
-/**
- * @description Check if a currency is native ETH (address(0))
- * @param currency Currency address
- * @returns True if native ETH
- */
-const isNativeETH = (currency: `0x${string}`): boolean => {
-  return currency.toLowerCase() === '0x0000000000000000000000000000000000000000'
-}
-
 /**
  * @description Check if a currency is WETH
  * @param currency Currency address
@@ -59,45 +50,43 @@ const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
 }
 
 /**
- * @description Execute a swap on Uniswap Universal Router
+ * @description Execute a Uniswap V4 swap with automatic native ETH handling
  * @param params Swap parameters including pool key and amounts
  * @returns Transaction hash and receipt
  *
  * @remarks
- * This function uses the Universal Router pattern with Uniswap SDK:
- * - Uses V4Planner to encode V4 actions (SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL)
- * - Uses RoutePlanner to encode Universal Router commands (V4_SWAP)
- * - ERC20 approvals via Permit2 (required for non-WETH tokens)
- * - WETH wrapping/unwrapping handled automatically by router when tx value is provided
- * - Deadline based on blockchain timestamp (from PublicClient.getBlock())
+ * **Architecture:**
+ * - Uses Universal Router with V4Planner for encoding swap actions
+ * - Handles native ETH ↔ WETH conversions automatically
+ * - ERC20 approvals via Permit2 (only for non-WETH tokens)
+ * - 20-minute deadline from current block timestamp
  *
- * @note Encoding pattern using SDK:
- * 1. Create V4Planner and add actions: SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL
- * 2. Finalize v4Planner to get encoded actions
- * 3. Create RoutePlanner and add V4_SWAP command
- * 4. Execute with routePlanner.commands and encoded actions
+ * **Swap Flow:**
+ * 1. **Approvals** (ERC20 only):
+ *    - Token → Permit2: Standard ERC20 approval
+ *    - Permit2 → Router: Time-limited approval (30 days)
+ * 2. **Encode Actions**:
+ *    - WRAP_ETH (if input is native ETH)
+ *    - V4Planner: SWAP_EXACT_IN_SINGLE → SETTLE/SETTLE_ALL → TAKE/TAKE_ALL
+ *    - UNWRAP_WETH (if output is WETH, to receive native ETH)
+ * 3. **Execute** via Universal Router with msg.value (if native ETH input)
  *
- * @note For native ETH/WETH handling:
- * - When swapping FROM native ETH: Provide msg.value, router wraps to WETH automatically
- * - When swapping TO WETH: Function uses address(0) in TAKE_ALL to receive native ETH
- * - This provides best UX: users send/receive native ETH, not WETH tokens
- *
- * @note For Clanker hooks:
- * - Standard pools: hookData='0x' (default)
- * - Hooks with custom accounting may require specific hookData encoding
- * - Hooks with BEFORE_SWAP_RETURNS_DELTA or AFTER_SWAP_RETURNS_DELTA modify swap amounts
+ * **Native ETH Handling:**
+ * - **Input = ETH**: WRAP_ETH command wraps msg.value → SETTLE pays from router balance
+ * - **Output = WETH**: TAKE to router → UNWRAP_WETH converts to native ETH for user
+ * - **Result**: Users always interact with native ETH, never hold WETH tokens
  *
  * @example
  * ```typescript
- * // Swap native ETH for token (router wraps to WETH automatically)
+ * // Buy tokens with native ETH
  * const { txHash } = await swapV4({
  *   publicClient,
  *   wallet,
  *   chainId: base.id,
  *   poolKey,
- *   zeroForOne: true,  // currency0 (WETH) → currency1 (token)
+ *   zeroForOne: true,  // WETH → Token
  *   amountIn: parseEther('0.01'),
- *   amountOutMinimum: 0n,
+ *   amountOutMinimum: parseUnits('100', tokenDecimals),
  * })
  * ```
  */
@@ -121,17 +110,18 @@ export const swapV4 = async ({
 
   const inputCurrency = zeroForOne ? poolKey.currency0 : poolKey.currency1
   const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
-  const isInputNative = isNativeETH(inputCurrency)
   const isInputWETH = isWETH(inputCurrency, chainId)
   const isOutputWETH = isWETH(outputCurrency, chainId)
   // Get current block timestamp for deadline and approval checks
   const block = await publicClient.getBlock()
   const currentTime = block.timestamp
 
-  // Step 1 & 2: Approvals required for all ERC20 tokens including WETH
-  // Note: Even when sending native ETH via msg.value for WETH swaps, router needs Permit2 approval
-  // because it wraps ETH to WETH and uses Permit2 to transfer into PoolManager
-  if (!isInputNative) {
+  // Step 1 & 2: Approvals required for ERC20 tokens (but NOT for native ETH)
+  // Note: When swapping native ETH, we use WRAP_ETH command - no approvals needed
+  // When swapping ERC20 tokens, we need Permit2 approvals for transferFrom
+
+  // Only check balances and approvals for non-WETH tokens
+  if (!isInputWETH) {
     // Use multicall to batch balance and allowance checks
     const multicallResults = await publicClient.multicall({
       contracts: [
@@ -167,9 +157,8 @@ export const swapV4 = async ({
         ? multicallResults[2].result
         : ([0n, 0n, 0n] as const)
 
-    // Verify sufficient token balance (skip check for WETH when using msg.value)
-    // When isInputWETH=true, we send native ETH as msg.value which router wraps automatically
-    if (!isInputWETH && balance < amountIn) {
+    // Verify sufficient token balance
+    if (balance < amountIn) {
       throw new Error(`Insufficient token balance: have ${balance}, need ${amountIn}`)
     }
 
@@ -209,11 +198,13 @@ export const swapV4 = async ({
   }
 
   // Step 3: Encode swap using V4Planner and RoutePlanner
-  // Note: For WETH input, router automatically wraps ETH when we provide value in the transaction
   const v4Planner = new V4Planner()
   const routePlanner = new RoutePlanner()
 
-  // Build V4 actions: SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE_ALL
+  // Step 3a: If input is native ETH, add WRAP_ETH command first
+  if (isInputWETH) routePlanner.addCommand(CommandType.WRAP_ETH, [ADDRESS_THIS, CONTRACT_BALANCE])
+
+  // Step 3b: Build V4 actions: SWAP_EXACT_IN_SINGLE -> SETTLE_ALL -> TAKE_ALL/TAKE
   const swapConfig = {
     poolKey: {
       currency0: poolKey.currency0,
@@ -229,15 +220,50 @@ export const swapV4 = async ({
   }
 
   v4Planner.addAction(Actions.SWAP_EXACT_IN_SINGLE, [swapConfig])
-  v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
-  v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
 
-  // Finalize V4 planner and add to route planner
-  const encodedV4Actions = v4Planner.finalize()
-  routePlanner.addCommand(CommandType.V4_SWAP, [encodedV4Actions])
+  // SETTLE: Choose between SETTLE_ALL (user pays) vs SETTLE (router pays)
+  // - For native ETH input: Use SETTLE with payerIsUser=false (router pays from WRAP_ETH balance)
+  // - For ERC20 tokens: Use SETTLE_ALL (user pays from their token balance)
+  if (isInputWETH)
+    // Router pays from its WETH balance (from WRAP_ETH)
+    v4Planner.addAction(Actions.SETTLE, [inputCurrency, amountIn, false])
+  else
+    // User pays from their token balance
+    v4Planner.addAction(Actions.SETTLE_ALL, [inputCurrency, amountIn])
 
+  if (isOutputWETH)
+    // Take WETH to user (MSG_SENDER = transaction sender)
+    // UNWRAP_WETH command will then convert user's WETH to native ETH
+    v4Planner.addAction(Actions.TAKE, [outputCurrency, routerAddress, 0n])
+  // For token output, TAKE_ALL directly to user
+  else v4Planner.addAction(Actions.TAKE_ALL, [outputCurrency, 0n])
+
+  // Step 3c: Finalize V4 planner to get encoded actions
+  // finalize() returns the full encoded bytes that will be passed to the PoolManager
+  const encodedV4Actions = v4Planner.finalize() as `0x${string}`
+
+  // Add V4_SWAP command - note we only add it to get the command byte,
+  // but we'll manually construct the inputs array
+  routePlanner.addCommand(CommandType.V4_SWAP, [v4Planner.actions, v4Planner.params])
+
+  // Step 3d: If output is WETH, unwrap to native ETH
+  if (isOutputWETH) routePlanner.addCommand(CommandType.UNWRAP_WETH, [MSG_SENDER, 0n])
+
+  // Get commands from RoutePlanner
   const commands = routePlanner.commands as `0x${string}`
-  const inputs = routePlanner.inputs as `0x${string}`[]
+
+  // Build inputs array manually to match each command
+  // For multiple commands, we need to construct this carefully:
+  // - WRAP_ETH uses routePlanner.inputs[0] (if present)
+  // - V4_SWAP uses encodedV4Actions (the finalized V4 bytes, NOT from routePlanner)
+  // - UNWRAP_WETH uses routePlanner.inputs[N] where N accounts for skipped V4_SWAP
+  const inputs: `0x${string}`[] = []
+  let inputIndex = 0
+
+  if (isInputWETH) inputs.push(routePlanner.inputs[inputIndex++] as `0x${string}`)
+  inputs.push(encodedV4Actions)
+  inputIndex++ // Skip V4_SWAP in routePlanner.inputs since we used encodedV4Actions directly
+  if (isOutputWETH) inputs.push(routePlanner.inputs[inputIndex++] as `0x${string}`)
 
   // Universal Router ABI (with deadline)
   const routerAbi = [
@@ -262,16 +288,7 @@ export const swapV4 = async ({
     // Note: Provide msg.value for native ETH or WETH inputs
     // - For native ETH: direct payment
     // - For WETH: router wraps the ETH sent as msg.value
-    const txValue = isInputNative || isInputWETH ? amountIn : 0n
-
-    await publicClient.simulateContract({
-      address: routerAddress,
-      abi: routerAbi,
-      functionName: 'execute',
-      args: [commands, inputs, deadline],
-      value: txValue,
-      account: wallet.account,
-    })
+    const txValue = isInputWETH ? amountIn : 0n
 
     // If simulation passes, execute the swap
     const txHash = await wallet.writeContract({
@@ -283,7 +300,6 @@ export const swapV4 = async ({
       account: wallet.account,
       chain: wallet.chain,
     })
-
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
 
     if (receipt.status === 'reverted') {

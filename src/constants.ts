@@ -1,4 +1,5 @@
 import { CLANKERS } from 'clanker-sdk'
+import { BigNumber } from 'ethers'
 import { anvil, base, baseSepolia } from 'viem/chains'
 
 /**
@@ -118,3 +119,20 @@ export const UNISWAP_V4_POOL_MANAGER = (chainId?: number): `0x${string}` | undef
     [base.id]: '0x498581ff718922c3f8e6a244956af099b2652b2b',
   }[chainId] as `0x${string}` | undefined
 }
+
+/**
+ * Contract balance representation, for use in Universal Router
+ */
+export const CONTRACT_BALANCE = BigNumber.from(
+  '0x8000000000000000000000000000000000000000000000000000000000000000'
+)
+
+/**
+ * MSG_SENDER representation, for use in Universal Router
+ */
+export const MSG_SENDER = '0x0000000000000000000000000000000000000001'
+
+/**
+ * ADDRESS_THIS representation, for use in Universal Router
+ */
+export const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'

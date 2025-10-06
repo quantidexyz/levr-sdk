@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { erc20Abi, parseEther } from 'viem'
+import { erc20Abi, formatEther, parseEther } from 'viem'
 
 import { UNISWAP_V4_POOL_MANAGER, UNISWAP_V4_UNIVERSAL_ROUTER } from '../src/constants'
 import { deployV4 } from '../src/deploy-v4'
@@ -142,7 +142,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
           : `${poolKey.currency1} → ${poolKey.currency0}`
       )
       console.log('  WETH → Token swap')
-      console.log('Amount in:', amountIn.toString())
+      console.log(`Amount in: ${formatEther(amountIn)} ETH`)
 
       // STEP 1: Get quote
       console.log('\n📊 Step 1: Getting quote...')
@@ -154,15 +154,14 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         amountIn,
       })
 
-      console.log('✅ Quote calculated:', {
-        amountIn: amountIn.toString(),
-        amountOut: quote.amountOut.toString(),
-        gasEstimate: quote.gasEstimate.toString(),
-      })
+      console.log('✅ Quote calculated:')
+      console.log(`  Amount in: ${formatEther(amountIn)} ETH`)
+      console.log(`  Amount out: ${quote.amountOut.toString()} tokens (raw)`)
+      console.log(`  Gas estimate: ${quote.gasEstimate.toString()}`)
 
       // Verify fee data is returned
       if (quote.hookFees) {
-        console.log('📊 Hook fee data:', quote.hookFees)
+        console.log('\n📊 Hook fees:')
 
         if (quote.hookFees.type === 'static') {
           console.log(
@@ -196,26 +195,28 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       const outputCurrency = zeroForOne ? poolKey.currency1 : poolKey.currency0
 
       // Get initial balances
-      const initialTokenBalance = await publicClient.readContract({
-        address: outputCurrency,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
+      const [initialTokenBalance, initialEthBalance] = await Promise.all([
+        publicClient.readContract({
+          address: outputCurrency,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account.address],
+        }),
+        publicClient.getBalance({
+          address: wallet.account.address,
+        }),
+      ])
 
-      const initialEthBalance = await publicClient.getBalance({
-        address: wallet.account.address,
-      })
-
-      console.log('Initial token balance:', initialTokenBalance.toString())
-      console.log('Initial ETH balance:', initialEthBalance.toString())
+      console.log('\n📊 Initial balances:')
+      console.log(`  Token: ${initialTokenBalance.toString()} (raw)`)
+      console.log(`  ETH: ${formatEther(initialEthBalance)} ETH`)
 
       // Calculate amountOutMinimum with slippage protection
       const SLIPPAGE_BPS = 100n // 1% = 100 basis points
       const amountOutMinimum =
         quote.amountOut === 0n ? 0n : (quote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
 
-      console.log('Min out (1% slippage):', amountOutMinimum.toString())
+      console.log(`Min out (1% slippage): ${amountOutMinimum.toString()} tokens (raw)`)
 
       // Execute the swap
       const { txHash, receipt } = await swapV4({
@@ -231,48 +232,44 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       expect(receipt.status).toBe('success')
       expect(txHash).toBeDefined()
 
-      console.log('\n✅ Swap executed successfully:')
-      console.log('  Tx hash:', txHash)
-      console.log('  Gas used:', receipt.gasUsed?.toString())
+      console.log('\n✅ Swap executed:')
+      console.log('  Tx:', txHash)
 
       // Get final balances and calculate changes
-      const finalTokenBalance = await publicClient.readContract({
-        address: outputCurrency,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [wallet.account.address],
-      })
-
-      const finalEthBalance = await publicClient.getBalance({
-        address: wallet.account.address,
-      })
+      const [finalTokenBalance, finalEthBalance] = await Promise.all([
+        publicClient.readContract({
+          address: outputCurrency,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [wallet.account.address],
+        }),
+        publicClient.getBalance({
+          address: wallet.account.address,
+        }),
+      ])
 
       const tokensReceived = finalTokenBalance - initialTokenBalance
       const ethSpent = initialEthBalance - finalEthBalance
       const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
+      const swapCost = ethSpent - gasUsed
 
-      console.log('  Tokens received:', tokensReceived.toString())
-      console.log('  ETH spent:', ethSpent.toString())
-      console.log('  Gas cost:', gasUsed.toString())
-      console.log('  Swap cost (ETH - gas):', (ethSpent - gasUsed).toString())
+      console.log('\n📊 Balance changes:')
+      console.log(`  Token received: ${tokensReceived.toString()} (raw)`)
+      console.log(`  ETH spent: ${formatEther(ethSpent)} ETH`)
+      console.log(`    ├─ Gas: ${formatEther(gasUsed)} ETH`)
+      console.log(`    └─ Swap: ${formatEther(swapCost)} ETH`)
 
-      // Verify we received tokens
+      // Verify swap results
       expect(tokensReceived).toBeGreaterThan(0n)
-
-      // Verify ETH was spent (should be amountIn + gas)
       expect(ethSpent).toBeGreaterThan(amountIn)
-
-      // If quote was non-zero, verify slippage protection worked
       if (quote.amountOut > 0n) {
         expect(tokensReceived).toBeGreaterThanOrEqual(amountOutMinimum)
       }
 
-      console.log('✅ Native ETH → Token swap complete:')
-      console.log('  ✓ Quote calculated with fee data')
-      console.log('  ✓ Swap executed without reverting')
+      console.log('\n✅ Native ETH → Token swap verified:')
       console.log('  ✓ Tokens received')
-      console.log('  ✓ Native ETH balance decreased correctly')
-      console.log('  ✓ Router handled WETH wrapping automatically')
+      console.log('  ✓ Native ETH deducted (swap + gas)')
+      console.log('  ✓ WETH wrapping handled automatically')
     },
     {
       timeout: 60000,
@@ -316,7 +313,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         args: [wallet.account.address],
       })
 
-      console.log('Token balance:', tokenBalance.toString())
+      console.log(`Token balance: ${tokenBalance.toString()} (raw)`)
       expect(tokenBalance).toBeGreaterThan(0n)
 
       // Swap half of our tokens back to WETH
@@ -330,7 +327,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
           : `${poolKey.currency1} → ${poolKey.currency0}`
       )
       console.log('  Token → WETH swap')
-      console.log('Amount in:', amountIn.toString())
+      console.log(`Amount in: ${amountIn.toString()} tokens (raw)`)
 
       // STEP 1: Get quote
       console.log('\n📊 Step 1: Getting quote...')
@@ -342,15 +339,14 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         amountIn,
       })
 
-      console.log('✅ Quote calculated:', {
-        amountIn: amountIn.toString(),
-        amountOut: quote.amountOut.toString(),
-        gasEstimate: quote.gasEstimate.toString(),
-      })
+      console.log('✅ Quote calculated:')
+      console.log(`  Amount in: ${amountIn.toString()} tokens (raw)`)
+      console.log(`  Amount out: ${formatEther(quote.amountOut)} ETH`)
+      console.log(`  Gas estimate: ${quote.gasEstimate.toString()}`)
 
       // Verify fee data is returned
       if (quote.hookFees) {
-        console.log('📊 Hook fee data:', quote.hookFees)
+        console.log('\n📊 Hook fees:')
 
         if (quote.hookFees.type === 'static') {
           console.log(
@@ -377,38 +373,32 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
 
       // STEP 2: Execute swap
-      console.log('\n💱 Step 2: Executing swap (receives native ETH via WETH unwrap)...')
-
-      // Get initial balances (only ETH, since WETH will be unwrapped)
-      const initialEthBalance = await publicClient.getBalance({
-        address: wallet.account.address,
-      })
-
-      console.log('Initial ETH balance:', initialEthBalance.toString())
+      console.log('\n💱 Step 2: Executing swap...')
 
       // Calculate amountOutMinimum with slippage protection
       const SLIPPAGE_BPS = 100n // 1% = 100 basis points
       const amountOutMinimum =
         quote.amountOut === 0n ? 0n : (quote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
 
-      console.log('Min out (1% slippage):', amountOutMinimum.toString())
+      console.log(`Min out (1% slippage): ${formatEther(amountOutMinimum)} ETH`)
 
-      // Get router addresses for balance verification
+      // Get router addresses
       const universalRouterAddress = UNISWAP_V4_UNIVERSAL_ROUTER(chainId)
       const poolManagerAddress = UNISWAP_V4_POOL_MANAGER(chainId)
 
       if (!universalRouterAddress) throw new Error('Universal Router address not found')
       if (!poolManagerAddress) throw new Error('Pool Manager address not found')
 
-      // Check initial balances of all parties
-      console.log('\n📊 Checking initial balances...')
+      // Get initial balances for verification
       const [
+        initialEthBalance,
         initialSwapperWeth,
         initialUniversalRouterEth,
         initialUniversalRouterWeth,
         initialPoolManagerEth,
         initialPoolManagerWeth,
       ] = await Promise.all([
+        publicClient.getBalance({ address: wallet.account.address }),
         publicClient.readContract({
           address: wethAddress,
           abi: erc20Abi,
@@ -431,12 +421,16 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         }),
       ])
 
-      console.log('Initial balances:')
-      console.log('  Swapper WETH:', initialSwapperWeth.toString())
-      console.log('  Universal Router ETH:', initialUniversalRouterEth.toString())
-      console.log('  Universal Router WETH:', initialUniversalRouterWeth.toString())
-      console.log('  Pool Manager ETH:', initialPoolManagerEth.toString())
-      console.log('  Pool Manager WETH:', initialPoolManagerWeth.toString())
+      console.log('\n📊 Initial balances:')
+      console.log('  Swapper:')
+      console.log(`    ├─ ETH: ${formatEther(initialEthBalance)} ETH`)
+      console.log(`    └─ WETH: ${formatEther(initialSwapperWeth)} WETH`)
+      console.log('  Universal Router:')
+      console.log(`    ├─ ETH: ${formatEther(initialUniversalRouterEth)} ETH`)
+      console.log(`    └─ WETH: ${formatEther(initialUniversalRouterWeth)} WETH`)
+      console.log('  Pool Manager:')
+      console.log(`    ├─ ETH: ${formatEther(initialPoolManagerEth)} ETH`)
+      console.log(`    └─ WETH: ${formatEther(initialPoolManagerWeth)} WETH`)
 
       // Execute the reverse swap
       const { txHash, receipt } = await swapV4({
@@ -452,32 +446,19 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       expect(receipt.status).toBe('success')
       expect(txHash).toBeDefined()
 
-      console.log('\n✅ Swap executed successfully:')
-      console.log('  Tx hash:', txHash)
-      console.log('  Gas used:', receipt.gasUsed?.toString())
+      console.log('\n✅ Swap executed:')
+      console.log('  Tx:', txHash)
 
-      // Get final balance
-      const finalEthBalance = await publicClient.getBalance({
-        address: wallet.account.address,
-      })
-
-      const ethChange = finalEthBalance - initialEthBalance
-      const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
-      const nativeEthReceived = ethChange + gasUsed // ETH received from swap (before gas)
-
-      console.log('  ETH change (after gas):', ethChange.toString())
-      console.log('  Gas cost:', gasUsed.toString())
-      console.log('  Native ETH received (before gas):', nativeEthReceived.toString())
-
-      // Check final balances of all parties
-      console.log('\n📊 Checking final balances...')
+      // Get final balances
       const [
+        finalEthBalance,
         finalSwapperWeth,
         finalUniversalRouterEth,
         finalUniversalRouterWeth,
         finalPoolManagerEth,
         finalPoolManagerWeth,
       ] = await Promise.all([
+        publicClient.getBalance({ address: wallet.account.address }),
         publicClient.readContract({
           address: wethAddress,
           abi: erc20Abi,
@@ -500,57 +481,40 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
         }),
       ])
 
-      console.log('Final balances:')
-      console.log('  Swapper WETH:', finalSwapperWeth.toString())
-      console.log('  Universal Router ETH:', finalUniversalRouterEth.toString())
-      console.log('  Universal Router WETH:', finalUniversalRouterWeth.toString())
-      console.log('  Pool Manager ETH:', finalPoolManagerEth.toString())
-      console.log('  Pool Manager WETH:', finalPoolManagerWeth.toString())
+      // Calculate changes
+      const ethChange = finalEthBalance - initialEthBalance
+      const gasUsed = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice)
+      const nativeEthReceived = ethChange + gasUsed
+      const wethChange = finalSwapperWeth - initialSwapperWeth
 
       console.log('\n📊 Balance changes:')
-      console.log('  Swapper WETH change:', (finalSwapperWeth - initialSwapperWeth).toString())
+      console.log('  Swapper:')
       console.log(
-        '  Universal Router ETH change:',
-        (finalUniversalRouterEth - initialUniversalRouterEth).toString()
+        `    ├─ ETH: ${formatEther(ethChange)} ETH (+${formatEther(nativeEthReceived)} swap, -${formatEther(gasUsed)} gas)`
+      )
+      console.log(`    └─ WETH: ${formatEther(wethChange)} WETH`)
+      console.log('  Universal Router:')
+      console.log(
+        `    ├─ ETH: ${formatEther(finalUniversalRouterEth - initialUniversalRouterEth)} ETH`
       )
       console.log(
-        '  Universal Router WETH change:',
-        (finalUniversalRouterWeth - initialUniversalRouterWeth).toString()
+        `    └─ WETH: ${formatEther(finalUniversalRouterWeth - initialUniversalRouterWeth)} WETH`
       )
-      console.log(
-        '  Pool Manager ETH change:',
-        (finalPoolManagerEth - initialPoolManagerEth).toString()
-      )
-      console.log(
-        '  Pool Manager WETH change:',
-        (finalPoolManagerWeth - initialPoolManagerWeth).toString()
-      )
+      console.log('  Pool Manager:')
+      console.log(`    ├─ ETH: ${formatEther(finalPoolManagerEth - initialPoolManagerEth)} ETH`)
+      console.log(`    └─ WETH: ${formatEther(finalPoolManagerWeth - initialPoolManagerWeth)} WETH`)
 
-      // Verify we received native ETH from the swap
-      // expect(nativeEthReceived).toBeGreaterThan(0n)
-      expect(finalSwapperWeth - initialSwapperWeth).toBeGreaterThan(0n)
-
-      // Verify overall ETH change is positive after accounting for gas
-      // (we sold tokens for ETH, so even after gas we should have more ETH)
-      // expect(ethChange).toBeGreaterThan(-gasUsed)
-
-      // Verify swapper has no WETH (all unwrapped to ETH)
-      // expect(finalSwapperWeth).toBe(initialSwapperWeth)
-
-      // Verify routers are clean (no lingering balances)
+      // Verify swap results
+      expect(nativeEthReceived).toBeGreaterThan(0n)
+      expect(ethChange).toBeGreaterThan(-gasUsed)
+      expect(finalSwapperWeth).toBe(initialSwapperWeth)
       expect(finalUniversalRouterEth).toBe(initialUniversalRouterEth)
       expect(finalUniversalRouterWeth).toBe(initialUniversalRouterWeth)
-      // Note: Pool Manager may accumulate fees, so we don't strictly check it equals initial
 
-      console.log('✅ Token → Native ETH swap complete:')
-      console.log('  ✓ Quote calculated with fee data')
-      console.log('  ✓ Token → WETH swap successful')
-      console.log('  ✓ WETH automatically unwrapped to native ETH')
-      console.log('  ✓ Native ETH received from token sale')
-      console.log('  ✓ Complete round-trip validated')
-      console.log('  ✓ Swapper has no WETH balance (all unwrapped)')
-      console.log('  ✓ Universal Router has no lingering balances')
-      console.log('  ✅ Users receive native ETH (no manual unwrapping needed)')
+      console.log('\n✅ Token → Native ETH swap verified:')
+      console.log('  ✓ Native ETH received (WETH unwrapped automatically)')
+      console.log('  ✓ Swapper has no WETH balance')
+      console.log('  ✓ Universal Router clean (no lingering balances)')
     },
     {
       timeout: 60000,
