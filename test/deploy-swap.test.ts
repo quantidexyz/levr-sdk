@@ -219,7 +219,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       console.log(`Min out (1% slippage): ${amountOutMinimum.toString()} tokens (raw)`)
 
       // Execute the swap
-      const { txHash, receipt } = await swapV4({
+      const receipt = await swapV4({
         publicClient,
         wallet,
         chainId,
@@ -230,10 +230,10 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       })
 
       expect(receipt.status).toBe('success')
-      expect(txHash).toBeDefined()
+      expect(receipt.transactionHash).toBeDefined()
 
       console.log('\n✅ Swap executed:')
-      console.log('  Tx:', txHash)
+      console.log('  Tx:', receipt.transactionHash)
 
       // Get final balances and calculate changes
       const [finalTokenBalance, finalEthBalance] = await Promise.all([
@@ -433,7 +433,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       console.log(`    └─ WETH: ${formatEther(initialPoolManagerWeth)} WETH`)
 
       // Execute the reverse swap
-      const { txHash, receipt } = await swapV4({
+      const receipt = await swapV4({
         publicClient,
         wallet,
         chainId,
@@ -444,10 +444,10 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       })
 
       expect(receipt.status).toBe('success')
-      expect(txHash).toBeDefined()
+      expect(receipt.transactionHash).toBeDefined()
 
       console.log('\n✅ Swap executed:')
-      console.log('  Tx:', txHash)
+      console.log('  Tx:', receipt.transactionHash)
 
       // Get final balances
       const [
