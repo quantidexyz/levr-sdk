@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import type { TransactionReceipt } from 'viem'
 
+import { TREASURY_AIRDROP_AMOUNTS } from '../../constants'
 import { deployV4 } from '../../deploy-v4'
 import type { LevrClankerDeploymentSchemaType } from '../../schema'
 import { useClanker } from './use-clanker'
@@ -16,7 +17,7 @@ export type UseDeployParams = {
  * Returns tx hash and deployed address.
  */
 export function useDeploy({
-  treasuryAirdropAmount = 100_000_000,
+  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS[0], // Use first amount as default
   onSuccess,
   onError,
 }: UseDeployParams) {

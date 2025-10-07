@@ -15,6 +15,7 @@ import type {
 
 export type UseGovernanceParams = {
   governorAddress: `0x${string}`
+  clankerToken: `0x${string}`
   tokenDecimals?: number
   enabled?: boolean
 
@@ -30,6 +31,9 @@ export type UseGovernanceParams = {
 
   onExecuteProposalSuccess?: (receipt: TransactionReceipt) => void
   onExecuteProposalError?: (error: unknown) => void
+
+  onClaimAirdropSuccess?: (receipt: TransactionReceipt) => void
+  onClaimAirdropError?: (error: unknown) => void
 }
 
 /**
@@ -39,6 +43,7 @@ export type UseGovernanceParams = {
  */
 export function useGovernance({
   governorAddress,
+  clankerToken,
   tokenDecimals = 18,
   enabled = true,
   proposalId,
@@ -48,6 +53,8 @@ export function useGovernance({
   onProposeBoostError,
   onExecuteProposalSuccess,
   onExecuteProposalError,
+  onClaimAirdropSuccess,
+  onClaimAirdropError,
 }: UseGovernanceParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
@@ -60,6 +67,7 @@ export function useGovernance({
           publicClient,
           governorAddress,
           tokenDecimals,
+          clankerToken,
         })
       : null
 
@@ -114,6 +122,18 @@ export function useGovernance({
     },
     enabled: enabled && !!governance,
     retry: 1,
+  })
+
+  // Query: Get airdrop status
+  const airdropStatus = useQuery({
+    queryKey: ['governance', 'airdropStatus', governorAddress, clankerToken],
+    queryFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+      return await governance.getAirdropStatus()
+    },
+    enabled: enabled && !!governance,
+    retry: 1,
+    refetchInterval: 30000, // Refetch every 30 seconds to check if lockup has passed
   })
 
   // Mutation: Propose transfer
@@ -172,6 +192,23 @@ export function useGovernance({
       onExecuteProposalSuccess?.(receipt)
     },
     onError: onExecuteProposalError,
+  })
+
+  // Mutation: Claim airdrop
+  const claimAirdrop = useMutation({
+    mutationFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+      if (!wallet.data) throw new Error('Wallet is not connected')
+
+      return await governance.claimAirdrop()
+    },
+    onSuccess: (receipt) => {
+      // Refetch airdrop status to show it's been claimed
+      airdropStatus.refetch()
+      // Also refetch project data to update treasury balance
+      onClaimAirdropSuccess?.(receipt)
+    },
+    onError: onClaimAirdropError,
   })
 
   // Helper: Build propose transfer config from simple params
@@ -258,6 +295,7 @@ export function useGovernance({
     proposeTransfer,
     proposeBoost,
     executeProposal,
+    claimAirdrop,
 
     // Convenience mutations (for testing/development)
     proposeAndExecuteTransfer,
@@ -268,6 +306,7 @@ export function useGovernance({
     canSubmit,
     nextProposalId,
     addresses,
+    airdropStatus,
 
     // Convenience accessors
     proposalData: proposal.data,
@@ -276,6 +315,11 @@ export function useGovernance({
     treasuryAddress: addresses.data?.treasury,
     factoryAddress: addresses.data?.factory,
     stakedTokenAddress: addresses.data?.stakedToken,
+    airdropStatusData: airdropStatus.data,
+    availableAirdropAmount: airdropStatus.data?.availableAmount,
+    airdropAllocatedAmount: airdropStatus.data?.allocatedAmount,
+    isAirdropAvailable: airdropStatus.data?.isAvailable ?? false,
+    airdropError: airdropStatus.data?.error,
 
     // Helpers
     buildProposeTransferConfig,
@@ -285,8 +329,13 @@ export function useGovernance({
     // Status flags
     isReady: !!governance && !!wallet.data,
     isLoading:
-      proposal.isLoading || canSubmit.isLoading || nextProposalId.isLoading || addresses.isLoading,
+      proposal.isLoading ||
+      canSubmit.isLoading ||
+      nextProposalId.isLoading ||
+      addresses.isLoading ||
+      airdropStatus.isLoading,
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
     isExecuting: executeProposal.isPending,
+    isClaiming: claimAirdrop.isPending,
   }
 }

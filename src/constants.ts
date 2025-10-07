@@ -121,6 +121,24 @@ export const UNISWAP_V4_POOL_MANAGER = (chainId?: number): `0x${string}` | undef
 }
 
 /**
+ * Get the Clanker Airdrop address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Clanker Airdrop address
+ */
+export const GET_CLANKER_AIRDROP_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  const chainMap = {
+    // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
+    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.related?.airdrop,
+    [base.id]: CLANKERS.clanker_v4.related.airdrop,
+    [baseSepolia.id]: CLANKERS.clanker_v4_sepolia.related.airdrop,
+  } as Record<number, `0x${string}` | undefined>
+
+  return chainMap?.[chainId]
+}
+
+/**
  * Contract balance representation, for use in Universal Router
  */
 export const CONTRACT_BALANCE = BigNumber.from(
@@ -136,3 +154,14 @@ export const MSG_SENDER = '0x0000000000000000000000000000000000000001'
  * ADDRESS_THIS representation, for use in Universal Router
  */
 export const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'
+
+/**
+ * Common treasury airdrop amounts in tokens (not wei)
+ * First value is used as default in deployV4
+ */
+export const TREASURY_AIRDROP_AMOUNTS = [
+  250_000_000, // 250M tokens (minimum required)
+  500_000_000, // 500M tokens
+  1_000_000_000, // 1B tokens
+  100_000_000, // 100M tokens (legacy)
+] as const

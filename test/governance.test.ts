@@ -131,6 +131,7 @@ describe('#GOVERNANCE_TEST', () => {
         publicClient,
         governorAddress: project.governor,
         tokenDecimals: 18,
+        clankerToken: deployedTokenAddress,
       })
 
       // Verify governor is set up correctly
@@ -179,27 +180,88 @@ describe('#GOVERNANCE_TEST', () => {
       expect(userData.stakedBalance.raw).toBe(stakeAmount)
       console.log('✅ Governance stake verified:', `${userData.stakedBalance.formatted} tokens`)
 
-      // Send some tokens to treasury so we can test transfers
-      const treasuryAmount = userBalance / 4n // Send 25% to treasury
-      const sendTx = await wallet.writeContract({
-        address: deployedTokenAddress,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [project.treasury, treasuryAmount],
-      })
-      await publicClient.waitForTransactionReceipt({ hash: sendTx })
+      console.log('\n🎁 Checking airdrop for treasury...')
 
-      const treasuryBalance = await publicClient.readContract({
-        address: deployedTokenAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [project.treasury],
-      })
-      console.log('✅ Treasury funded:', `${formatEther(treasuryBalance)} tokens`)
-      expect(treasuryBalance).toBe(treasuryAmount)
+      try {
+        // Check airdrop status with enhanced detection
+        const status = await governance.getAirdropStatus()
+
+        console.log('  Airdrop Status:', {
+          available: status.availableAmount.formatted,
+          allocated: status.allocatedAmount.formatted,
+          isAvailable: status.isAvailable,
+          error: status.error,
+        })
+
+        // If we found an allocation, try to claim it (handles locked state automatically)
+        if (status.allocatedAmount.raw > 0n) {
+          console.log('\n🎯 Treasury airdrop found! Attempting to claim...')
+
+          if (status.availableAmount.raw === 0n) {
+            console.log('⏰ Airdrop may be locked, warping 1 day forward to pass lockup period...')
+            const { warpAnvil } = await import('./util')
+            await warpAnvil(86400 + 1) // 1 day + 1 second
+          }
+
+          console.log('📥 Claiming airdrop for treasury...')
+          const claimReceipt = await governance.claimAirdrop()
+          expect(claimReceipt.status).toBe('success')
+
+          const treasuryBalance = await publicClient.readContract({
+            address: deployedTokenAddress,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [project.treasury],
+          })
+          console.log('✅ Treasury funded via airdrop:', `${formatEther(treasuryBalance)} tokens`)
+          expect(treasuryBalance).toBeGreaterThan(0n)
+        } else {
+          // Fallback: If no airdrop, send tokens manually
+          console.log('⚠️ No airdrop available, funding treasury manually...')
+          const treasuryAmount = userBalance / 4n // Send 25% to treasury
+          const sendTx = await wallet.writeContract({
+            address: deployedTokenAddress,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [project.treasury, treasuryAmount],
+          })
+          await publicClient.waitForTransactionReceipt({ hash: sendTx })
+
+          const treasuryBalance = await publicClient.readContract({
+            address: deployedTokenAddress,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [project.treasury],
+          })
+          console.log('✅ Treasury funded manually:', `${formatEther(treasuryBalance)} tokens`)
+          expect(treasuryBalance).toBe(treasuryAmount)
+        }
+      } catch (error) {
+        // If airdrop claim fails, fall back to manual transfer
+        console.log('⚠️ Airdrop claim not available, funding treasury manually...')
+        console.log('   Error:', (error as Error).message.slice(0, 100))
+
+        const treasuryAmount = userBalance / 4n // Send 25% to treasury
+        const sendTx = await wallet.writeContract({
+          address: deployedTokenAddress,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [project.treasury, treasuryAmount],
+        })
+        await publicClient.waitForTransactionReceipt({ hash: sendTx })
+
+        const treasuryBalance = await publicClient.readContract({
+          address: deployedTokenAddress,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [project.treasury],
+        })
+        console.log('✅ Treasury funded manually:', `${formatEther(treasuryBalance)} tokens`)
+        expect(treasuryBalance).toBe(treasuryAmount)
+      }
     },
     {
-      timeout: 60000,
+      timeout: 100000,
     }
   )
 

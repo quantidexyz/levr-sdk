@@ -113,15 +113,20 @@ const getAirdrop = (
   treasuryAddress: `0x${string}`,
   treasuryAirdropAmount: number
 ): ClankerDeploymentSchemaType['airdrop'] => {
-  if (!airdrop) return undefined
-  const airdropData = airdrop.map((a) => ({
-    account: a.account,
-    amount: a.amount,
-  }))
+  // Always include treasury in airdrop, even if no other recipients specified
+  const airdropData = airdrop
+    ? airdrop.map((a) => ({
+        account: a.account,
+        amount: a.amount,
+      }))
+    : []
+
+  // Always add treasury to airdrop
   airdropData.push({
     account: treasuryAddress,
     amount: treasuryAirdropAmount,
   })
+
   const merkleTree = createMerkleTree(airdropData)
   return {
     amount: airdropData.reduce((acc, curr) => acc + curr.amount, 0),

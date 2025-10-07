@@ -24,6 +24,7 @@ export { default as IClankerHookV2 } from './IClankerHookV2'
 export { default as IClankerHookDynamicFee } from './IClankerHookDynamicFee'
 export { default as IClankerHookStaticFee } from './IClankerHookStaticFee'
 export { default as ClankerUniV4EthDevBuy_v4 } from './ClankerUniV4EthDevBuy_v4'
+export { default as IClankerAirdrop } from './IClankerAirdrop'
 
 // -----------------------------
 // General
