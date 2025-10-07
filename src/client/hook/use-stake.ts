@@ -59,7 +59,6 @@ export function useStake({
   // Create StakeService instance with shared parameters
   const stakeService = useMemo(() => {
     if (!wallet.data || !publicClient || !project.data) {
-      console.error('Wallet or public client is not connected')
       return null
     }
     return new Stake({
@@ -218,7 +217,7 @@ export function useStake({
   // Helper to check if approval is needed for an amount
   const nA = (amount: string | number): boolean => {
     if (!project.data || allowance.data === undefined) return false
-    return needsApproval(allowance.data.formatted, amount)
+    return needsApproval(allowance.data.formatted, amount, project.data.token.decimals)
   }
 
   return {
