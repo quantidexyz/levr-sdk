@@ -92,28 +92,20 @@ export function useSwap({
       quoteParams?.amountInDecimals,
     ],
     queryFn: async () => {
-      if (!publicClient || !chainId || !quoteParams) {
-        return { amountOut: 0n, amountOutFormatted: '0', gasEstimate: 0n, hookFees: undefined }
-      }
-
-      if (!quoteParams.amountIn || parseFloat(quoteParams.amountIn) <= 0) {
-        return { amountOut: 0n, amountOutFormatted: '0', gasEstimate: 0n, hookFees: undefined }
-      }
-
-      const amountInBigInt = parseUnits(quoteParams.amountIn, quoteParams.amountInDecimals)
+      const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
       const result = await quoteV4({
-        publicClient,
-        chainId,
-        poolKey: quoteParams.poolKey,
-        zeroForOne: quoteParams.zeroForOne,
+        publicClient: publicClient!,
+        chainId: chainId!,
+        poolKey: quoteParams!.poolKey,
+        zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,
-        hookData: quoteParams.hookData,
+        hookData: quoteParams!.hookData,
       })
 
       return {
         ...result,
-        amountOutFormatted: formatUnits(result.amountOut, quoteParams.amountOutDecimals),
+        amountOutFormatted: formatUnits(result.amountOut, quoteParams!.amountOutDecimals),
       }
     },
     enabled:
@@ -123,7 +115,6 @@ export function useSwap({
       !!quoteParams &&
       !!quoteParams.amountIn &&
       parseFloat(quoteParams.amountIn) > 0,
-    refetchInterval: 10_000, // Refetch every 10 seconds
     retry: 1,
   })
 
@@ -331,32 +322,6 @@ export function useSwap({
     }
   }
 
-  // Helper: Get swap quote
-  const getQuote = async ({
-    poolKey,
-    zeroForOne,
-    amountIn,
-    hookData,
-  }: {
-    poolKey: PoolKey
-    zeroForOne: boolean
-    amountIn: bigint
-    hookData?: `0x${string}`
-  }) => {
-    if (!publicClient || !chainId) {
-      throw new Error('Client not initialized')
-    }
-
-    return await quoteV4({
-      publicClient,
-      chainId,
-      poolKey,
-      zeroForOne,
-      amountIn,
-      hookData,
-    })
-  }
-
   return {
     // Mutations
     approveERC20,
@@ -377,6 +342,5 @@ export function useSwap({
     needsERC20Approval,
     needsPermit2Approval,
     buildSwapConfig,
-    getQuote,
   }
 }
