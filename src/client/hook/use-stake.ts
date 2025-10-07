@@ -153,6 +153,8 @@ export function useStake({
       poolData.refetch()
       userData.refetch()
       balances.refetch()
+      claimableRewardsStaking.refetch()
+      claimableRewardsWeth.refetch()
       onClaimSuccess?.(receipt)
     },
     onError: onClaimError,
@@ -169,8 +171,10 @@ export function useStake({
       // Auto-refetch after successful accrual
       if (tokenAddress === wethAddress) {
         outstandingRewardsWeth.refetch()
+        claimableRewardsWeth.refetch()
       } else {
         outstandingRewardsStaking.refetch()
+        claimableRewardsStaking.refetch()
       }
       poolData.refetch()
       userData.refetch()
@@ -194,6 +198,8 @@ export function useStake({
       // Auto-refetch all reward queries after successful accrual
       outstandingRewardsStaking.refetch()
       outstandingRewardsWeth.refetch()
+      claimableRewardsStaking.refetch()
+      claimableRewardsWeth.refetch()
       poolData.refetch()
       userData.refetch()
       onAccrueSuccess?.(receipt)
@@ -257,7 +263,46 @@ export function useStake({
       enabled && !!publicClient && !!project.data && !!address && !!stakeService && !!wethAddress,
   })
 
-  // Combine outstanding rewards
+  // Query: Claimable rewards for staking token
+  const claimableRewardsStaking = useQuery({
+    queryKey: [
+      'staking',
+      'claimableRewards',
+      project.data?.staking,
+      project.data?.token.address,
+      address,
+    ],
+    queryFn: async () => {
+      return stakeService!.getClaimableRewards()
+    },
+    enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
+    refetchInterval: 5000, // Refetch every 5 seconds to show streaming progress
+  })
+
+  // Query: Claimable rewards for WETH (paired token)
+  const claimableRewardsWeth = useQuery({
+    queryKey: ['staking', 'claimableRewards', project.data?.staking, wethAddress, address],
+    queryFn: async () => {
+      if (!wethAddress) return null
+      return stakeService!.getClaimableRewards(wethAddress)
+    },
+    enabled:
+      enabled && !!publicClient && !!project.data && !!address && !!stakeService && !!wethAddress,
+    refetchInterval: 5000, // Refetch every 5 seconds to show streaming progress
+  })
+
+  // Query: WETH reward rate per second
+  const wethRewardRate = useQuery({
+    queryKey: ['staking', 'wethRewardRate', project.data?.staking, wethAddress],
+    queryFn: async () => {
+      if (!wethAddress) return null
+      return stakeService!.getRewardRatePerSecond(wethAddress)
+    },
+    enabled: enabled && !!publicClient && !!project.data && !!stakeService && !!wethAddress,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  })
+
+  // Combine outstanding rewards (for accrual display)
   const outstandingRewards = useMemo(() => {
     const stakingRewards = outstandingRewardsStaking.data
     const wethRewards = outstandingRewardsWeth.data
@@ -269,6 +314,19 @@ export function useStake({
       weth: wethRewards,
     }
   }, [outstandingRewardsStaking.data, outstandingRewardsWeth.data])
+
+  // Combine claimable rewards (for user display)
+  const claimableRewards = useMemo(() => {
+    const stakingRewards = claimableRewardsStaking.data
+    const wethRewards = claimableRewardsWeth.data
+
+    if (!stakingRewards) return null
+
+    return {
+      staking: stakingRewards,
+      weth: wethRewards,
+    }
+  }, [claimableRewardsStaking.data, claimableRewardsWeth.data])
 
   // Helper to check if approval is needed for an amount
   const nA = (amount: string | number): boolean => {
@@ -291,6 +349,9 @@ export function useStake({
     userData,
     outstandingRewardsStaking,
     outstandingRewardsWeth,
+    claimableRewardsStaking,
+    claimableRewardsWeth,
+    wethRewardRate,
     balances,
 
     // Helpers
@@ -304,13 +365,15 @@ export function useStake({
     streamParams: poolData.data?.streamParams,
     rewardRatePerSecond: poolData.data?.rewardRatePerSecond,
     aprBps: userData.data?.aprBps,
-    rewardsData: outstandingRewards,
+    rewardsData: outstandingRewards, // For accrual display
+    claimableData: claimableRewards, // For user claimable amounts
 
     // Loading states
     isLoadingPoolData: poolData.isLoading,
     isLoadingUserData: userData.isLoading,
     isLoadingOutstandingRewards:
       outstandingRewardsStaking.isLoading || outstandingRewardsWeth.isLoading,
+    isLoadingClaimableRewards: claimableRewardsStaking.isLoading || claimableRewardsWeth.isLoading,
     isLoadingBalances: balances.isLoading,
   }
 }

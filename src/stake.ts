@@ -2,6 +2,7 @@ import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 
 import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
+import { WETH } from './constants'
 import type { PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
@@ -29,6 +30,7 @@ export class Stake {
   private stakingAddress: `0x${string}`
   private tokenAddress: `0x${string}`
   private tokenDecimals: number
+  private chainId: number
   private userAddress: `0x${string}`
   private trustedForwarder?: `0x${string}`
 
@@ -40,6 +42,7 @@ export class Stake {
     this.stakingAddress = config.stakingAddress
     this.tokenAddress = config.tokenAddress
     this.tokenDecimals = config.tokenDecimals
+    this.chainId = config.publicClient.chain?.id ?? 1 // Get chainId from publicClient
     this.userAddress = config.wallet.account.address
     this.trustedForwarder = config.trustedForwarder
   }
@@ -119,11 +122,18 @@ export class Stake {
    * Claim rewards from the staking contract
    */
   async claimRewards(params: ClaimParams | void): Promise<TransactionReceipt> {
+    // Default to claiming both staking token and WETH
+    let defaultTokens = [this.tokenAddress]
+    const wethAddress = WETH(this.chainId)?.address
+    if (wethAddress) {
+      defaultTokens.push(wethAddress)
+    }
+
     const hash = await this.wallet.writeContract({
       address: this.stakingAddress,
       abi: LevrStaking_v1,
       functionName: 'claimRewards',
-      args: [params?.tokens ?? [this.tokenAddress], params?.to ?? this.userAddress],
+      args: [params?.tokens ?? defaultTokens, params?.to ?? this.userAddress],
       chain: this.wallet.chain,
     })
 
@@ -167,6 +177,10 @@ export class Stake {
     }
     rewardRatePerSecond: { raw: bigint; formatted: string }
   }> {
+    // Get current block to use blockchain time
+    const currentBlock = await this.publicClient.getBlock()
+    const blockTime = currentBlock.timestamp
+
     const results = await this.publicClient.multicall({
       contracts: [
         {
@@ -220,7 +234,7 @@ export class Stake {
         windowSeconds: windowSeconds,
         streamStart: streamStart,
         streamEnd: streamEnd,
-        isActive: BigInt(Math.floor(Date.now() / 1000)) < streamEnd,
+        isActive: blockTime < streamEnd,
       },
       rewardRatePerSecond: {
         raw: rewardRate as bigint,
@@ -268,7 +282,7 @@ export class Stake {
   }
 
   /**
-   * Get outstanding rewards for the token
+   * Get outstanding rewards for the token (for accrual purposes)
    */
   async getOutstandingRewards(tokenAddress?: `0x${string}`): Promise<{
     available: { raw: bigint; formatted: string }
@@ -293,6 +307,53 @@ export class Stake {
         raw: result[1],
         formatted: formatUnits(result[1], decimals),
       },
+    }
+  }
+
+  /**
+   * Get claimable rewards for the current user and token
+   */
+  async getClaimableRewards(tokenAddress?: `0x${string}`): Promise<{
+    claimable: { raw: bigint; formatted: string }
+  }> {
+    const token = tokenAddress ?? this.tokenAddress
+    const decimals = token === this.tokenAddress ? this.tokenDecimals : 18 // Assume 18 for other tokens
+
+    const result = await this.publicClient.readContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'claimableRewards',
+      args: [this.userAddress, token],
+    })
+
+    return {
+      claimable: {
+        raw: result,
+        formatted: formatUnits(result, decimals),
+      },
+    }
+  }
+
+  /**
+   * Get reward rate per second for a specific token
+   */
+  async getRewardRatePerSecond(tokenAddress?: `0x${string}`): Promise<{
+    raw: bigint
+    formatted: string
+  }> {
+    const token = tokenAddress ?? this.tokenAddress
+    const decimals = token === this.tokenAddress ? this.tokenDecimals : 18 // Assume 18 for other tokens
+
+    const result = await this.publicClient.readContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'rewardRatePerSecond',
+      args: [token],
+    })
+
+    return {
+      raw: result,
+      formatted: formatUnits(result, decimals),
     }
   }
 
