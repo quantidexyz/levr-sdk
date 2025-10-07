@@ -23,7 +23,7 @@ import { warpAnvil } from './util'
  * 3. Clanker v4 contracts must be deployed on the fork
  * 4. Account must have ETH for gas and swap operations
  */
-describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
+describe('#QUOTE_SWAP_TEST', () => {
   // ---
   // CONSTANTS
 
@@ -92,7 +92,7 @@ describe('#DEPLOY_QUOTE_SWAP_TEST', () => {
       await warpAnvil(120)
     },
     {
-      timeout: 30000,
+      timeout: 50000,
     }
   )
 

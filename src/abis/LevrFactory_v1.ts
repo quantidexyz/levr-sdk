@@ -49,8 +49,26 @@ export default [
         type: 'address',
         internalType: 'address',
       },
+      {
+        name: 'clankerFactory_',
+        type: 'address',
+        internalType: 'address',
+      },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'clankerFactory',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -80,6 +98,47 @@ export default [
       },
     ],
     stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    name: 'getClankerMetadata',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'metadata',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.ClankerMetadata',
+        components: [
+          {
+            name: 'feeLocker',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpLocker',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'hook',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'exists',
+            type: 'bool',
+            internalType: 'bool',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',

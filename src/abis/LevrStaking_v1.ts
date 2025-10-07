@@ -42,11 +42,6 @@ export default [
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -109,6 +104,32 @@ export default [
   },
   {
     type: 'function',
+    name: 'factory',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getClankerFeeLocker',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'initialize',
     inputs: [
       {
@@ -123,6 +144,11 @@ export default [
       },
       {
         name: 'treasury_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'factory_',
         type: 'address',
         internalType: 'address',
       },
@@ -151,37 +177,27 @@ export default [
   },
   {
     type: 'function',
-    name: 'onTransferReceived',
+    name: 'outstandingRewards',
     inputs: [
       {
-        name: '',
+        name: 'token',
         type: 'address',
         internalType: 'address',
-      },
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: '',
-        type: 'bytes',
-        internalType: 'bytes',
       },
     ],
     outputs: [
       {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
+        name: 'available',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'pending',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'function',

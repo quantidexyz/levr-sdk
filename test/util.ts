@@ -11,27 +11,27 @@ export const levrAnvil = {
 /**
  * Creates an HTTP transport for local anvil chain
  */
-export const getLocalAnvilTransport = (): HttpTransport => {
+export const getLocalAnvilTransport = (timeout?: number): HttpTransport => {
   return http(`http://localhost:8545`, {
-    timeout: 10000,
+    timeout: timeout ?? 60000, // Increased from 10s to 60s for complex deployments
   })
 }
 
-export const getPublicClient = () => {
+export const getPublicClient = (timeout?: number) => {
   return createPublicClient({
     chain: levrAnvil,
-    transport: getLocalAnvilTransport(),
+    transport: getLocalAnvilTransport(timeout),
   })
 }
 
-export const getWallet = () => {
+export const getWallet = (timeout?: number) => {
   const privateKey = process.env.TEST_PRIVATE_KEY as `0x${string}` | undefined
   if (!privateKey) throw new Error('TEST_PRIVATE_KEY is not set')
 
   return createWalletClient({
     account: privateKeyToAccount(privateKey),
     chain: levrAnvil,
-    transport: getLocalAnvilTransport(),
+    transport: getLocalAnvilTransport(timeout),
   })
 }
 

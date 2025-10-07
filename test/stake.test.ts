@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { erc20Abi, parseEther } from 'viem'
+import { decodeEventLog, erc20Abi, formatEther, parseEther } from 'viem'
 
 import { IClankerLPLocker, LevrFactory_v1, LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
@@ -94,7 +94,7 @@ describe('#STAKE_TEST', () => {
       await warpAnvil(120)
     },
     {
-      timeout: 30000,
+      timeout: 50000,
     }
   )
 
@@ -125,12 +125,12 @@ describe('#STAKE_TEST', () => {
         args: [wallet.account.address],
       })
 
-      console.log('\n💰 User token balance:', userBalance.toString())
+      console.log('\n💰 User token balance:', `${formatEther(userBalance)} tokens`)
 
       // Stake 50% of balance
       const stakeAmount = userBalance / 2n
 
-      console.log('\n✅ Staking', stakeAmount.toString(), 'tokens...')
+      console.log('\n✅ Staking', `${formatEther(stakeAmount)} tokens (50% of balance)...`)
 
       // Approve staking contract
       const approveTxHash = await wallet.writeContract({
@@ -168,7 +168,7 @@ describe('#STAKE_TEST', () => {
       })
 
       expect(stakedBalance).toBe(stakeAmount)
-      console.log('\n✅ Staking verified:', stakedBalance.toString())
+      console.log('\n✅ Staking verified:', `${formatEther(stakedBalance)} tokens`)
 
       // Verify staked token balance
       const stakedTokenBalance = await publicClient.readContract({
@@ -179,7 +179,15 @@ describe('#STAKE_TEST', () => {
       })
 
       expect(stakedTokenBalance).toBe(stakeAmount)
-      console.log('✅ Staked token balance:', stakedTokenBalance.toString())
+      console.log(
+        '✅ Staked token balance:',
+        `${formatEther(stakedTokenBalance)} staked tokens (1:1 ratio)`
+      )
+
+      // Verify staking math: staked amount should be exactly 50% of original balance (within rounding tolerance)
+      expect(stakedBalance * 2n).toBeGreaterThanOrEqual(userBalance - 1n)
+      expect(stakedBalance * 2n).toBeLessThanOrEqual(userBalance + 1n)
+      console.log('✅ Staking math verified: Staked exactly 50% of total balance')
     },
     {
       timeout: 60000,
@@ -210,18 +218,52 @@ describe('#STAKE_TEST', () => {
         hooks: poolKey.hooks,
       })
 
+      // CRITICAL: Check who is actually receiving rewards
+      console.log('\n🔍 Checking reward recipients...')
+      console.log('Expected reward recipient (staking):', project.staking)
+      console.log('Actual reward recipients:', tokenRewards.rewardRecipients)
+      console.log('Reward admins:', tokenRewards.rewardAdmins)
+      console.log('Reward BPS:', tokenRewards.rewardBps)
+
+      //  VERIFY if they match
+      const actualRecipient = tokenRewards.rewardRecipients[0]?.toLowerCase()
+      const expectedRecipient = project.staking.toLowerCase()
+      if (actualRecipient === expectedRecipient) {
+        console.log('✅ Reward recipient matches staking contract')
+      } else {
+        console.log('❌ MISMATCH!')
+        console.log('  Actual:', actualRecipient)
+        console.log('  Expected:', expectedRecipient)
+
+        // Try to identify what the actual recipient is
+        if (actualRecipient === project.treasury.toLowerCase()) {
+          console.log('  → Actual recipient is the TREASURY')
+        } else if (actualRecipient === wallet.account.address.toLowerCase()) {
+          console.log('  → Actual recipient is the DEPLOYER/WALLET')
+        } else {
+          console.log('  → Actual recipient is UNKNOWN')
+
+          // Check if it's a contract
+          const code = await publicClient.getCode({ address: actualRecipient as `0x${string}` })
+          if (code && code !== '0x') {
+            console.log('  → It IS a contract (has code)')
+          } else {
+            console.log('  → It is NOT a contract (EOA or not deployed)')
+          }
+        }
+      }
+
       // Get WETH address and determine swap direction
-      const wethAddress = weth.address
-      if (!wethAddress) throw new Error('WETH address not found')
+      if (!weth.address) throw new Error('WETH address not found')
 
       // We want to swap WETH for Token (buy tokens with ETH)
-      const isWETHCurrency0 = poolKey.currency0.toLowerCase() === wethAddress.toLowerCase()
+      const isWETHCurrency0 = poolKey.currency0.toLowerCase() === weth.address.toLowerCase()
       const zeroForOne = isWETHCurrency0
 
-      const amountIn = parseEther('0.01') // Swap 0.01 ETH
+      const amountIn = parseEther('1') // Swap 1 ETH to generate meaningful fees
 
       console.log('\n💱 Executing swap to generate fees...')
-      console.log('  Amount in:', amountIn.toString(), 'ETH')
+      console.log('  Amount in:', `${formatEther(amountIn)} ETH`)
 
       // Execute swap
       const quote = await quoteV4({
@@ -234,7 +276,7 @@ describe('#STAKE_TEST', () => {
 
       const amountOutMinimum = quote.amountOut === 0n ? 0n : (quote.amountOut * 9900n) / 10000n
 
-      const { receipt: swapReceipt } = await swapV4({
+      const swapReceipt = await swapV4({
         publicClient,
         wallet,
         chainId,
@@ -247,18 +289,26 @@ describe('#STAKE_TEST', () => {
       expect(swapReceipt.status).toBe('success')
       console.log('  ✅ Swap successful, fees generated')
 
-      // Get staking contract balance before collecting rewards
-      const stakingBalanceBefore = await publicClient.readContract({
+      // Get staking contract WETH balance before collecting rewards
+      // Note: Fees are collected in the token being sold (WETH in this case)
+      const stakingWethBalanceBefore = await publicClient.readContract({
+        address: weth.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [project.staking],
+      })
+
+      // Also check clanker token balance
+      const stakingTokenBalanceBefore = await publicClient.readContract({
         address: deployedTokenAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [project.staking],
       })
 
-      console.log(
-        '\n📊 Staking balance before collecting rewards:',
-        stakingBalanceBefore.toString()
-      )
+      console.log('\n📊 Staking balances before collecting rewards:')
+      console.log('  WETH:', `${formatEther(stakingWethBalanceBefore)} WETH`)
+      console.log('  Token:', `${formatEther(stakingTokenBalanceBefore)} tokens`)
 
       // Collect rewards from LP locker
       console.log('\n💰 Collecting rewards from LP locker...')
@@ -277,42 +327,240 @@ describe('#STAKE_TEST', () => {
         gasUsed: collectReceipt.gasUsed?.toString(),
       })
 
-      // Get staking contract balance after collecting rewards
-      const stakingBalanceAfter = await publicClient.readContract({
+      // Decode the ClaimedRewards event to see what was actually collected
+      const claimedRewardsEvent = collectReceipt.logs.find((log) => {
+        try {
+          const decoded = decodeEventLog({
+            abi: IClankerLPLocker,
+            data: log.data,
+            topics: log.topics,
+          })
+          return decoded.eventName === 'ClaimedRewards'
+        } catch {
+          return false
+        }
+      })
+
+      if (claimedRewardsEvent) {
+        const decoded = decodeEventLog({
+          abi: IClankerLPLocker,
+          data: claimedRewardsEvent.data,
+          topics: claimedRewardsEvent.topics,
+        })
+        console.log('\n📋 ClaimedRewards event data:')
+        console.log('  Token:', decoded.args.token)
+
+        // Handle different event variants with type guards
+        if ('amount0' in decoded.args) {
+          console.log(
+            '  Amount0 (total collected):',
+            `${formatEther(decoded.args.amount0 || 0n)} WETH`
+          )
+          console.log(
+            '  Amount1 (total collected):',
+            `${formatEther(decoded.args.amount1 || 0n)} tokens`
+          )
+        }
+
+        if ('rewards0' in decoded.args) {
+          console.log(
+            '  Rewards0 (distributed):',
+            decoded.args.rewards0?.map((r: bigint) => r.toString())
+          )
+        }
+
+        if ('rewards1' in decoded.args) {
+          console.log(
+            '  Rewards1 (distributed):',
+            decoded.args.rewards1?.map((r: bigint) => r.toString())
+          )
+        }
+
+        // Check all ERC20 Transfer events to see where the WETH actually went
+        console.log('\n🔍 Analyzing Transfer events to find where WETH went...')
+        const transferEvents = collectReceipt.logs.filter((log) => {
+          // Transfer event signature: Transfer(address indexed from, address indexed to, uint256 value)
+          return (
+            log.topics[0] ===
+              '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' &&
+            log.address.toLowerCase() === weth.address.toLowerCase()
+          )
+        })
+
+        for (const event of transferEvents) {
+          const from = `0x${event.topics[1]?.slice(26)}` // Remove padding from indexed address
+          const to = `0x${event.topics[2]?.slice(26)}` // Remove padding from indexed address
+          const value = BigInt(event.data)
+          console.log(`  Transfer: ${formatEther(value)} WETH from ${from} to ${to}`)
+
+          // Identify what this address is
+          if (to.toLowerCase() === project.staking.toLowerCase()) {
+            console.log('    ✅ This IS the staking contract!')
+          } else if (to.toLowerCase() === project.treasury.toLowerCase()) {
+            console.log('    ⚠️  This is the TREASURY (not staking!)')
+          } else if (to.toLowerCase() === wallet.account.address.toLowerCase()) {
+            console.log('    ⚠️  This is the DEPLOYER/WALLET (not staking!)')
+          } else if (to.toLowerCase() === lpLockerAddress.toLowerCase()) {
+            console.log('    ➡️  This is the LP Locker')
+          } else if (to.toLowerCase() === '0xf3622742b1e446d92e45e22923ef11c2fcd55d68') {
+            console.log('    ⚠️  This is the ClankerFeeLocker - rewards go here first!')
+            console.log('    ℹ️  ClankerFeeLocker should distribute to actual recipients')
+          } else {
+            console.log(`    ❌ This is UNKNOWN - Expected staking: ${project.staking}`)
+
+            // Try to check if this unknown address is related to the staking contract
+            const unknownCode = await publicClient.getCode({ address: to as `0x${string}` })
+            if (unknownCode && unknownCode !== '0x') {
+              console.log(`    🔍 Unknown address IS a contract`)
+            } else {
+              console.log(`    🔍 Unknown address is NOT a contract (EOA)`)
+            }
+          }
+        }
+      } else {
+        console.log('\n❌ No ClaimedRewards event found in logs')
+      }
+
+      // Get staking contract balances after collecting rewards
+      const stakingWethBalanceAfter = await publicClient.readContract({
+        address: weth.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [project.staking],
+      })
+
+      const stakingTokenBalanceAfter = await publicClient.readContract({
         address: deployedTokenAddress,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [project.staking],
       })
 
-      console.log('📊 Staking balance after collecting rewards:', stakingBalanceAfter.toString())
-      const rewardsDelta = stakingBalanceAfter - stakingBalanceBefore
-      console.log('📈 Rewards delta:', rewardsDelta.toString())
+      console.log('\n📊 Staking balances after collecting rewards:')
+      console.log('  WETH:', `${formatEther(stakingWethBalanceAfter)} WETH`)
+      console.log('  Token:', `${formatEther(stakingTokenBalanceAfter)} tokens`)
 
-      // Expect rewards to have been sent to staking
-      expect(stakingBalanceAfter).toBeGreaterThan(stakingBalanceBefore)
+      const wethDelta = stakingWethBalanceAfter - stakingWethBalanceBefore
+      const tokenDelta = stakingTokenBalanceAfter - stakingTokenBalanceBefore
 
-      // Get user's reward balance before claiming
-      const userBalanceBefore = await publicClient.readContract({
-        address: deployedTokenAddress,
+      console.log('\n📈 Rewards deltas:')
+      console.log('  WETH:', `${formatEther(wethDelta)} WETH`)
+      console.log('  Token:', `${formatEther(tokenDelta)} tokens`)
+
+      // Check ClankerFeeLocker balance to confirm rewards are there
+      const feeLockerAddress = '0xf3622742b1e446d92e45e22923ef11c2fcd55d68'
+      const feeLockerWethBalance = await publicClient.readContract({
+        address: weth.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [feeLockerAddress],
+      })
+      console.log(
+        '\n💰 ClankerFeeLocker WETH balance:',
+        `${formatEther(feeLockerWethBalance)} WETH`
+      )
+
+      if (feeLockerWethBalance > 0n) {
+        console.log('✅ Rewards are in ClankerFeeLocker - need to trigger accrual!')
+
+        // First, check what rewards are outstanding
+        console.log('\n📊 Checking outstanding rewards...')
+        const outstandingRewards = await publicClient.readContract({
+          address: project.staking,
+          abi: LevrStaking_v1,
+          functionName: 'outstandingRewards',
+          args: [weth.address],
+        })
+
+        console.log('  Available rewards:', `${formatEther(outstandingRewards[0])} WETH`)
+        console.log('  Pending rewards:', `${formatEther(outstandingRewards[1])} WETH`)
+
+        const availableRewards = outstandingRewards[0]
+
+        // Use accrueRewards with available amount or trigger with minimal amount
+        console.log('\n🔧 Calling accrueRewards to trigger automatic ClankerFeeLocker claim...')
+
+        try {
+          // Simply call accrueRewards - it will automatically claim from ClankerFeeLocker and credit all available
+          const accrueTxHash = await wallet.writeContract({
+            address: project.staking,
+            abi: LevrStaking_v1,
+            functionName: 'accrueRewards',
+            args: [weth.address],
+          })
+
+          const accrueReceipt = await publicClient.waitForTransactionReceipt({
+            hash: accrueTxHash,
+          })
+
+          if (accrueReceipt.status === 'success') {
+            console.log('  ✅ accrueRewards succeeded!')
+
+            // Check rewards again after accrual
+            const outstandingAfter = await publicClient.readContract({
+              address: project.staking,
+              abi: LevrStaking_v1,
+              functionName: 'outstandingRewards',
+              args: [weth.address],
+            })
+
+            console.log(
+              '  📊 After accrual - Available:',
+              `${formatEther(outstandingAfter[0])} WETH`
+            )
+            console.log('  📊 After accrual - Pending:', `${formatEther(outstandingAfter[1])} WETH`)
+
+            // Verify WETH was claimed and credited as rewards
+            const stakingWethBalanceAfterAccrual = await publicClient.readContract({
+              address: weth.address,
+              abi: erc20Abi,
+              functionName: 'balanceOf',
+              args: [project.staking],
+            })
+
+            console.log(
+              '  📊 Staking WETH balance after accrual:',
+              `${formatEther(stakingWethBalanceAfterAccrual)} WETH`
+            )
+            expect(stakingWethBalanceAfterAccrual).toBeGreaterThan(stakingWethBalanceBefore)
+          } else {
+            console.log('  ❌ accrueRewards failed')
+            throw new Error('accrueRewards failed')
+          }
+        } catch (e) {
+          console.log('  ⚠️  Could not accrue rewards:', (e as Error).message.slice(0, 100))
+          throw e
+        }
+      } else {
+        // Fallback: check if rewards went directly to staking (old expectation)
+        const totalRewardsReceived = wethDelta + tokenDelta
+        expect(totalRewardsReceived).toBeGreaterThan(0n)
+      }
+
+      // Get user's WETH balance before claiming (since rewards are in WETH)
+      const userWethBalanceBefore = await publicClient.readContract({
+        address: weth.address,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      console.log('\n💰 User balance before claiming:', userBalanceBefore.toString())
+      console.log(
+        '\n💰 User WETH balance before claiming:',
+        `${formatEther(userWethBalanceBefore)} WETH`
+      )
 
       // Warp forward a bit to allow some streaming
       console.log('\n⏰ Warping 1 hour forward to allow reward streaming...')
       await warpAnvil(3600) // 1 hour
 
-      // Claim rewards
-      console.log('\n💎 Claiming rewards...')
+      // Claim rewards (WETH rewards, not Clanker token!)
+      console.log('\n💎 Claiming WETH rewards...')
       const claimTxHash = await wallet.writeContract({
         address: project.staking,
         abi: LevrStaking_v1,
         functionName: 'claimRewards',
-        args: [[deployedTokenAddress], wallet.account.address],
+        args: [[weth.address], wallet.account.address], // Claim WETH, not Clanker token!
       })
 
       const claimReceipt = await publicClient.waitForTransactionReceipt({ hash: claimTxHash })
@@ -323,20 +571,23 @@ describe('#STAKE_TEST', () => {
         gasUsed: claimReceipt.gasUsed?.toString(),
       })
 
-      // Get user's balance after claiming
-      const userBalanceAfter = await publicClient.readContract({
-        address: deployedTokenAddress,
+      // Get user's WETH balance after claiming
+      const userWethBalanceAfter = await publicClient.readContract({
+        address: weth.address,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
-      console.log('💰 User balance after claiming:', userBalanceAfter.toString())
-      const userRewardsDelta = userBalanceAfter - userBalanceBefore
-      console.log('📈 User rewards received:', userRewardsDelta.toString())
+      console.log(
+        '💰 User WETH balance after claiming:',
+        `${formatEther(userWethBalanceAfter)} WETH`
+      )
+      const userWethRewardsDelta = userWethBalanceAfter - userWethBalanceBefore
+      console.log('📈 User WETH rewards received:', `${formatEther(userWethRewardsDelta)} WETH`)
 
-      // Expect user to have received rewards
-      expect(userBalanceAfter).toBeGreaterThan(userBalanceBefore)
+      // Expect user to have received WETH rewards
+      expect(userWethBalanceAfter).toBeGreaterThan(userWethBalanceBefore)
       console.log('\n✅ Test complete: Rewards successfully collected and claimed!')
     },
     {
