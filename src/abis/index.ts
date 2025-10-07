@@ -27,4 +27,4 @@ export { default as ClankerUniV4EthDevBuy_v4 } from './ClankerUniV4EthDevBuy_v4'
 
 // -----------------------------
 // General
-export { default as WETH } from './WETH'
+export { default as WETH9 } from './WETH9'

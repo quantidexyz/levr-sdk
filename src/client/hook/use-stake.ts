@@ -1,12 +1,13 @@
 'use client'
 
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { erc20Abi, formatUnits, parseUnits } from 'viem'
+import { useMemo } from 'react'
 import type { TransactionReceipt } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { LevrStaking_v1 } from '../../abis'
-import { WETH } from '../../constants'
+import { StakeService } from '../../stake'
+import type { ClaimParams } from '../../stake'
+import { needsApproval } from '../../util'
 import { useBalance } from './use-balance'
 import { useProject } from './use-project'
 
@@ -25,6 +26,9 @@ export type UseStakeParams = {
 
   onClaimSuccess?: (receipt: TransactionReceipt) => void
   onClaimError?: (error: unknown) => void
+
+  onAccrueSuccess?: (receipt: TransactionReceipt) => void
+  onAccrueError?: (error: unknown) => void
 }
 
 export function useStake({
@@ -42,13 +46,30 @@ export function useStake({
 
   onClaimSuccess,
   onClaimError,
+
+  onAccrueSuccess,
+  onAccrueError,
 }: UseStakeParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
-  const chainId = publicClient?.chain?.id
   const address = wallet.data?.account?.address
 
   const project = useProject({ clankerToken })
+
+  // Create StakeService instance with shared parameters
+  const stakeService = useMemo(() => {
+    if (!wallet.data || !publicClient || !project.data) {
+      console.error('Wallet or public client is not connected')
+      return null
+    }
+    return new StakeService({
+      wallet: wallet.data,
+      publicClient,
+      stakingAddress: project.data.staking,
+      tokenAddress: project.data.token.address,
+      tokenDecimals: project.data.token.decimals,
+    })
+  }, [wallet.dataUpdatedAt, publicClient, project.dataUpdatedAt])
 
   // Query: Token balance
   const balances = useBalance({
@@ -61,27 +82,10 @@ export function useStake({
 
   // Approve mutation
   const approve = useMutation({
-    mutationFn: async (amount: number) => {
-      if (!wallet.data) throw new Error('Wallet is not connected')
-      if (!publicClient) throw new Error('Public client is not connected')
-      if (!project.data) throw new Error('Project is not connected')
+    mutationFn: async (amount: number | string | bigint) => {
+      if (!stakeService) throw new Error('Stake service is not connected')
 
-      const parsedAmount = parseUnits(amount.toString(), project.data.token.decimals)
-
-      const hash = await wallet.data.writeContract({
-        address: project.data.token.address,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [project.data.staking, parsedAmount],
-      })
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-      if (receipt.status === 'reverted') {
-        throw new Error('Approve transaction reverted')
-      }
-
-      return receipt
+      return stakeService.approve(amount)
     },
     onSuccess: (receipt) => {
       // Auto-refetch allowance after successful approval
@@ -93,27 +97,10 @@ export function useStake({
 
   // Stake mutation
   const stake = useMutation({
-    mutationFn: async (amount: number) => {
-      if (!wallet.data) throw new Error('Wallet is not connected')
-      if (!publicClient) throw new Error('Public client is not connected')
-      if (!project.data) throw new Error('Project is not connected')
+    mutationFn: async (amount: number | string | bigint) => {
+      if (!stakeService) throw new Error('Stake service is not connected')
 
-      const parsedAmount = parseUnits(amount.toString(), project.data.token.decimals)
-
-      const hash = await wallet.data.writeContract({
-        address: project.data.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stake',
-        args: [parsedAmount],
-      })
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-      if (receipt.status === 'reverted') {
-        throw new Error('Stake transaction reverted')
-      }
-
-      return receipt
+      return stakeService.stake(amount)
     },
     onSuccess: (receipt) => {
       // Auto-refetch after successful stake
@@ -128,28 +115,19 @@ export function useStake({
 
   // Unstake mutation
   const unstake = useMutation({
-    mutationFn: async ({ amount, to }: { amount: number; to?: `0x${string}` }) => {
-      if (!wallet.data) throw new Error('Wallet is not connected')
-      if (!address) throw new Error('Address is not connected')
-      if (!publicClient) throw new Error('Public client is not connected')
-      if (!project.data) throw new Error('Project is not connected')
+    mutationFn: async ({
+      amount,
+      to,
+    }: {
+      amount: number | string | bigint
+      to?: `0x${string}`
+    }) => {
+      if (!stakeService) throw new Error('Stake service is not connected')
 
-      const parsedAmount = parseUnits(amount.toString(), project.data.token.decimals)
-
-      const hash = await wallet.data.writeContract({
-        address: project.data.staking,
-        abi: LevrStaking_v1,
-        functionName: 'unstake',
-        args: [parsedAmount, to ?? address],
+      return stakeService.unstake({
+        amount,
+        to,
       })
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-      if (receipt.status === 'reverted') {
-        throw new Error('Unstake transaction reverted')
-      }
-
-      return receipt
     },
     onSuccess: (receipt) => {
       // Auto-refetch after successful unstake
@@ -163,28 +141,10 @@ export function useStake({
 
   // Claim mutation
   const claim = useMutation({
-    mutationFn: async () => {
-      const weth = WETH(chainId)
-      if (!weth?.address) throw new Error('weth address is not found')
-      if (!wallet.data) throw new Error('Wallet is not connected')
-      if (!publicClient) throw new Error('Public client is not connected')
-      if (!project.data) throw new Error('Project is not connected')
-      if (!address) throw new Error('Address is not connected')
+    mutationFn: async (params: ClaimParams | void) => {
+      if (!stakeService) throw new Error('Stake service is not connected')
 
-      const hash = await wallet.data.writeContract({
-        address: project.data.staking,
-        abi: LevrStaking_v1,
-        functionName: 'claimRewards',
-        args: [[project.data.token.address, weth.address], address],
-      })
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-
-      if (receipt.status === 'reverted') {
-        throw new Error('Claim transaction reverted')
-      }
-
-      return receipt
+      return stakeService.claimRewards(params)
     },
     onSuccess: (receipt) => {
       // Auto-refetch after successful claim
@@ -196,142 +156,69 @@ export function useStake({
     onError: onClaimError,
   })
 
+  // Accrue rewards mutation
+  const accrueRewards = useMutation({
+    mutationFn: async (tokenAddress?: `0x${string}`) => {
+      if (!stakeService) throw new Error('Stake service is not connected')
+
+      return stakeService.accrueRewards(tokenAddress)
+    },
+    onSuccess: (receipt) => {
+      // Auto-refetch after successful accrual
+      outstandingRewards.refetch()
+      poolData.refetch()
+      userData.refetch()
+      onAccrueSuccess?.(receipt)
+    },
+    onError: onAccrueError,
+  })
+
   // Query: Allowance
   const allowance = useQuery({
     queryKey: ['staking', 'allowance', project.data?.token.address, project.data?.staking, address],
     queryFn: async () => {
-      if (!publicClient || !project.data || !address) return { raw: 0n, formatted: '0' }
-
-      const result = await publicClient.readContract({
-        address: project.data.token.address,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [address, project.data.staking],
-      })
-
-      const data = {
-        raw: result,
-        formatted: formatUnits(result, project.data.token.decimals),
-      }
-
-      return data
+      return stakeService!.getAllowance()
     },
-    enabled: enabled && !!publicClient && !!project.data && !!address,
+    enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
   })
 
   // Query: Pool-level data (multicall for efficiency)
   const poolData = useQuery({
     queryKey: ['staking', 'poolData', project.data?.staking, project.data?.token.address],
     queryFn: async () => {
-      const results = await publicClient!.multicall({
-        contracts: [
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'totalStaked',
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'escrowBalance',
-            args: [project.data!.token.address],
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'streamWindowSeconds',
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'streamStart',
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'streamEnd',
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'rewardRatePerSecond',
-            args: [project.data!.token.address],
-          },
-        ],
-      })
-
-      const [totalStaked, escrowBalance, windowSeconds, streamStart, streamEnd, rewardRate] =
-        results.map((r) => r.result!)
-
-      return {
-        totalStaked: {
-          raw: totalStaked as bigint,
-          formatted: formatUnits(totalStaked as bigint, project.data!.token.decimals),
-        },
-        escrowBalance: {
-          raw: escrowBalance as bigint,
-          formatted: formatUnits(escrowBalance as bigint, project.data!.token.decimals),
-        },
-        streamParams: {
-          windowSeconds: windowSeconds as number,
-          streamStart: streamStart as bigint,
-          streamEnd: streamEnd as bigint,
-          isActive: BigInt(Math.floor(Date.now() / 1000)) < (streamEnd as bigint),
-        },
-        rewardRatePerSecond: {
-          raw: rewardRate as bigint,
-          formatted: formatUnits(rewardRate as bigint, project.data!.token.decimals),
-        },
-      }
+      return stakeService!.getPoolData()
     },
-    enabled: enabled && !!publicClient && !!project.data,
+    enabled: enabled && !!publicClient && !!project.data && !!stakeService,
   })
 
   // Query: User-specific data (multicall for efficiency)
   const userData = useQuery({
     queryKey: ['staking', 'userData', project.data?.staking, address],
     queryFn: async () => {
-      const results = await publicClient!.multicall({
-        contracts: [
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'stakedBalanceOf',
-            args: [address!],
-          },
-          {
-            address: project.data!.staking,
-            abi: LevrStaking_v1,
-            functionName: 'aprBps',
-            args: [address!],
-          },
-        ],
-      })
-
-      const [stakedBalance, aprBps] = results.map((r) => r.result!)
-
-      return {
-        stakedBalance: {
-          raw: stakedBalance as bigint,
-          formatted: formatUnits(stakedBalance as bigint, project.data!.token.decimals),
-        },
-        aprBps: {
-          raw: aprBps as bigint,
-          percentage: Number(aprBps as bigint) / 100, // Convert bps to percentage (10000 bps = 100%)
-        },
-      }
+      return stakeService!.getUserData()
     },
-    enabled: enabled && !!publicClient && !!project.data && !!address,
+    enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
+  })
+
+  // Query: Outstanding rewards
+  const outstandingRewards = useQuery({
+    queryKey: [
+      'staking',
+      'outstandingRewards',
+      project.data?.staking,
+      project.data?.token.address,
+      address,
+    ],
+    queryFn: async () => {
+      return stakeService!.getOutstandingRewards()
+    },
+    enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
   })
 
   // Helper to check if approval is needed for an amount
-  const needsApproval = (amount: string | number): boolean => {
+  const nA = (amount: string | number): boolean => {
     if (!project.data || allowance.data === undefined) return false
-    try {
-      return Number(allowance.data.formatted) < Number(amount)
-    } catch {
-      return false
-    }
+    return needsApproval(allowance.data.formatted, amount)
   }
 
   return {
@@ -340,15 +227,17 @@ export function useStake({
     stake,
     unstake,
     claim,
+    accrueRewards,
 
     // Queries (grouped by multicall)
     allowance,
     poolData,
     userData,
+    outstandingRewards,
     balances,
 
     // Helpers
-    needsApproval,
+    needsApproval: nA,
 
     // Convenience accessors for individual values
     tokenBalance: balances.data?.token,
@@ -358,10 +247,12 @@ export function useStake({
     streamParams: poolData.data?.streamParams,
     rewardRatePerSecond: poolData.data?.rewardRatePerSecond,
     aprBps: userData.data?.aprBps,
+    rewardsData: outstandingRewards.data,
 
     // Loading states
     isLoadingPoolData: poolData.isLoading,
     isLoadingUserData: userData.isLoading,
+    isLoadingOutstandingRewards: outstandingRewards.isLoading,
     isLoadingBalances: balances.isLoading,
   }
 }

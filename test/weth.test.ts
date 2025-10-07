@@ -9,11 +9,11 @@ describe('#WETH_TEST', () => {
 
   let publicClient: SetupTestReturnType['publicClient']
   let wallet: SetupTestReturnType['wallet']
-  let chainId: SetupTestReturnType['chainId']
+
   let weth: SetupTestReturnType['weth']
 
   beforeAll(() => {
-    ;({ publicClient, wallet, chainId, weth } = setupTest())
+    ;({ publicClient, wallet, weth } = setupTest())
   })
 
   it('should deposit and withdraw WETH', async () => {
@@ -36,7 +36,7 @@ describe('#WETH_TEST', () => {
       value: amount,
     })
 
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: tx })
+    await publicClient.waitForTransactionReceipt({ hash: tx })
 
     const balanceAfter = await publicClient.readContract({
       address: weth.address,

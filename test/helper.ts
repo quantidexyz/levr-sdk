@@ -1,11 +1,9 @@
 import { Clanker } from 'clanker-sdk/v4'
-import type { Account, Chain, PublicClient, Transport, WalletClient } from 'viem'
 
-import { IClankerLPLocker, WETH as WETHAbi } from '../src/abis'
+import { IClankerLPLocker, WETH9 } from '../src/abis'
 import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from '../src/constants'
+import type { PopPublicClient, PopWalletClient } from '../src/types'
 import { getPublicClient, getWallet } from './util'
-
-export type PopWalletClient = WalletClient<Transport, Chain, Account>
 
 export type SetupTestReturnType = ReturnType<typeof setupTest>
 
@@ -13,13 +11,13 @@ export type SetupTestReturnType = ReturnType<typeof setupTest>
  * Setup test environment
  */
 export const setupTest = (): {
-  publicClient: PublicClient
+  publicClient: PopPublicClient
   wallet: PopWalletClient
   chainId: number
   factoryAddress: `0x${string}`
   lpLockerAddress: `0x${string}`
   clanker: Clanker
-  weth: NonNullable<ReturnType<typeof WETH>> & { abi: typeof WETHAbi }
+  weth: NonNullable<ReturnType<typeof WETH>> & { abi: typeof WETH9 }
 } => {
   const publicClient = getPublicClient()
   const wallet = getWallet()
@@ -42,7 +40,7 @@ export const setupTest = (): {
 
   const _weth = WETH(chainId)
   if (!_weth) throw new Error('WETH not found')
-  const weth = { ..._weth, abi: WETHAbi }
+  const weth = { ..._weth, abi: WETH9 }
 
   return {
     publicClient,
@@ -59,7 +57,7 @@ export const setupTest = (): {
  * Get token rewards of a deployed token, via LP locker
  */
 export const getTokenRewards = async (
-  publicClient: PublicClient,
+  publicClient: PopPublicClient,
   deployedTokenAddress: `0x${string}`
 ) => {
   const chainId = publicClient.chain?.id

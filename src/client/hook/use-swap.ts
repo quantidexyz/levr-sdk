@@ -248,7 +248,7 @@ export function useSwap({
       if (!publicClient) throw new Error('Public client is not connected')
       if (!chainId) throw new Error('Chain ID not found')
 
-      const { receipt } = await swapV4({
+      const receipt = await swapV4({
         publicClient,
         wallet: wallet.data,
         chainId,
