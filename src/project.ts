@@ -28,6 +28,7 @@ export type Project = {
   governor: `0x${string}`
   staking: `0x${string}`
   stakedToken: `0x${string}`
+  forwarder: `0x${string}`
   token: {
     address: `0x${string}`
     decimals: number
@@ -64,41 +65,47 @@ export async function project({
 
   if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
-  // Fetch token metadata using multicall
-  const [decimals, name, symbol, totalSupply, metadata, imageUrl] = await publicClient.multicall({
-    contracts: [
-      {
-        address: clankerToken,
-        abi: erc20Abi,
-        functionName: 'decimals',
-      },
-      {
-        address: clankerToken,
-        abi: erc20Abi,
-        functionName: 'name',
-      },
-      {
-        address: clankerToken,
-        abi: erc20Abi,
-        functionName: 'symbol',
-      },
-      {
-        address: clankerToken,
-        abi: erc20Abi,
-        functionName: 'totalSupply',
-      },
-      {
-        address: clankerToken,
-        abi: IClankerToken,
-        functionName: 'metadata',
-      },
-      {
-        address: clankerToken,
-        abi: IClankerToken,
-        functionName: 'imageUrl',
-      },
-    ],
-  })
+  // Fetch token metadata and forwarder using multicall
+  const [decimals, name, symbol, totalSupply, metadata, imageUrl, forwarder] =
+    await publicClient.multicall({
+      contracts: [
+        {
+          address: clankerToken,
+          abi: erc20Abi,
+          functionName: 'decimals',
+        },
+        {
+          address: clankerToken,
+          abi: erc20Abi,
+          functionName: 'name',
+        },
+        {
+          address: clankerToken,
+          abi: erc20Abi,
+          functionName: 'symbol',
+        },
+        {
+          address: clankerToken,
+          abi: erc20Abi,
+          functionName: 'totalSupply',
+        },
+        {
+          address: clankerToken,
+          abi: IClankerToken,
+          functionName: 'metadata',
+        },
+        {
+          address: clankerToken,
+          abi: IClankerToken,
+          functionName: 'imageUrl',
+        },
+        {
+          address: factoryAddress,
+          abi: LevrFactory_v1,
+          functionName: 'trustedForwarder',
+        },
+      ],
+    })
 
   // Parse metadata JSON
   let parsedMetadata: ProjectMetadata | null = null
@@ -139,6 +146,7 @@ export async function project({
     governor,
     staking,
     stakedToken,
+    forwarder: forwarder.result as `0x${string}`,
     token: {
       address: clankerToken,
       decimals: decimals.result as number,

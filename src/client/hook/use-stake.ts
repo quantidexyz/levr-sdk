@@ -3,8 +3,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { TransactionReceipt } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 
+import { WETH } from '../../constants'
 import { Stake } from '../../stake'
 import type { ClaimParams } from '../../stake'
 import { needsApproval } from '../../util'
@@ -52,6 +53,7 @@ export function useStake({
 }: UseStakeParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
+  const chainId = useChainId()
   const address = wallet.data?.account?.address
 
   const project = useProject({ clankerToken })
@@ -67,6 +69,7 @@ export function useStake({
       stakingAddress: project.data.staking,
       tokenAddress: project.data.token.address,
       tokenDecimals: project.data.token.decimals,
+      trustedForwarder: project.data.forwarder,
     })
   }, [wallet.dataUpdatedAt, publicClient, project.dataUpdatedAt])
 
@@ -162,9 +165,35 @@ export function useStake({
 
       return stakeService.accrueRewards(tokenAddress)
     },
-    onSuccess: (receipt) => {
+    onSuccess: (receipt, tokenAddress) => {
       // Auto-refetch after successful accrual
-      outstandingRewards.refetch()
+      if (tokenAddress === wethAddress) {
+        outstandingRewardsWeth.refetch()
+      } else {
+        outstandingRewardsStaking.refetch()
+      }
+      poolData.refetch()
+      userData.refetch()
+      onAccrueSuccess?.(receipt)
+    },
+    onError: onAccrueError,
+  })
+
+  // Accrue all rewards mutation (multicall)
+  const accrueAllRewards = useMutation({
+    mutationFn: async () => {
+      if (!stakeService) throw new Error('Stake service is not connected')
+
+      const tokenAddresses: `0x${string}`[] = []
+      if (clankerToken) tokenAddresses.push(clankerToken)
+      if (wethAddress) tokenAddresses.push(wethAddress)
+
+      return stakeService.accrueAllRewards(tokenAddresses)
+    },
+    onSuccess: (receipt) => {
+      // Auto-refetch all reward queries after successful accrual
+      outstandingRewardsStaking.refetch()
+      outstandingRewardsWeth.refetch()
       poolData.refetch()
       userData.refetch()
       onAccrueSuccess?.(receipt)
@@ -199,8 +228,11 @@ export function useStake({
     enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
   })
 
-  // Query: Outstanding rewards
-  const outstandingRewards = useQuery({
+  // Get WETH address for the current chain
+  const wethAddress = WETH(chainId)?.address
+
+  // Query: Outstanding rewards for staking token
+  const outstandingRewardsStaking = useQuery({
     queryKey: [
       'staking',
       'outstandingRewards',
@@ -213,6 +245,30 @@ export function useStake({
     },
     enabled: enabled && !!publicClient && !!project.data && !!address && !!stakeService,
   })
+
+  // Query: Outstanding rewards for WETH (paired token)
+  const outstandingRewardsWeth = useQuery({
+    queryKey: ['staking', 'outstandingRewards', project.data?.staking, wethAddress, address],
+    queryFn: async () => {
+      if (!wethAddress) return null
+      return stakeService!.getOutstandingRewards(wethAddress)
+    },
+    enabled:
+      enabled && !!publicClient && !!project.data && !!address && !!stakeService && !!wethAddress,
+  })
+
+  // Combine outstanding rewards
+  const outstandingRewards = useMemo(() => {
+    const stakingRewards = outstandingRewardsStaking.data
+    const wethRewards = outstandingRewardsWeth.data
+
+    if (!stakingRewards) return null
+
+    return {
+      staking: stakingRewards,
+      weth: wethRewards,
+    }
+  }, [outstandingRewardsStaking.data, outstandingRewardsWeth.data])
 
   // Helper to check if approval is needed for an amount
   const nA = (amount: string | number): boolean => {
@@ -227,12 +283,14 @@ export function useStake({
     unstake,
     claim,
     accrueRewards,
+    accrueAllRewards,
 
     // Queries (grouped by multicall)
     allowance,
     poolData,
     userData,
-    outstandingRewards,
+    outstandingRewardsStaking,
+    outstandingRewardsWeth,
     balances,
 
     // Helpers
@@ -246,12 +304,13 @@ export function useStake({
     streamParams: poolData.data?.streamParams,
     rewardRatePerSecond: poolData.data?.rewardRatePerSecond,
     aprBps: userData.data?.aprBps,
-    rewardsData: outstandingRewards.data,
+    rewardsData: outstandingRewards,
 
     // Loading states
     isLoadingPoolData: poolData.isLoading,
     isLoadingUserData: userData.isLoading,
-    isLoadingOutstandingRewards: outstandingRewards.isLoading,
+    isLoadingOutstandingRewards:
+      outstandingRewardsStaking.isLoading || outstandingRewardsWeth.isLoading,
     isLoadingBalances: balances.isLoading,
   }
 }

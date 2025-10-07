@@ -17,7 +17,7 @@ export type ProjectsParams = {
 }
 
 export type ProjectsResult = {
-  projects: Project[]
+  projects: Omit<Project, 'forwarder'>[]
   fromBlock: bigint
   toBlock: bigint
 }
@@ -169,7 +169,7 @@ export async function projects({
   const results = await publicClient.multicall({ contracts })
 
   // Parse results into Project objects
-  const projects: Project[] = []
+  const projects: Omit<Project, 'forwarder'>[] = []
   const callsPerProject = 7
 
   for (let i = 0; i < clankerTokens.length; i++) {

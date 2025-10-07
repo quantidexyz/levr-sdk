@@ -1,7 +1,7 @@
-import { erc20Abi, formatUnits, parseUnits } from 'viem'
+import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 
-import { LevrStaking_v1 } from './abis'
+import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
 import type { PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
@@ -10,6 +10,7 @@ export type StakeConfig = {
   stakingAddress: `0x${string}`
   tokenAddress: `0x${string}`
   tokenDecimals: number
+  trustedForwarder?: `0x${string}`
 }
 
 export type UnstakeParams = {
@@ -29,6 +30,7 @@ export class Stake {
   private tokenAddress: `0x${string}`
   private tokenDecimals: number
   private userAddress: `0x${string}`
+  private trustedForwarder?: `0x${string}`
 
   constructor(config: StakeConfig) {
     if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
@@ -39,6 +41,7 @@ export class Stake {
     this.tokenAddress = config.tokenAddress
     this.tokenDecimals = config.tokenDecimals
     this.userAddress = config.wallet.account.address
+    this.trustedForwarder = config.trustedForwarder
   }
   /**
    * Approve ERC20 tokens for spending by the staking contract
@@ -309,6 +312,43 @@ export class Stake {
 
     if (receipt.status === 'reverted') {
       throw new Error('Accrue rewards transaction reverted')
+    }
+
+    return receipt
+  }
+
+  /**
+   * Accrue rewards for multiple tokens in a single transaction using forwarder multicall
+   */
+  async accrueAllRewards(tokenAddresses: `0x${string}`[]): Promise<TransactionReceipt> {
+    if (!this.trustedForwarder) {
+      throw new Error('Trusted forwarder is required for multicall operations')
+    }
+
+    // Use forwarder's executeMulticall for meta-transaction support
+    const calls = tokenAddresses.map((tokenAddress) => ({
+      target: this.stakingAddress,
+      allowFailure: false,
+      value: 0n,
+      callData: encodeFunctionData({
+        abi: LevrStaking_v1,
+        functionName: 'accrueRewards',
+        args: [tokenAddress],
+      }),
+    }))
+
+    const hash = await this.wallet.writeContract({
+      address: this.trustedForwarder,
+      abi: LevrForwarder_v1,
+      functionName: 'executeMulticall',
+      args: [calls],
+      chain: this.wallet.chain,
+    })
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error('Accrue all rewards transaction reverted')
     }
 
     return receipt
