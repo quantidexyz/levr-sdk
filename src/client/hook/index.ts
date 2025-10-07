@@ -1,6 +1,7 @@
 export * from './use-balance'
 export * from './use-clanker'
 export * from './use-deploy'
+export * from './use-governance'
 export * from './use-register'
 export * from './use-prepare'
 export * from './use-fee-receivers'
