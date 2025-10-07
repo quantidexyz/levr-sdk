@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 import type { TransactionReceipt } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { StakeService } from '../../stake'
+import { Stake } from '../../stake'
 import type { ClaimParams } from '../../stake'
 import { needsApproval } from '../../util'
 import { useBalance } from './use-balance'
@@ -62,7 +62,7 @@ export function useStake({
       console.error('Wallet or public client is not connected')
       return null
     }
-    return new StakeService({
+    return new Stake({
       wallet: wallet.data,
       publicClient,
       stakingAddress: project.data.staking,

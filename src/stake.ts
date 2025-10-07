@@ -4,7 +4,7 @@ import type { TransactionReceipt } from 'viem'
 import { LevrStaking_v1 } from './abis'
 import type { PopPublicClient, PopWalletClient } from './types'
 
-export type StakeServiceConfig = {
+export type StakeConfig = {
   wallet: PopWalletClient
   publicClient: PopPublicClient
   stakingAddress: `0x${string}`
@@ -22,7 +22,7 @@ export type ClaimParams = {
   to?: `0x${string}`
 }
 
-export class StakeService {
+export class Stake {
   private wallet: PopWalletClient
   private publicClient: PopPublicClient
   private stakingAddress: `0x${string}`
@@ -30,7 +30,7 @@ export class StakeService {
   private tokenDecimals: number
   private userAddress: `0x${string}`
 
-  constructor(config: StakeServiceConfig) {
+  constructor(config: StakeConfig) {
     if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
 
     this.wallet = config.wallet

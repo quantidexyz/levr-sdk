@@ -5,7 +5,7 @@ import { LevrFactory_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
 import { quoteV4 } from '../src/quote-v4'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
-import { StakeService } from '../src/stake'
+import { Stake } from '../src/stake'
 import { swapV4 } from '../src/swap-v4'
 import { getTokenRewards, setupTest, type SetupTestReturnType } from './helper'
 import { warpAnvil } from './util'
@@ -49,7 +49,7 @@ describe('#STAKE_TEST', () => {
   let clanker: SetupTestReturnType['clanker']
   let weth: SetupTestReturnType['weth']
   let deployedTokenAddress: `0x${string}`
-  let staking: StakeService
+  let staking: Stake
   let project: {
     treasury: `0x${string}`
     governor: `0x${string}`
@@ -93,7 +93,7 @@ describe('#STAKE_TEST', () => {
       })
       console.log('Project contracts:', project)
 
-      staking = new StakeService({
+      staking = new Stake({
         wallet,
         publicClient,
         stakingAddress: project.staking,
