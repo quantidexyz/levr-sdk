@@ -1,7 +1,7 @@
 import { erc20Abi, zeroAddress } from 'viem'
 
-import { IClankerToken, LevrFactory_v1 } from './abis'
-import { WETH } from './constants'
+import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
+import { GET_LP_LOCKER_ADDRESS } from './constants'
 import type { PoolKey, PopPublicClient } from './types'
 
 export type ProjectParams = {
@@ -110,33 +110,28 @@ export async function project({
     }
   }
 
-  // Extract pool information
-  // Clanker V4 tokens are always paired with WETH and use the token as the hook
+  // Extract pool information from LP locker
   let poolInfo: PoolInfo | undefined
   try {
-    const wethAddress = WETH(chainId)?.address
-    if (wethAddress) {
-      // Determine currency ordering (currency0 < currency1)
-      const isTokenCurrency0 = clankerToken.toLowerCase() < wethAddress.toLowerCase()
+    const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+    if (lpLockerAddress) {
+      // Get actual pool key from token rewards in LP locker
+      const tokenRewards = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLPLocker,
+        functionName: 'tokenRewards',
+        args: [clankerToken],
+      })
 
-      // Standard Clanker V4 pool configuration
-      const fee = 3000 // 0.3% fee
-      const tickSpacing = 60
-
+      const poolKey = tokenRewards.poolKey
       poolInfo = {
-        poolKey: {
-          currency0: isTokenCurrency0 ? clankerToken : wethAddress,
-          currency1: isTokenCurrency0 ? wethAddress : clankerToken,
-          fee,
-          tickSpacing,
-          hooks: clankerToken, // Token acts as the hook in Clanker V4
-        },
-        feeDisplay: `${(fee / 10000).toFixed(2)}%`,
-        numPositions: 0n, // Would need separate query for actual count
+        poolKey,
+        feeDisplay: poolKey.fee === 0x800000 ? 'Dynamic' : `${(poolKey.fee / 10000).toFixed(2)}%`,
+        numPositions: tokenRewards.numPositions,
       }
     }
   } catch {
-    // If construction fails, poolInfo remains undefined
+    // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
   }
 
   return {
