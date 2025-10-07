@@ -202,26 +202,26 @@ export class Stake {
     })
 
     const [totalStaked, escrowBalance, windowSeconds, streamStart, streamEnd, rewardRate] =
-      results.map((r: any) => r.result!)
+      results.map((r) => r.result!) as [bigint, bigint, number, bigint, bigint, bigint]
 
     return {
       totalStaked: {
-        raw: totalStaked as bigint,
-        formatted: formatUnits(totalStaked as bigint, this.tokenDecimals),
+        raw: totalStaked,
+        formatted: formatUnits(totalStaked, this.tokenDecimals),
       },
       escrowBalance: {
-        raw: escrowBalance as bigint,
-        formatted: formatUnits(escrowBalance as bigint, this.tokenDecimals),
+        raw: escrowBalance,
+        formatted: formatUnits(escrowBalance, this.tokenDecimals),
       },
       streamParams: {
-        windowSeconds: windowSeconds as number,
-        streamStart: streamStart as bigint,
-        streamEnd: streamEnd as bigint,
-        isActive: BigInt(Math.floor(Date.now() / 1000)) < (streamEnd as bigint),
+        windowSeconds: windowSeconds,
+        streamStart: streamStart,
+        streamEnd: streamEnd,
+        isActive: BigInt(Math.floor(Date.now() / 1000)) < streamEnd,
       },
       rewardRatePerSecond: {
         raw: rewardRate as bigint,
-        formatted: formatUnits(rewardRate as bigint, this.tokenDecimals),
+        formatted: formatUnits(rewardRate, this.tokenDecimals),
       },
     }
   }
@@ -250,16 +250,16 @@ export class Stake {
       ],
     })
 
-    const [stakedBalance, aprBps] = results.map((r: any) => r.result!)
+    const [stakedBalance, aprBps] = results.map((r) => r.result!) as [bigint, bigint]
 
     return {
       stakedBalance: {
-        raw: stakedBalance as bigint,
-        formatted: formatUnits(stakedBalance as bigint, this.tokenDecimals),
+        raw: stakedBalance,
+        formatted: formatUnits(stakedBalance, this.tokenDecimals),
       },
       aprBps: {
-        raw: aprBps as bigint,
-        percentage: Number(aprBps as bigint) / 100, // Convert bps to percentage
+        raw: aprBps,
+        percentage: Number(aprBps) / 100, // Convert bps to percentage
       },
     }
   }
