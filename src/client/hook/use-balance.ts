@@ -1,24 +1,15 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { erc20Abi, formatUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-export type TokenConfig = {
-  address: `0x${string}`
-  decimals: number
-  key?: string // Optional key for accessing the balance in the result
-}
+import { balance } from '../../balance'
+import type { TokenConfig } from '../../balance'
 
 export type UseBalanceParams = {
   tokens?: TokenConfig[]
   enabled?: boolean
   refetchInterval?: number | false
-}
-
-export type BalanceResult = {
-  raw: bigint
-  formatted: string
 }
 
 /**
@@ -42,27 +33,11 @@ export function useBalance({
     queryFn: async () => {
       if (!address || tokens.length === 0) return {}
 
-      const results = await publicClient!.multicall({
-        contracts: tokens.map((token) => ({
-          address: token.address,
-          abi: erc20Abi,
-          functionName: 'balanceOf' as const,
-          args: [address],
-        })),
+      return balance({
+        publicClient: publicClient!,
+        address,
+        tokens,
       })
-
-      const balances: Record<string, BalanceResult> = {}
-
-      tokens.forEach((token, index) => {
-        const result = results[index].result
-        const key = token.key || token.address
-        balances[key] = {
-          raw: (result as bigint) || 0n,
-          formatted: formatUnits((result as bigint) || 0n, token.decimals),
-        }
-      })
-
-      return balances
     },
     enabled: enabled && !!publicClient && !!address && tokens.length > 0,
     refetchInterval,

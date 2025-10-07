@@ -1,3 +1,4 @@
+export * from './balance'
 export * from './schema'
 export * from './build-clanker-v4'
 export * from './build-calldatas-v4'

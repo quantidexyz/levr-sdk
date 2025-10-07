@@ -30,6 +30,12 @@ export type SwapV4Params = {
    * - Format depends on the specific hook implementation
    */
   hookData?: `0x${string}`
+
+  // Approval callbacks
+  onApproveERC20Success?: (receipt: TransactionReceipt) => void
+  onApproveERC20Error?: (error: unknown) => void
+  onApprovePermit2Success?: (receipt: TransactionReceipt) => void
+  onApprovePermit2Error?: (error: unknown) => void
 }
 
 export type SwapV4ReturnType = TransactionReceipt
@@ -126,6 +132,10 @@ export const swapV4 = async ({
   amountIn,
   amountOutMinimum,
   hookData = '0x',
+  onApproveERC20Success,
+  onApproveERC20Error,
+  onApprovePermit2Success,
+  onApprovePermit2Error,
 }: SwapV4Params): Promise<SwapV4ReturnType> => {
   if (!wallet.account) throw new Error('Wallet account not found')
 
@@ -192,15 +202,21 @@ export const swapV4 = async ({
     // Step 1: Approve Permit2 to spend input token if needed
     const MAX_UINT256 = 2n ** 256n - 1n
     if (permit2Allowance < amountIn) {
-      const approveTx = await wallet.writeContract({
-        address: inputCurrency,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [permit2Address, MAX_UINT256],
-        account: wallet.account,
-        chain: wallet.chain,
-      })
-      await publicClient.waitForTransactionReceipt({ hash: approveTx })
+      try {
+        const approveTx = await wallet.writeContract({
+          address: inputCurrency,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [permit2Address, MAX_UINT256],
+          account: wallet.account,
+          chain: wallet.chain,
+        })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: approveTx })
+        onApproveERC20Success?.(receipt)
+      } catch (error) {
+        onApproveERC20Error?.(error)
+        throw error
+      }
     }
 
     // Step 2: Approve Universal Router via Permit2 if needed
@@ -210,17 +226,23 @@ export const swapV4 = async ({
     const needsApproval = routerAllowance[0] < amountIn || routerAllowance[1] <= currentTime
 
     if (needsApproval) {
-      // Approve with 30 days expiration (uint48) from current block time
-      const expirationBigInt = currentTime + BigInt(30 * 24 * 60 * 60)
-      const permit2ApproveTx = await wallet.writeContract({
-        address: permit2Address,
-        abi: Permit2Abi,
-        functionName: 'approve',
-        args: [inputCurrency, routerAddress, MAX_UINT160, Number(expirationBigInt)],
-        account: wallet.account,
-        chain: wallet.chain,
-      })
-      await publicClient.waitForTransactionReceipt({ hash: permit2ApproveTx })
+      try {
+        // Approve with 30 days expiration (uint48) from current block time
+        const expirationBigInt = currentTime + BigInt(30 * 24 * 60 * 60)
+        const permit2ApproveTx = await wallet.writeContract({
+          address: permit2Address,
+          abi: Permit2Abi,
+          functionName: 'approve',
+          args: [inputCurrency, routerAddress, MAX_UINT160, Number(expirationBigInt)],
+          account: wallet.account,
+          chain: wallet.chain,
+        })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: permit2ApproveTx })
+        onApprovePermit2Success?.(receipt)
+      } catch (error) {
+        onApprovePermit2Error?.(error)
+        throw error
+      }
     }
   }
 
