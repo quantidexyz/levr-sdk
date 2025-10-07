@@ -1,4 +1,4 @@
-import { erc20Abi, zeroAddress } from 'viem'
+import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
 import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
 import { GET_LP_LOCKER_ADDRESS } from './constants'
@@ -23,6 +23,12 @@ export type PoolInfo = {
   numPositions: bigint
 }
 
+export type TreasuryStats = {
+  balance: { raw: bigint; formatted: string }
+  totalAllocated: { raw: bigint; formatted: string }
+  utilization: number // percentage (0-100)
+}
+
 export type Project = {
   treasury: `0x${string}`
   governor: `0x${string}`
@@ -39,6 +45,7 @@ export type Project = {
     imageUrl?: string
   }
   pool?: PoolInfo
+  treasuryStats?: TreasuryStats
 }
 
 /**
@@ -65,47 +72,69 @@ export async function project({
 
   if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
-  // Fetch token metadata and forwarder using multicall
-  const [decimals, name, symbol, totalSupply, metadata, imageUrl, forwarder] =
-    await publicClient.multicall({
-      contracts: [
-        {
-          address: clankerToken,
-          abi: erc20Abi,
-          functionName: 'decimals',
-        },
-        {
-          address: clankerToken,
-          abi: erc20Abi,
-          functionName: 'name',
-        },
-        {
-          address: clankerToken,
-          abi: erc20Abi,
-          functionName: 'symbol',
-        },
-        {
-          address: clankerToken,
-          abi: erc20Abi,
-          functionName: 'totalSupply',
-        },
-        {
-          address: clankerToken,
-          abi: IClankerToken,
-          functionName: 'metadata',
-        },
-        {
-          address: clankerToken,
-          abi: IClankerToken,
-          functionName: 'imageUrl',
-        },
-        {
-          address: factoryAddress,
-          abi: LevrFactory_v1,
-          functionName: 'trustedForwarder',
-        },
-      ],
-    })
+  // Fetch token metadata, forwarder, and treasury stats using multicall
+  const [
+    decimals,
+    name,
+    symbol,
+    totalSupply,
+    metadata,
+    imageUrl,
+    forwarder,
+    treasuryBalance,
+    stakingBalance,
+  ] = await publicClient.multicall({
+    contracts: [
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      },
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'name',
+      },
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'symbol',
+      },
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'totalSupply',
+      },
+      {
+        address: clankerToken,
+        abi: IClankerToken,
+        functionName: 'metadata',
+      },
+      {
+        address: clankerToken,
+        abi: IClankerToken,
+        functionName: 'imageUrl',
+      },
+      {
+        address: factoryAddress,
+        abi: LevrFactory_v1,
+        functionName: 'trustedForwarder',
+      },
+      // Treasury stats
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [treasury],
+      },
+      {
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [staking],
+      },
+    ],
+  })
 
   // Parse metadata JSON
   let parsedMetadata: ProjectMetadata | null = null
@@ -141,6 +170,33 @@ export async function project({
     // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
   }
 
+  // Calculate treasury stats
+  const tokenDecimals = decimals.result as number
+  const treasuryBalanceRaw = treasuryBalance.result as bigint
+  const stakingBalanceRaw = stakingBalance.result as bigint
+  const totalSupplyRaw = totalSupply.result as bigint
+
+  // Total allocated = treasury + staking balances (protocol-controlled tokens)
+  const totalAllocatedRaw = treasuryBalanceRaw + stakingBalanceRaw
+
+  // Utilization = (total allocated / total supply) * 100
+  const utilization =
+    totalSupplyRaw > 0n
+      ? Number((totalAllocatedRaw * 10000n) / totalSupplyRaw) / 100 // Convert to percentage
+      : 0
+
+  const treasuryStats: TreasuryStats = {
+    balance: {
+      raw: treasuryBalanceRaw,
+      formatted: formatUnits(treasuryBalanceRaw, tokenDecimals),
+    },
+    totalAllocated: {
+      raw: totalAllocatedRaw,
+      formatted: formatUnits(totalAllocatedRaw, tokenDecimals),
+    },
+    utilization,
+  }
+
   return {
     treasury,
     governor,
@@ -149,13 +205,14 @@ export async function project({
     forwarder: forwarder.result as `0x${string}`,
     token: {
       address: clankerToken,
-      decimals: decimals.result as number,
+      decimals: tokenDecimals,
       name: name.result as string,
       symbol: symbol.result as string,
-      totalSupply: totalSupply.result as bigint,
+      totalSupply: totalSupplyRaw,
       metadata: parsedMetadata,
       imageUrl: imageUrl.result as string | undefined,
     },
     pool: poolInfo,
+    treasuryStats,
   }
 }

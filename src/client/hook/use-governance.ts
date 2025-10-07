@@ -65,7 +65,7 @@ export function useGovernance({
 
   // Query: Get proposal details
   const proposal = useQuery({
-    queryKey: ['governance', 'proposal', governorAddress, proposalId],
+    queryKey: ['governance', 'proposal', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<FormattedProposalDetails> => {
       if (!governance || !proposalId)
         throw new Error('Governance not initialized or no proposal ID')
@@ -89,6 +89,7 @@ export function useGovernance({
   // Query: Get next proposal ID
   const nextProposalId = useQuery({
     queryKey: ['governance', 'nextProposalId', governorAddress],
+    select: (data) => data, // Return the BigInt directly
     queryFn: async (): Promise<bigint> => {
       if (!governance) throw new Error('Governance not initialized')
       return await governance.getNextProposalId()

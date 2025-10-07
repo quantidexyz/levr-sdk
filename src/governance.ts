@@ -23,6 +23,7 @@ export type ProposalDetails = {
 }
 
 export type FormattedProposalDetails = {
+  id: bigint
   proposalType: number
   amount: { raw: bigint; formatted: string }
   receiver: `0x${string}`
@@ -163,6 +164,7 @@ export class Governance {
     })
 
     return {
+      id: parsedProposalId,
       proposalType: result.proposalType,
       amount: {
         raw: result.amount,

@@ -1,9 +1,9 @@
-import { erc20Abi, zeroAddress } from 'viem'
+import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 import type { ExtractAbiItem, Log } from 'viem'
 
 import { IClankerToken, LevrFactory_v1 } from './abis'
 import { WETH } from './constants'
-import type { PoolInfo, Project, ProjectMetadata } from './project'
+import type { PoolInfo, Project, ProjectMetadata, TreasuryStats } from './project'
 import type { PopPublicClient } from './types'
 
 export type ProjectsParams = {
@@ -124,15 +124,59 @@ export async function projects({
   // Extract unique clanker tokens
   const clankerTokens = limitedLogs.map((log) => log.args.clankerToken!)
 
-  // Batch fetch all project contracts and token metadata
-  const contracts = clankerTokens.flatMap((token) => [
-    // Project contracts
-    {
+  // First, get project contracts for all tokens
+  const projectContracts = await publicClient.multicall({
+    contracts: clankerTokens.map((token) => ({
       address: factoryAddress,
       abi: LevrFactory_v1,
       functionName: 'getProjectContracts' as const,
       args: [token],
-    },
+    })),
+  })
+
+  // Filter out unregistered projects and prepare valid tokens with their contracts
+  const validTokensWithContracts = clankerTokens
+    .map((token, index) => {
+      const projectResult = projectContracts[index].result as {
+        treasury: `0x${string}`
+        governor: `0x${string}`
+        staking: `0x${string}`
+        stakedToken: `0x${string}`
+      }
+
+      if (
+        [
+          projectResult.treasury,
+          projectResult.governor,
+          projectResult.staking,
+          projectResult.stakedToken,
+        ].some((a) => a === zeroAddress)
+      ) {
+        return null
+      }
+
+      return { token, contracts: projectResult }
+    })
+    .filter(Boolean) as Array<{
+    token: `0x${string}`
+    contracts: {
+      treasury: `0x${string}`
+      governor: `0x${string}`
+      staking: `0x${string}`
+      stakedToken: `0x${string}`
+    }
+  }>
+
+  if (validTokensWithContracts.length === 0) {
+    return {
+      projects: [],
+      fromBlock: from,
+      toBlock: to,
+    }
+  }
+
+  // Batch fetch all token metadata and treasury stats
+  const contracts = validTokensWithContracts.flatMap(({ token, contracts }) => [
     // Token metadata
     {
       address: token,
@@ -164,41 +208,39 @@ export async function projects({
       abi: IClankerToken,
       functionName: 'imageUrl' as const,
     },
+    // Treasury stats
+    {
+      address: token,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [contracts.treasury],
+    },
+    {
+      address: token,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [contracts.staking],
+    },
   ])
 
   const results = await publicClient.multicall({ contracts })
 
   // Parse results into Project objects
   const projects: Omit<Project, 'forwarder'>[] = []
-  const callsPerProject = 7
+  const callsPerProject = 8 // Updated to include treasury and staking balance
 
-  for (let i = 0; i < clankerTokens.length; i++) {
+  for (let i = 0; i < validTokensWithContracts.length; i++) {
+    const { token, contracts: projectContracts } = validTokensWithContracts[i]
     const offset = i * callsPerProject
-    const projectResult = results[offset].result as {
-      treasury: `0x${string}`
-      governor: `0x${string}`
-      staking: `0x${string}`
-      stakedToken: `0x${string}`
-    }
 
-    // Skip if project not registered
-    if (
-      [
-        projectResult.treasury,
-        projectResult.governor,
-        projectResult.staking,
-        projectResult.stakedToken,
-      ].some((a) => a === zeroAddress)
-    ) {
-      continue
-    }
-
-    const decimals = results[offset + 1].result as number
-    const name = results[offset + 2].result as string
-    const symbol = results[offset + 3].result as string
-    const totalSupply = results[offset + 4].result as bigint
-    const metadataStr = results[offset + 5].result as string | undefined
-    const imageUrl = results[offset + 6].result as string | undefined
+    const decimals = results[offset].result as number
+    const name = results[offset + 1].result as string
+    const symbol = results[offset + 2].result as string
+    const totalSupply = results[offset + 3].result as bigint
+    const metadataStr = results[offset + 4].result as string | undefined
+    const imageUrl = results[offset + 5].result as string | undefined
+    const treasuryBalance = results[offset + 6].result as bigint
+    const stakingBalance = results[offset + 7].result as bigint
 
     // Parse metadata JSON
     let parsedMetadata: ProjectMetadata | null = null
@@ -210,6 +252,25 @@ export async function projects({
       }
     }
 
+    // Calculate treasury stats
+    const totalAllocated = treasuryBalance + stakingBalance
+    const utilization =
+      totalSupply > 0n
+        ? Number((totalAllocated * 10000n) / totalSupply) / 100 // Convert to percentage
+        : 0
+
+    const treasuryStats: TreasuryStats = {
+      balance: {
+        raw: treasuryBalance,
+        formatted: formatUnits(treasuryBalance, decimals),
+      },
+      totalAllocated: {
+        raw: totalAllocated,
+        formatted: formatUnits(totalAllocated, decimals),
+      },
+      utilization,
+    }
+
     // Extract pool information
     // Clanker V4 tokens are always paired with WETH and use the token as the hook
     let poolInfo: PoolInfo | undefined
@@ -217,7 +278,7 @@ export async function projects({
       const wethAddress = WETH(chainId)?.address
       if (wethAddress) {
         // Determine currency ordering (currency0 < currency1)
-        const isTokenCurrency0 = clankerTokens[i].toLowerCase() < wethAddress.toLowerCase()
+        const isTokenCurrency0 = token.toLowerCase() < wethAddress.toLowerCase()
 
         // Standard Clanker V4 pool configuration
         const fee = 3000 // 0.3% fee
@@ -225,11 +286,11 @@ export async function projects({
 
         poolInfo = {
           poolKey: {
-            currency0: isTokenCurrency0 ? clankerTokens[i] : wethAddress,
-            currency1: isTokenCurrency0 ? wethAddress : clankerTokens[i],
+            currency0: isTokenCurrency0 ? token : wethAddress,
+            currency1: isTokenCurrency0 ? wethAddress : token,
             fee,
             tickSpacing,
-            hooks: clankerTokens[i], // Token acts as the hook in Clanker V4
+            hooks: token, // Token acts as the hook in Clanker V4
           },
           feeDisplay: `${(fee / 10000).toFixed(2)}%`,
           numPositions: 0n, // Would need separate query for actual count
@@ -240,12 +301,12 @@ export async function projects({
     }
 
     projects.push({
-      treasury: projectResult.treasury,
-      governor: projectResult.governor,
-      staking: projectResult.staking,
-      stakedToken: projectResult.stakedToken,
+      treasury: projectContracts.treasury,
+      governor: projectContracts.governor,
+      staking: projectContracts.staking,
+      stakedToken: projectContracts.stakedToken,
       token: {
-        address: clankerTokens[i],
+        address: token,
         decimals,
         name,
         symbol,
@@ -254,6 +315,7 @@ export async function projects({
         imageUrl,
       },
       pool: poolInfo,
+      treasuryStats,
     })
   }
 
