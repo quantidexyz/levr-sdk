@@ -20,6 +20,7 @@
   "scripts": {
     "devnet": "bash script/devnet.sh",
     "devnet:redeploy": "bash script/devnet.sh --redeploy",
+    "update-abis": "bun run script/update-abis.ts && prettier --write src/abis/**/*.ts",
     "watch": "bun run script/tsgo-watch.ts",
     "type-check": "tsgo --noEmit --pretty",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
