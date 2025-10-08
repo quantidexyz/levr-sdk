@@ -106,6 +106,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'staking',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'transfer',
     inputs: [
       {
@@ -164,12 +177,6 @@ export default [
         indexed: true,
         internalType: 'address',
       },
-      {
-        name: 'wrapper',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
     ],
     anonymous: false,
   },
@@ -186,11 +193,6 @@ export default [
   {
     type: 'error',
     name: 'OnlyGovernor',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'OnlyWrapper',
     inputs: [],
   },
   {

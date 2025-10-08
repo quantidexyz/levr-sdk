@@ -13,29 +13,44 @@ export default [
             internalType: 'uint16',
           },
           {
-            name: 'submissionDeadlineSeconds',
-            type: 'uint32',
-            internalType: 'uint32',
-          },
-          {
-            name: 'maxSubmissionPerType',
-            type: 'uint16',
-            internalType: 'uint16',
-          },
-          {
             name: 'streamWindowSeconds',
             type: 'uint32',
             internalType: 'uint32',
           },
           {
-            name: 'minWTokenToSubmit',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
             name: 'protocolTreasury',
             type: 'address',
             internalType: 'address',
+          },
+          {
+            name: 'proposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'votingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'maxActiveProposals',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'quorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'approvalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
           },
         ],
       },
@@ -59,6 +74,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'approvalBps',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'clankerFactory',
     inputs: [],
     outputs: [
@@ -69,35 +97,6 @@ export default [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'executeTransaction',
-    inputs: [
-      {
-        name: 'target',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'data',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: 'success',
-        type: 'bool',
-        internalType: 'bool',
-      },
-      {
-        name: 'returnData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -202,7 +201,7 @@ export default [
   },
   {
     type: 'function',
-    name: 'maxSubmissionPerType',
+    name: 'maxActiveProposals',
     inputs: [],
     outputs: [
       {
@@ -215,13 +214,13 @@ export default [
   },
   {
     type: 'function',
-    name: 'minWTokenToSubmit',
+    name: 'minSTokenBpsToSubmit',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint256',
-        internalType: 'uint256',
+        type: 'uint16',
+        internalType: 'uint16',
       },
     ],
     stateMutability: 'view',
@@ -259,6 +258,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'proposalWindowSeconds',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint32',
+        internalType: 'uint32',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'protocolFeeBps',
     inputs: [],
     outputs: [
@@ -279,6 +291,19 @@ export default [
         name: '',
         type: 'address',
         internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'quorumBps',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
       },
     ],
     stateMutability: 'view',
@@ -346,19 +371,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'submissionDeadlineSeconds',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint32',
-        internalType: 'uint32',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'transferOwnership',
     inputs: [
       {
@@ -398,35 +410,63 @@ export default [
             internalType: 'uint16',
           },
           {
-            name: 'submissionDeadlineSeconds',
-            type: 'uint32',
-            internalType: 'uint32',
-          },
-          {
-            name: 'maxSubmissionPerType',
-            type: 'uint16',
-            internalType: 'uint16',
-          },
-          {
             name: 'streamWindowSeconds',
             type: 'uint32',
             internalType: 'uint32',
-          },
-          {
-            name: 'minWTokenToSubmit',
-            type: 'uint256',
-            internalType: 'uint256',
           },
           {
             name: 'protocolTreasury',
             type: 'address',
             internalType: 'address',
           },
+          {
+            name: 'proposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'votingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'maxActiveProposals',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'quorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'approvalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
         ],
       },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'votingWindowSeconds',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint32',
+        internalType: 'uint32',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'event',

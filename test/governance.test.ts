@@ -291,17 +291,17 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Propose transfer (custom amount - no tiers)
       const transferAmount = treasuryBalanceBefore / 2n // Transfer half of treasury
-      const reason = 'Test transfer to community member'
+      const description = 'Test transfer to community member'
 
       console.log('\n📝 Proposing transfer...')
       console.log('  Amount:', `${formatEther(transferAmount)} tokens`)
       console.log('  To:', receiver)
-      console.log('  Reason:', reason)
+      console.log('  Description:', description)
 
       const { receipt: proposeReceipt, proposalId } = await governance.proposeTransfer(
         receiver,
         transferAmount,
-        reason
+        description
       )
 
       expect(proposeReceipt.status).toBe('success')
@@ -313,15 +313,13 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('📋 Proposal details:', {
         proposalType: proposal.proposalType,
         amount: proposal.amount.formatted,
-        receiver: proposal.receiver,
-        reason: proposal.reason,
-        deadline: proposal.deadline.date.toISOString(),
+        recipient: proposal.recipient,
+        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
         executed: proposal.executed,
       })
 
       expect(proposal.amount.raw).toBe(transferAmount)
-      expect(proposal.receiver.toLowerCase()).toBe(receiver.toLowerCase())
-      expect(proposal.reason).toBe(reason)
+      expect(proposal.recipient.toLowerCase()).toBe(receiver.toLowerCase())
       expect(proposal.executed).toBe(false)
 
       // Execute the proposal using governance class
@@ -434,7 +432,7 @@ describe('#GOVERNANCE_TEST', () => {
   )
 
   it(
-    'should enforce deadline on proposals',
+    'should enforce voting window on proposals',
     async () => {
       // Get remaining treasury balance
       const treasuryBalance = await publicClient.readContract({
@@ -445,7 +443,7 @@ describe('#GOVERNANCE_TEST', () => {
       })
 
       if (treasuryBalance === 0n) {
-        console.log('⚠️ Treasury is empty, sending more tokens for deadline test')
+        console.log('⚠️ Treasury is empty, sending more tokens for voting window test')
         const userBalance = await publicClient.readContract({
           address: deployedTokenAddress,
           abi: erc20Abi,
@@ -472,37 +470,41 @@ describe('#GOVERNANCE_TEST', () => {
         args: [project.treasury],
       })
 
-      // Create a new proposal for deadline testing
+      // Create a new proposal for voting window testing
       const transferAmount = updatedTreasuryBalance / 2n
       const receiver = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 
-      console.log('\n📝 Creating proposal for deadline test...')
+      console.log('\n📝 Creating proposal for voting window test...')
       const { proposalId } = await governance.proposeTransfer(
         receiver,
         transferAmount,
-        'Deadline test proposal'
+        'Voting window test proposal'
       )
 
-      // Get proposal deadline using governance class
+      // Get proposal details using governance class
       const proposal = await governance.getProposal(proposalId)
-      console.log('📋 Proposal deadline:', proposal.deadline.date.toISOString())
+      console.log('📋 Proposal voting ends at:', proposal.votingEndsAt.date.toISOString())
 
-      // Warp past deadline (factory default is 7 days, let's go 8 days)
-      console.log('\n⏰ Warping 8 days forward to exceed deadline...')
-      await warpAnvil(8 * 24 * 60 * 60) // 8 days in seconds
+      // Calculate seconds to warp past voting end
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timeToWarp = Number(proposal.votingEndsAt.timestamp) - currentTime + 1
 
-      // Try to execute - should fail with DeadlinePassed
-      console.log('\n❌ Attempting to execute expired proposal (should fail)...')
+      // Warp past voting window
+      console.log(`\n⏰ Warping ${timeToWarp} seconds forward to exceed voting window...`)
+      await warpAnvil(timeToWarp)
+
+      // Try to vote - should fail with VotingNotActive
+      console.log('\n❌ Attempting to vote after voting window (should fail)...')
       try {
-        await governance.executeProposal(proposalId)
+        await governance.vote(proposalId, true)
 
         // If we get here, the test should fail
         expect(true).toBe(false) // Force failure
       } catch (error) {
-        // Expected to fail with deadline error
-        console.log('✅ Proposal execution correctly failed after deadline')
+        // Expected to fail with voting window error
+        console.log('✅ Vote correctly failed after voting window')
         console.log('   Error:', (error as Error).message.slice(0, 100) + '...')
-        expect((error as Error).message).toContain('DeadlinePassed')
+        expect((error as Error).message).toContain('VotingNotActive')
       }
     },
     {
@@ -511,18 +513,9 @@ describe('#GOVERNANCE_TEST', () => {
   )
 
   it(
-    'should enforce minimum staked balance requirement',
+    'should verify governance contract addresses',
     async () => {
-      // This test would require deploying a new factory with minWTokenToSubmit > 0
-      // For now, let's test that canSubmit works correctly
-
-      console.log('\n🔍 Checking canSubmit for current user...')
-      const canSubmit = await governance.canSubmit()
-
-      console.log('Can user submit proposals?', canSubmit)
-
-      // Since our factory has minWTokenToSubmit = 0, and user has staked tokens, should be true
-      expect(canSubmit).toBe(true)
+      console.log('\n🔍 Checking governance contract addresses...')
 
       // Check governance contract addresses
       const [treasury, factory, stakedToken] = await Promise.all([
@@ -536,12 +529,21 @@ describe('#GOVERNANCE_TEST', () => {
         stakedToken,
       })
 
-      // Get user's staked balance to confirm why they can submit
+      expect(treasury).toBe(project.treasury)
+      expect(factory).toBe(factoryAddress)
+      expect(stakedToken).toBe(project.stakedToken)
+
+      // Get user's staked balance
       const userData = await staking.getUserData()
       console.log('User staked balance:', userData.stakedBalance.formatted, 'tokens')
       expect(userData.stakedBalance.raw).toBeGreaterThan(0n)
 
-      console.log('✅ Governance eligibility check passed')
+      // Check current cycle ID
+      const cycleId = await governance.getCurrentCycleId()
+      console.log('Current cycle ID:', cycleId.toString())
+      expect(cycleId).toBeGreaterThanOrEqual(0n)
+
+      console.log('✅ Governance contract verification complete')
     },
     {
       timeout: 60000,
@@ -587,20 +589,20 @@ describe('#GOVERNANCE_TEST', () => {
           id: firstProposal.id.toString(),
           proposalType: firstProposal.proposalType,
           amount: firstProposal.amount.formatted,
-          receiver: firstProposal.receiver,
-          reason: firstProposal.reason,
+          recipient: firstProposal.recipient,
           executed: firstProposal.executed,
-          deadline: firstProposal.deadline.date.toISOString(),
+          votingEndsAt: firstProposal.votingEndsAt.date.toISOString(),
+          cycleId: firstProposal.cycleId.toString(),
         })
 
         expect(firstProposal.id).toBeDefined()
         expect(typeof firstProposal.proposalType).toBe('number')
         expect(firstProposal.amount.raw).toBeDefined()
         expect(firstProposal.amount.formatted).toBeDefined()
-        expect(firstProposal.receiver).toMatch(/^0x[a-fA-F0-9]{40}$/)
-        expect(firstProposal.reason).toBeDefined()
+        expect(firstProposal.recipient).toMatch(/^0x[a-fA-F0-9]{40}$/)
         expect(typeof firstProposal.executed).toBe('boolean')
-        expect(firstProposal.deadline.date).toBeInstanceOf(Date)
+        expect(firstProposal.votingEndsAt.date).toBeInstanceOf(Date)
+        expect(firstProposal.cycleId).toBeGreaterThanOrEqual(0n)
       }
 
       console.log('✅ Proposals list fetched and validated successfully!')

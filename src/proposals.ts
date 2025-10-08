@@ -121,7 +121,7 @@ export async function proposals({
   }
 
   // Extract proposal IDs from events
-  const proposalIds = limitedLogs.map((log) => log.args.id!)
+  const proposalIds = limitedLogs.map((log) => log.args.proposalId!)
 
   // Batch fetch all proposal details
   const contracts = proposalIds.map((proposalId) => ({
@@ -138,13 +138,19 @@ export async function proposals({
 
   for (let i = 0; i < proposalIds.length; i++) {
     const result = results[i].result as {
-      proposer: `0x${string}`
+      id: bigint
       proposalType: number
-      receiver: `0x${string}`
+      proposer: `0x${string}`
       amount: bigint
-      reason: string
-      deadline: number
+      recipient: `0x${string}`
+      createdAt: bigint
+      votingStartsAt: bigint
+      votingEndsAt: bigint
+      yesVotes: bigint
+      noVotes: bigint
+      totalBalanceVoted: bigint
       executed: boolean
+      cycleId: bigint
     }
 
     // Skip if proposal data is invalid
@@ -153,20 +159,37 @@ export async function proposals({
     }
 
     proposals.push({
-      id: proposalIds[i],
+      id: result.id,
       proposalType: result.proposalType,
+      proposer: result.proposer,
       amount: {
         raw: result.amount,
         formatted: formatUnits(result.amount, tokenDecimals),
       },
-      receiver: result.receiver,
-      reason: result.reason,
-      deadline: {
-        timestamp: result.deadline,
-        date: new Date(result.deadline * 1000),
+      recipient: result.recipient,
+      createdAt: {
+        timestamp: result.createdAt,
+        date: new Date(Number(result.createdAt) * 1000),
       },
+      votingStartsAt: {
+        timestamp: result.votingStartsAt,
+        date: new Date(Number(result.votingStartsAt) * 1000),
+      },
+      votingEndsAt: {
+        timestamp: result.votingEndsAt,
+        date: new Date(Number(result.votingEndsAt) * 1000),
+      },
+      yesVotes: {
+        raw: result.yesVotes,
+        formatted: formatUnits(result.yesVotes, tokenDecimals),
+      },
+      noVotes: {
+        raw: result.noVotes,
+        formatted: formatUnits(result.noVotes, tokenDecimals),
+      },
+      totalBalanceVoted: result.totalBalanceVoted,
       executed: result.executed,
-      proposer: result.proposer,
+      cycleId: result.cycleId,
     })
   }
 

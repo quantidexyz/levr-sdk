@@ -269,6 +269,35 @@ export default [
   },
   {
     type: 'function',
+    name: 'executeTransaction',
+    inputs: [
+      {
+        name: 'target',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'data',
+        type: 'bytes',
+        internalType: 'bytes',
+      },
+    ],
+    outputs: [
+      {
+        name: 'success',
+        type: 'bool',
+        internalType: 'bool',
+      },
+      {
+        name: 'returnData',
+        type: 'bytes',
+        internalType: 'bytes',
+      },
+    ],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
     name: 'nonces',
     inputs: [
       {

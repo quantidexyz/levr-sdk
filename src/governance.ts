@@ -1,4 +1,4 @@
-import { formatUnits, parseUnits } from 'viem'
+import { decodeEventLog, formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 
 import { LevrGovernor_v1 } from './abis'
@@ -16,31 +16,42 @@ export type GovernanceConfig = {
 }
 
 export type ProposalDetails = {
+  id: bigint
   proposalType: number
-  amount: bigint
-  receiver: `0x${string}`
-  reason: string
-  deadline: number
-  executed: boolean
   proposer: `0x${string}`
+  amount: bigint
+  recipient: `0x${string}`
+  createdAt: bigint
+  votingStartsAt: bigint
+  votingEndsAt: bigint
+  yesVotes: bigint
+  noVotes: bigint
+  totalBalanceVoted: bigint
+  executed: boolean
+  cycleId: bigint
 }
 
 export type FormattedProposalDetails = {
   id: bigint
   proposalType: number
-  amount: { raw: bigint; formatted: string }
-  receiver: `0x${string}`
-  reason: string
-  deadline: { timestamp: number; date: Date }
-  executed: boolean
   proposer: `0x${string}`
+  amount: { raw: bigint; formatted: string }
+  recipient: `0x${string}`
+  createdAt: { timestamp: bigint; date: Date }
+  votingStartsAt: { timestamp: bigint; date: Date }
+  votingEndsAt: { timestamp: bigint; date: Date }
+  yesVotes: { raw: bigint; formatted: string }
+  noVotes: { raw: bigint; formatted: string }
+  totalBalanceVoted: bigint
+  executed: boolean
+  cycleId: bigint
 }
 
 export type ProposeTransferConfig = {
-  receiver: `0x${string}`
+  recipient: `0x${string}`
   amount: string
   amountDecimals: number
-  reason: string
+  description: string
 }
 
 export type ProposeBoostConfig = {
@@ -73,24 +84,21 @@ export class Governance {
   }
 
   /**
-   * Propose a transfer from treasury to receiver
+   * Propose a transfer from treasury to recipient
    */
   async proposeTransfer(
-    receiver: `0x${string}`,
+    recipient: `0x${string}`,
     amount: number | string | bigint,
-    reason: string
+    description: string
   ): Promise<{ receipt: TransactionReceipt; proposalId: bigint }> {
     const parsedAmount =
       typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
-
-    // Get the next proposal ID before submitting
-    const proposalId = await this.getNextProposalId()
 
     const hash = await this.wallet.writeContract({
       address: this.governorAddress,
       abi: LevrGovernor_v1,
       functionName: 'proposeTransfer',
-      args: [receiver, parsedAmount, reason],
+      args: [recipient, parsedAmount, description],
       chain: this.wallet.chain,
     })
 
@@ -99,6 +107,32 @@ export class Governance {
     if (receipt.status === 'reverted') {
       throw new Error('Propose transfer transaction reverted')
     }
+
+    // Extract proposal ID from ProposalCreated event
+    const proposalCreatedLog = receipt.logs.find((log) => {
+      try {
+        const decoded = decodeEventLog({
+          abi: LevrGovernor_v1,
+          data: log.data,
+          topics: log.topics,
+        })
+        return decoded.eventName === 'ProposalCreated'
+      } catch {
+        return false
+      }
+    })
+
+    if (!proposalCreatedLog) {
+      throw new Error('ProposalCreated event not found in receipt')
+    }
+
+    const decoded = decodeEventLog({
+      abi: LevrGovernor_v1,
+      data: proposalCreatedLog.data,
+      topics: proposalCreatedLog.topics,
+    })
+
+    const proposalId = (decoded.args as { proposalId: bigint }).proposalId
 
     return { receipt, proposalId }
   }
@@ -111,9 +145,6 @@ export class Governance {
   ): Promise<{ receipt: TransactionReceipt; proposalId: bigint }> {
     const parsedAmount =
       typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
-
-    // Get the next proposal ID before submitting
-    const proposalId = await this.getNextProposalId()
 
     const hash = await this.wallet.writeContract({
       address: this.governorAddress,
@@ -129,7 +160,56 @@ export class Governance {
       throw new Error('Propose boost transaction reverted')
     }
 
+    // Extract proposal ID from ProposalCreated event
+    const proposalCreatedLog = receipt.logs.find((log) => {
+      try {
+        const decoded = decodeEventLog({
+          abi: LevrGovernor_v1,
+          data: log.data,
+          topics: log.topics,
+        })
+        return decoded.eventName === 'ProposalCreated'
+      } catch {
+        return false
+      }
+    })
+
+    if (!proposalCreatedLog) {
+      throw new Error('ProposalCreated event not found in receipt')
+    }
+
+    const decoded = decodeEventLog({
+      abi: LevrGovernor_v1,
+      data: proposalCreatedLog.data,
+      topics: proposalCreatedLog.topics,
+    })
+
+    const proposalId = (decoded.args as { proposalId: bigint }).proposalId
+
     return { receipt, proposalId }
+  }
+
+  /**
+   * Vote on a proposal
+   */
+  async vote(proposalId: number | bigint, support: boolean): Promise<TransactionReceipt> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+
+    const hash = await this.wallet.writeContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'vote',
+      args: [parsedProposalId, support],
+      chain: this.wallet.chain,
+    })
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error('Vote transaction reverted')
+    }
+
+    return receipt
   }
 
   /**
@@ -156,6 +236,26 @@ export class Governance {
   }
 
   /**
+   * Start a new governance cycle (admin only)
+   */
+  async startNewCycle(): Promise<TransactionReceipt> {
+    const hash = await this.wallet.writeContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'startNewCycle',
+      chain: this.wallet.chain,
+    })
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error('Start new cycle transaction reverted')
+    }
+
+    return receipt
+  }
+
+  /**
    * Get proposal details by ID
    */
   async getProposal(proposalId: number | bigint): Promise<FormattedProposalDetails> {
@@ -169,45 +269,163 @@ export class Governance {
     })
 
     return {
-      id: parsedProposalId,
+      id: result.id,
       proposalType: result.proposalType,
+      proposer: result.proposer,
       amount: {
         raw: result.amount,
         formatted: formatUnits(result.amount, this.tokenDecimals),
       },
-      receiver: result.receiver,
-      reason: result.reason,
-      deadline: {
-        timestamp: result.deadline,
-        date: new Date(result.deadline * 1000),
+      recipient: result.recipient,
+      createdAt: {
+        timestamp: result.createdAt,
+        date: new Date(Number(result.createdAt) * 1000),
       },
+      votingStartsAt: {
+        timestamp: result.votingStartsAt,
+        date: new Date(Number(result.votingStartsAt) * 1000),
+      },
+      votingEndsAt: {
+        timestamp: result.votingEndsAt,
+        date: new Date(Number(result.votingEndsAt) * 1000),
+      },
+      yesVotes: {
+        raw: result.yesVotes,
+        formatted: formatUnits(result.yesVotes, this.tokenDecimals),
+      },
+      noVotes: {
+        raw: result.noVotes,
+        formatted: formatUnits(result.noVotes, this.tokenDecimals),
+      },
+      totalBalanceVoted: result.totalBalanceVoted,
       executed: result.executed,
-      proposer: result.proposer,
+      cycleId: result.cycleId,
     }
   }
 
   /**
-   * Check if a user can submit proposals
+   * Get current cycle ID
    */
-  async canSubmit(user?: `0x${string}`): Promise<boolean> {
-    const userToCheck = user ?? this.userAddress
-
+  async getCurrentCycleId(): Promise<bigint> {
     return await this.publicClient.readContract({
       address: this.governorAddress,
       abi: LevrGovernor_v1,
-      functionName: 'canSubmit',
-      args: [userToCheck],
+      functionName: 'currentCycleId',
     })
   }
 
   /**
-   * Get next proposal ID
+   * Get all proposal IDs for a specific cycle
    */
-  async getNextProposalId(): Promise<bigint> {
+  async getProposalsForCycle(cycleId: number | bigint): Promise<readonly bigint[]> {
+    const parsedCycleId = typeof cycleId === 'bigint' ? cycleId : BigInt(cycleId)
+
     return await this.publicClient.readContract({
       address: this.governorAddress,
       abi: LevrGovernor_v1,
-      functionName: 'nextProposalId',
+      functionName: 'getProposalsForCycle',
+      args: [parsedCycleId],
+    })
+  }
+
+  /**
+   * Get the winner proposal ID for a cycle
+   */
+  async getWinner(cycleId: number | bigint): Promise<bigint> {
+    const parsedCycleId = typeof cycleId === 'bigint' ? cycleId : BigInt(cycleId)
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'getWinner',
+      args: [parsedCycleId],
+    })
+  }
+
+  /**
+   * Get vote receipt for a user on a proposal
+   */
+  async getVoteReceipt(
+    proposalId: number | bigint,
+    voter?: `0x${string}`
+  ): Promise<{ hasVoted: boolean; support: boolean; votes: bigint }> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+    const voterAddress = voter ?? this.userAddress
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'getVoteReceipt',
+      args: [parsedProposalId, voterAddress],
+    })
+  }
+
+  /**
+   * Get voting power snapshot for a user at proposal creation
+   */
+  async getVotingPowerSnapshot(proposalId: number | bigint, user?: `0x${string}`): Promise<bigint> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+    const userAddress = user ?? this.userAddress
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'getVotingPowerSnapshot',
+      args: [parsedProposalId, userAddress],
+    })
+  }
+
+  /**
+   * Check if proposal meets quorum
+   */
+  async meetsQuorum(proposalId: number | bigint): Promise<boolean> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'meetsQuorum',
+      args: [parsedProposalId],
+    })
+  }
+
+  /**
+   * Check if proposal meets approval threshold
+   */
+  async meetsApproval(proposalId: number | bigint): Promise<boolean> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'meetsApproval',
+      args: [parsedProposalId],
+    })
+  }
+
+  /**
+   * Get proposal state (Pending, Active, Defeated, Succeeded, Executed)
+   */
+  async getProposalState(proposalId: number | bigint): Promise<number> {
+    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
+
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'state',
+      args: [parsedProposalId],
+    })
+  }
+
+  /**
+   * Get active proposal count for a specific proposal type
+   */
+  async getActiveProposalCount(proposalType: number): Promise<bigint> {
+    return await this.publicClient.readContract({
+      address: this.governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'activeProposalCount',
+      args: [proposalType],
     })
   }
 
@@ -248,18 +466,18 @@ export class Governance {
    * Propose transfer and execute in sequence (for testing convenience)
    */
   async proposeAndExecuteTransfer(
-    receiver: `0x${string}`,
+    recipient: `0x${string}`,
     amount: number | string | bigint,
-    reason: string
+    description: string
   ): Promise<{
     proposeReceipt: TransactionReceipt
     executeReceipt: TransactionReceipt
     proposalId: bigint
   }> {
     const { receipt: proposeReceipt, proposalId } = await this.proposeTransfer(
-      receiver,
+      recipient,
       amount,
-      reason
+      description
     )
     const executeReceipt = await this.executeProposal(proposalId)
 

@@ -4,7 +4,7 @@ import { decodeFunctionResult, encodeFunctionData } from 'viem'
 import type { PublicClient, WalletClient } from 'viem'
 import * as chains from 'viem/chains'
 
-import { LevrFactory_v1 } from './abis'
+import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import { buildClankerV4 } from './build-clanker-v4'
 import type { LevrClankerDeploymentSchemaType } from './schema'
 
@@ -102,7 +102,7 @@ export const buildCalldatasV4 = async ({
   })
 
   const proxyDeployTransaction = encodeFunctionData({
-    abi: LevrFactory_v1,
+    abi: LevrForwarder_v1,
     functionName: 'executeTransaction',
     args: [clankerFactory, deployTransaction],
   })

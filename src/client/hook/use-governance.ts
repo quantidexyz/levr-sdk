@@ -83,24 +83,12 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Check if user can submit proposals
-  const canSubmit = useQuery({
-    queryKey: ['governance', 'canSubmit', governorAddress, wallet.data?.account?.address],
-    queryFn: async (): Promise<boolean> => {
-      if (!governance) throw new Error('Governance not initialized')
-      return await governance.canSubmit()
-    },
-    enabled: enabled && !!governance && !!wallet.data?.account?.address,
-    retry: 1,
-  })
-
-  // Query: Get next proposal ID
-  const nextProposalId = useQuery({
-    queryKey: ['governance', 'nextProposalId', governorAddress],
-    select: (data) => data, // Return the BigInt directly
+  // Query: Get current cycle ID
+  const currentCycleId = useQuery({
+    queryKey: ['governance', 'currentCycleId', governorAddress],
     queryFn: async (): Promise<bigint> => {
       if (!governance) throw new Error('Governance not initialized')
-      return await governance.getNextProposalId()
+      return await governance.getCurrentCycleId()
     },
     enabled: enabled && !!governance,
     retry: 1,
@@ -144,13 +132,18 @@ export function useGovernance({
 
       const amountBigInt = parseUnits(config.amount, config.amountDecimals)
 
-      const result = await governance.proposeTransfer(config.receiver, amountBigInt, config.reason)
+      const result = await governance.proposeTransfer(
+        config.recipient,
+        amountBigInt,
+        config.description
+      )
 
       return result
     },
     onSuccess: (result) => {
       // Refetch related queries
-      nextProposalId.refetch()
+      currentCycleId.refetch()
+      proposal.refetch()
       onProposeTransferSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeTransferError,
@@ -170,7 +163,8 @@ export function useGovernance({
     },
     onSuccess: (result) => {
       // Refetch related queries
-      nextProposalId.refetch()
+      currentCycleId.refetch()
+      proposal.refetch()
       onProposeBoostSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeBoostError,
@@ -213,20 +207,20 @@ export function useGovernance({
 
   // Helper: Build propose transfer config from simple params
   const buildProposeTransferConfig = ({
-    receiver,
+    recipient,
     amount,
     amountDecimals = tokenDecimals,
-    reason,
+    description,
   }: {
-    receiver: `0x${string}`
+    recipient: `0x${string}`
     amount: number | string
     amountDecimals?: number
-    reason: string
+    description: string
   }): ProposeTransferConfig => ({
-    receiver,
+    recipient,
     amount: amount.toString(),
     amountDecimals,
-    reason,
+    description,
   })
 
   // Helper: Build propose boost config from simple params
@@ -258,16 +252,16 @@ export function useGovernance({
       const amountBigInt = parseUnits(config.amount, config.amountDecimals)
 
       const result = await governance.proposeAndExecuteTransfer(
-        config.receiver,
+        config.recipient,
         amountBigInt,
-        config.reason
+        config.description
       )
 
       return result
     },
     onSuccess: (result) => {
       // Refetch related queries
-      nextProposalId.refetch()
+      currentCycleId.refetch()
       proposal.refetch()
     },
   })
@@ -285,7 +279,7 @@ export function useGovernance({
     },
     onSuccess: (result) => {
       // Refetch related queries
-      nextProposalId.refetch()
+      currentCycleId.refetch()
       proposal.refetch()
     },
   })
@@ -303,15 +297,13 @@ export function useGovernance({
 
     // Queries
     proposal,
-    canSubmit,
-    nextProposalId,
+    currentCycleId,
     addresses,
     airdropStatus,
 
     // Convenience accessors
     proposalData: proposal.data,
-    canSubmitProposals: canSubmit.data,
-    nextProposalIdValue: nextProposalId.data,
+    currentCycleIdValue: currentCycleId.data,
     treasuryAddress: addresses.data?.treasury,
     factoryAddress: addresses.data?.factory,
     stakedTokenAddress: addresses.data?.stakedToken,
@@ -330,8 +322,7 @@ export function useGovernance({
     isReady: !!governance && !!wallet.data,
     isLoading:
       proposal.isLoading ||
-      canSubmit.isLoading ||
-      nextProposalId.isLoading ||
+      currentCycleId.isLoading ||
       addresses.isLoading ||
       airdropStatus.isLoading,
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
