@@ -979,4 +979,50 @@ describe('#GOVERNANCE_TEST', () => {
       timeout: 120000, // Extended timeout for comprehensive test
     }
   )
+
+  it(
+    'should correctly handle airdrop status after claiming (verifies underflow error handling)',
+    async () => {
+      console.log('\n🧪 Testing airdrop status detection after claim...')
+      console.log(
+        '   This verifies that underflow errors from checking wrong amounts are handled correctly'
+      )
+
+      // Get current airdrop status
+      const statusBefore = await governance.getAirdropStatus()
+      console.log('Status before:', {
+        allocated: statusBefore.allocatedAmount.formatted,
+        available: statusBefore.availableAmount.formatted,
+        isAvailable: statusBefore.isAvailable,
+        error: statusBefore.error,
+      })
+
+      // If already claimed, we can still verify the status is correct
+      if (statusBefore.error?.includes('claimed')) {
+        console.log('✅ Airdrop already claimed - status correctly shows as claimed')
+
+        // Verify the allocated amount is one of the valid amounts (not an underflow artifact)
+        const validAmounts = [30n, 40n, 50n, 60n, 70n, 80n, 90n].map((v) => v * 10n ** 27n) // In wei
+        const isValidAmount = validAmounts.includes(statusBefore.allocatedAmount.raw)
+
+        console.log(
+          `  Allocated amount: ${statusBefore.allocatedAmount.formatted} (${statusBefore.allocatedAmount.raw.toString()})`
+        )
+        console.log(`  Is valid predefined amount: ${isValidAmount}`)
+
+        expect(isValidAmount).toBe(true)
+        console.log('✅ Claimed amount is correctly detected (no underflow artifacts)')
+
+        // Verify available amount is 0
+        expect(statusBefore.availableAmount.raw).toBe(0n)
+        console.log('✅ Available amount correctly shows as 0')
+      } else {
+        console.log('⏭️ Airdrop not claimed yet or not configured - skipping this specific test')
+        console.log('   (The earlier test already covers the claim flow)')
+      }
+    },
+    {
+      timeout: 60000,
+    }
+  )
 })

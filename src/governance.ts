@@ -1,4 +1,4 @@
-import { decodeEventLog, formatUnits, parseUnits } from 'viem'
+import { decodeEventLog, erc20Abi, formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 
 import { LevrGovernor_v1 } from './abis'
@@ -491,7 +491,7 @@ export class Governance {
   }
 
   /**
-   * Find treasury airdrop allocation by trying known amounts
+   * Find treasury airdrop allocation by checking all known amounts using multicall
    */
   private async findTreasuryAllocation(): Promise<{
     amount: bigint
@@ -505,50 +505,143 @@ export class Governance {
 
     if (!airdropAddress) return null
 
-    // Try each known treasury airdrop amount
-    for (const amountInTokens of Object.values(TREASURY_AIRDROP_AMOUNTS)) {
-      const amount = BigInt(amountInTokens) * 10n ** 18n // Convert to wei
+    // Prepare multicall for all possible treasury airdrop amounts + treasury balance check
+    const amounts = Object.values(TREASURY_AIRDROP_AMOUNTS).map(
+      (amountInTokens) => BigInt(amountInTokens) * 10n ** 18n
+    )
 
-      try {
-        const available = await this.publicClient.readContract({
+    const results = await this.publicClient.multicall({
+      contracts: [
+        // First check treasury balance
+        {
+          address: this.clankerToken,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [treasury],
+        },
+        // Then check all airdrop amounts
+        ...amounts.map((amount) => ({
           address: airdropAddress,
           abi: IClankerAirdrop,
-          functionName: 'amountAvailableToClaim',
+          functionName: 'amountAvailableToClaim' as const,
           args: [this.clankerToken, treasury, amount],
-        })
+        })),
+      ] as any, // Mixed ABIs in multicall
+      allowFailure: true,
+    })
+
+    // Extract treasury balance from first result
+    const treasuryBalanceResult = results[0]
+    const treasuryBalance =
+      treasuryBalanceResult && treasuryBalanceResult.status === 'success'
+        ? (treasuryBalanceResult.result as bigint)
+        : 0n
+
+    // Extract airdrop check results (skip first result which is balance)
+    const airdropResults = results.slice(1)
+
+    // Collect all valid results first
+    const allResults: Array<{
+      amount: bigint
+      available: bigint
+      status: 'available' | 'locked' | 'claimed' | 'not_found'
+      error?: string
+      priority: number // Lower is better
+    }> = []
+
+    for (let i = 0; i < airdropResults.length; i++) {
+      const result = airdropResults[i]
+      const amount = amounts[i]
+
+      if (result.status === 'success' && result.result !== undefined) {
+        const available = result.result as bigint
 
         if (available > 0n) {
-          return { amount, available, status: 'available' }
+          // Available - highest priority (1)
+          allResults.push({ amount, available, status: 'available', priority: 1 })
         } else {
-          // Available is 0, but call succeeded - airdrop exists but was claimed
-          return { amount, available: 0n, status: 'claimed' }
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : ''
+          // Available is 0 - check treasury balance to determine if claimed or locked
+          // If treasury has >= this amount, it's likely already claimed
+          // Otherwise it's still locked
+          const isClaimed = treasuryBalance >= amount
+          const priority = isClaimed ? 4 : 2
+          const status = isClaimed ? 'claimed' : 'locked'
+          const error = isClaimed ? 'Treasury airdrop already claimed' : 'Airdrop is still locked'
 
+          allResults.push({ amount, available: 0n, status, priority, error })
+        }
+      } else if (result.status === 'failure') {
+        const errorMessage = result.error?.message || ''
+
+        // AirdropNotCreated means this amount wasn't configured - skip entirely
         if (errorMessage.includes('AirdropNotCreated')) {
-          continue // Try next amount
+          continue
         }
 
+        // AirdropNotUnlocked means this amount exists but is locked (priority 2)
         if (errorMessage.includes('AirdropNotUnlocked')) {
-          return { amount, available: 0n, status: 'locked', error: 'Airdrop is still locked' }
+          allResults.push({
+            amount,
+            available: 0n,
+            status: 'locked',
+            error: 'Airdrop is still locked',
+            priority: 2,
+          })
+          continue
         }
 
+        // Already claimed errors (priority 3)
         if (errorMessage.includes('UserMaxClaimed') || errorMessage.includes('TotalMaxClaimed')) {
-          return {
+          allResults.push({
             amount,
             available: 0n,
             status: 'claimed',
             error: 'Already claimed maximum amount',
-          }
+            priority: 3,
+          })
+          continue
         }
 
-        // Other errors but we found the right amount
-        return { amount, available: 0n, status: 'locked', error: errorMessage }
+        // Arithmetic underflow/overflow means a different (larger) amount was claimed
+        // Skip this result entirely - the correct amount will be detected separately
+        if (errorMessage.includes('underflow') || errorMessage.includes('overflow')) {
+          continue
+        }
+
+        // Other errors - treat as locked (priority 2)
+        allResults.push({
+          amount,
+          available: 0n,
+          status: 'locked',
+          error: errorMessage,
+          priority: 2,
+        })
       }
     }
 
-    return null
+    // If no results found, return null
+    if (allResults.length === 0) {
+      return null
+    }
+
+    // Sort by priority (lower is better), then by amount (higher is better for same priority)
+    allResults.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority
+      }
+      // For same priority, prefer larger amounts
+      return a.amount > b.amount ? -1 : 1
+    })
+
+    // Return the best result
+    const best = allResults[0]
+
+    return {
+      amount: best.amount,
+      available: best.available,
+      status: best.status,
+      error: best.error,
+    }
   }
 
   /**
