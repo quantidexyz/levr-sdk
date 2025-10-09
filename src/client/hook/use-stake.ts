@@ -365,6 +365,7 @@ export function useStake({
     streamParams: poolData.data?.streamParams,
     rewardRatePerSecond: poolData.data?.rewardRatePerSecond,
     aprBps: userData.data?.aprBps,
+    aprBpsWeth: userData.data?.aprBpsWeth,
     rewardsData: outstandingRewards, // For accrual display
     claimableData: claimableRewards, // For user claimable amounts
 

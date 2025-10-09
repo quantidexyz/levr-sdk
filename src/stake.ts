@@ -249,7 +249,14 @@ export class Stake {
   async getUserData(): Promise<{
     stakedBalance: { raw: bigint; formatted: string }
     aprBps: { raw: bigint; percentage: number }
+    aprBpsWeth: { raw: bigint; percentage: number }
   }> {
+    const wethAddress = WETH(this.chainId)?.address
+
+    if (!wethAddress) {
+      throw new Error('WETH address not found')
+    }
+
     const results = await this.publicClient.multicall({
       contracts: [
         {
@@ -262,12 +269,21 @@ export class Stake {
           address: this.stakingAddress,
           abi: LevrStaking_v1,
           functionName: 'aprBps',
-          args: [this.userAddress],
+          args: [this.tokenAddress],
+        },
+
+        {
+          address: this.stakingAddress,
+          abi: LevrStaking_v1,
+          functionName: 'aprBps',
+          args: [wethAddress],
         },
       ],
     })
 
-    const [stakedBalance, aprBps] = results.map((r) => r.result!) as [bigint, bigint]
+    const stakedBalance = results[0].result as bigint
+    const aprBps = results[1].result as bigint
+    const aprBpsWeth = wethAddress && results[2] ? (results[2].result as bigint) : 0n
 
     return {
       stakedBalance: {
@@ -277,6 +293,10 @@ export class Stake {
       aprBps: {
         raw: aprBps,
         percentage: Number(aprBps) / 100, // Convert bps to percentage
+      },
+      aprBpsWeth: {
+        raw: aprBpsWeth,
+        percentage: Number(aprBpsWeth) / 100, // Convert bps to percentage
       },
     }
   }

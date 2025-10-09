@@ -51,7 +51,7 @@ export default [
     name: 'aprBps',
     inputs: [
       {
-        name: '',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
