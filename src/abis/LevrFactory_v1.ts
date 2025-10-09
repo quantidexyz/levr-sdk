@@ -559,6 +559,12 @@ export default [
         internalType: 'address',
       },
       {
+        name: 'staking',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
         name: 'stakedToken',
         type: 'address',
         indexed: false,

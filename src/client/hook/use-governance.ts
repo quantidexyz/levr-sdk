@@ -19,8 +19,10 @@ export type UseGovernanceParams = {
   tokenDecimals?: number
   enabled?: boolean
 
-  // Proposal query params (optional - for reactive proposal data)
+  // Query params (optional - for reactive data)
   proposalId?: number | bigint
+  cycleId?: number | bigint
+  userAddress?: `0x${string}` // For checking specific user's votes/VP
 
   // Success/error callbacks
   onProposeTransferSuccess?: (receipt: TransactionReceipt, proposalId: bigint) => void
@@ -29,8 +31,14 @@ export type UseGovernanceParams = {
   onProposeBoostSuccess?: (receipt: TransactionReceipt, proposalId: bigint) => void
   onProposeBoostError?: (error: unknown) => void
 
+  onVoteSuccess?: (receipt: TransactionReceipt) => void
+  onVoteError?: (error: unknown) => void
+
   onExecuteProposalSuccess?: (receipt: TransactionReceipt) => void
   onExecuteProposalError?: (error: unknown) => void
+
+  onStartCycleSuccess?: (receipt: TransactionReceipt) => void
+  onStartCycleError?: (error: unknown) => void
 
   onClaimAirdropSuccess?: (receipt: TransactionReceipt) => void
   onClaimAirdropError?: (error: unknown) => void
@@ -47,12 +55,18 @@ export function useGovernance({
   tokenDecimals = 18,
   enabled = true,
   proposalId,
+  cycleId,
+  userAddress,
   onProposeTransferSuccess,
   onProposeTransferError,
   onProposeBoostSuccess,
   onProposeBoostError,
+  onVoteSuccess,
+  onVoteError,
   onExecuteProposalSuccess,
   onExecuteProposalError,
+  onStartCycleSuccess,
+  onStartCycleError,
   onClaimAirdropSuccess,
   onClaimAirdropError,
 }: UseGovernanceParams) {
@@ -122,6 +136,154 @@ export function useGovernance({
     enabled: enabled && !!governance,
     retry: 1,
     refetchInterval: 30000, // Refetch every 30 seconds to check if lockup has passed
+  })
+
+  // Query: Get proposals for cycle
+  const proposalsForCycle = useQuery({
+    queryKey: ['governance', 'proposalsForCycle', governorAddress, cycleId?.toString()],
+    queryFn: async (): Promise<readonly bigint[]> => {
+      if (!governance || cycleId === undefined)
+        throw new Error('Governance not initialized or no cycle ID')
+      return await governance.getProposalsForCycle(cycleId)
+    },
+    enabled: enabled && !!governance && cycleId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Get winner for cycle
+  const winner = useQuery({
+    queryKey: ['governance', 'winner', governorAddress, cycleId?.toString()],
+    queryFn: async (): Promise<bigint> => {
+      if (!governance || cycleId === undefined)
+        throw new Error('Governance not initialized or no cycle ID')
+      return await governance.getWinner(cycleId)
+    },
+    enabled: enabled && !!governance && cycleId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Get vote receipt for user on proposal
+  const voteReceipt = useQuery({
+    queryKey: [
+      'governance',
+      'voteReceipt',
+      governorAddress,
+      proposalId?.toString(),
+      userAddress || wallet.data?.account.address,
+    ],
+    queryFn: async () => {
+      if (!governance || !proposalId)
+        throw new Error('Governance not initialized or no proposal ID')
+      return await governance.getVoteReceipt(proposalId, userAddress)
+    },
+    enabled: enabled && !!governance && proposalId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Get voting power snapshot for proposal
+  const votingPowerSnapshot = useQuery({
+    queryKey: [
+      'governance',
+      'votingPowerSnapshot',
+      governorAddress,
+      proposalId?.toString(),
+      userAddress || wallet.data?.account.address,
+    ],
+    queryFn: async (): Promise<bigint> => {
+      if (!governance || !proposalId)
+        throw new Error('Governance not initialized or no proposal ID')
+      return await governance.getVotingPowerSnapshot(proposalId, userAddress)
+    },
+    enabled: enabled && !!governance && proposalId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Check if proposal meets quorum
+  const meetsQuorum = useQuery({
+    queryKey: ['governance', 'meetsQuorum', governorAddress, proposalId?.toString()],
+    queryFn: async (): Promise<boolean> => {
+      if (!governance || !proposalId)
+        throw new Error('Governance not initialized or no proposal ID')
+      return await governance.meetsQuorum(proposalId)
+    },
+    enabled: enabled && !!governance && proposalId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Check if proposal meets approval
+  const meetsApproval = useQuery({
+    queryKey: ['governance', 'meetsApproval', governorAddress, proposalId?.toString()],
+    queryFn: async (): Promise<boolean> => {
+      if (!governance || !proposalId)
+        throw new Error('Governance not initialized or no proposal ID')
+      return await governance.meetsApproval(proposalId)
+    },
+    enabled: enabled && !!governance && proposalId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Get proposal state
+  const proposalState = useQuery({
+    queryKey: ['governance', 'proposalState', governorAddress, proposalId?.toString()],
+    queryFn: async (): Promise<number> => {
+      if (!governance || !proposalId)
+        throw new Error('Governance not initialized or no proposal ID')
+      return await governance.getProposalState(proposalId)
+    },
+    enabled: enabled && !!governance && proposalId !== undefined,
+    retry: 1,
+  })
+
+  // Query: Get active proposal count by type
+  const activeProposalCount = useQuery({
+    queryKey: ['governance', 'activeProposalCount', governorAddress],
+    queryFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+      const [boostCount, transferCount] = await Promise.all([
+        governance.getActiveProposalCount(0), // BoostStakingPool
+        governance.getActiveProposalCount(1), // TransferToAddress
+      ])
+      return { boost: boostCount, transfer: transferCount }
+    },
+    enabled: enabled && !!governance,
+    retry: 1,
+  })
+
+  // Mutation: Vote on proposal
+  const vote = useMutation({
+    mutationFn: async ({
+      proposalId,
+      support,
+    }: {
+      proposalId: number | bigint
+      support: boolean
+    }) => {
+      if (!governance) throw new Error('Governance not initialized')
+      if (!wallet.data) throw new Error('Wallet is not connected')
+      return await governance.vote(proposalId, support)
+    },
+    onSuccess: (receipt) => {
+      // Refetch proposal data and vote receipt
+      proposal.refetch()
+      voteReceipt.refetch()
+      onVoteSuccess?.(receipt)
+    },
+    onError: onVoteError,
+  })
+
+  // Mutation: Start new cycle (admin only)
+  const startNewCycle = useMutation({
+    mutationFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+      if (!wallet.data) throw new Error('Wallet is not connected')
+      return await governance.startNewCycle()
+    },
+    onSuccess: (receipt) => {
+      // Refetch cycle data
+      currentCycleId.refetch()
+      onStartCycleSuccess?.(receipt)
+    },
+    onError: onStartCycleError,
   })
 
   // Mutation: Propose transfer
@@ -288,7 +450,9 @@ export function useGovernance({
     // Core mutations
     proposeTransfer,
     proposeBoost,
+    vote,
     executeProposal,
+    startNewCycle,
     claimAirdrop,
 
     // Convenience mutations (for testing/development)
@@ -300,13 +464,45 @@ export function useGovernance({
     currentCycleId,
     addresses,
     airdropStatus,
+    proposalsForCycle,
+    winner,
+    voteReceipt,
+    votingPowerSnapshot,
+    meetsQuorum,
+    meetsApproval,
+    proposalState,
+    activeProposalCount,
 
-    // Convenience accessors
+    // Convenience accessors - proposal data
     proposalData: proposal.data,
+    proposalDescription: proposal.data?.description,
+
+    // Convenience accessors - cycle data
     currentCycleIdValue: currentCycleId.data,
+    cycleProposals: proposalsForCycle.data,
+    winnerProposalId: winner.data,
+
+    // Convenience accessors - vote data
+    hasVoted: voteReceipt.data?.hasVoted ?? false,
+    voteSupport: voteReceipt.data?.support,
+    votesUsed: voteReceipt.data?.votes,
+    userVotingPower: votingPowerSnapshot.data,
+
+    // Convenience accessors - proposal status
+    proposalMeetsQuorum: meetsQuorum.data ?? false,
+    proposalMeetsApproval: meetsApproval.data ?? false,
+    proposalStateValue: proposalState.data,
+
+    // Convenience accessors - active counts
+    activeBoostProposals: activeProposalCount.data?.boost,
+    activeTransferProposals: activeProposalCount.data?.transfer,
+
+    // Convenience accessors - addresses
     treasuryAddress: addresses.data?.treasury,
     factoryAddress: addresses.data?.factory,
     stakedTokenAddress: addresses.data?.stakedToken,
+
+    // Convenience accessors - airdrop
     airdropStatusData: airdropStatus.data,
     availableAirdropAmount: airdropStatus.data?.availableAmount,
     airdropAllocatedAmount: airdropStatus.data?.allocatedAmount,
@@ -324,9 +520,19 @@ export function useGovernance({
       proposal.isLoading ||
       currentCycleId.isLoading ||
       addresses.isLoading ||
-      airdropStatus.isLoading,
+      airdropStatus.isLoading ||
+      proposalsForCycle.isLoading ||
+      winner.isLoading ||
+      voteReceipt.isLoading ||
+      votingPowerSnapshot.isLoading ||
+      meetsQuorum.isLoading ||
+      meetsApproval.isLoading ||
+      proposalState.isLoading ||
+      activeProposalCount.isLoading,
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
+    isVoting: vote.isPending,
     isExecuting: executeProposal.isPending,
+    isStartingCycle: startNewCycle.isPending,
     isClaiming: claimAirdrop.isPending,
   }
 }

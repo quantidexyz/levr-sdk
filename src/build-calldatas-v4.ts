@@ -7,13 +7,7 @@ import * as chains from 'viem/chains'
 import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import { buildClankerV4 } from './build-clanker-v4'
 import type { LevrClankerDeploymentSchemaType } from './schema'
-
-export type CallData = {
-  target: `0x${string}`
-  allowFailure: boolean
-  value: bigint
-  callData: `0x${string}`
-}
+import type { CallData } from './types'
 
 export type BuildCalldatasV4Params = {
   c: LevrClankerDeploymentSchemaType

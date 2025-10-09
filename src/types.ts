@@ -13,3 +13,10 @@ export type PoolKey = {
   tickSpacing: number
   hooks: `0x${string}`
 }
+
+export type CallData = {
+  target: `0x${string}`
+  allowFailure: boolean
+  value: bigint
+  callData: `0x${string}`
+}

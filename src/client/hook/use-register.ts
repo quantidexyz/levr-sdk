@@ -1,11 +1,12 @@
 'use client'
 
 import { useMutation } from '@tanstack/react-query'
-import { decodeFunctionResult } from 'viem'
+import { decodeEventLog, encodeFunctionData } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { LevrFactory_v1 } from '../../abis'
+import { LevrFactory_v1, LevrForwarder_v1 } from '../../abis'
 import { GET_FACTORY_ADDRESS } from '../../constants'
+import type { CallData } from '../../types'
 
 export type UseRegisterParams = {
   onSuccess?: (params: RegisterResult) => void
@@ -39,25 +40,82 @@ export function useRegister({ onSuccess, onError }: UseRegisterParams) {
     mutationFn: async (params: { clankerToken: `0x${string}` }) => {
       if (!wallet.data) throw new Error('Wallet is not connected')
       if (!factoryAddress) throw new Error('Factory address is required')
+      if (!publicClient) throw new Error('Public client is not connected')
 
-      const hash = await wallet.data.writeContract({
-        address: factoryAddress,
+      const prepareTransaction = encodeFunctionData({
+        abi: LevrFactory_v1,
+        functionName: 'prepareForDeployment',
+        args: [],
+      })
+
+      const registerTransaction = encodeFunctionData({
         abi: LevrFactory_v1,
         functionName: 'register',
         args: [params.clankerToken],
       })
 
+      const callDatas: CallData[] = [
+        {
+          target: factoryAddress,
+          allowFailure: false,
+          value: 0n,
+          callData: prepareTransaction,
+        },
+        {
+          target: factoryAddress,
+          allowFailure: false,
+          value: 0n,
+          callData: registerTransaction,
+        },
+      ]
+
+      const forwarderAddress = await publicClient.readContract({
+        address: factoryAddress,
+        abi: LevrFactory_v1,
+        functionName: 'trustedForwarder',
+      })
+
+      const hash = await wallet.data.writeContract({
+        address: forwarderAddress,
+        abi: LevrForwarder_v1,
+        functionName: 'executeMulticall',
+        args: [callDatas],
+      })
+
       const receipt = await publicClient?.waitForTransactionReceipt({ hash })
-      const data = receipt?.logs[0].data
 
       let project: RegisterResult['project']
 
-      if (data) {
-        project = decodeFunctionResult({
+      // Find the Registered event (emitted by LevrFactory_v1.register)
+      const registeredLog = receipt?.logs.find((log) => {
+        try {
+          const decoded = decodeEventLog({
+            abi: LevrFactory_v1,
+            data: log.data,
+            topics: log.topics,
+          })
+          return decoded.eventName === 'Registered'
+        } catch {
+          return false
+        }
+      })
+
+      if (registeredLog) {
+        const decoded = decodeEventLog({
           abi: LevrFactory_v1,
-          functionName: 'register',
-          data,
+          data: registeredLog.data,
+          topics: registeredLog.topics,
         })
+
+        if (decoded.eventName === 'Registered') {
+          // Event signature: Registered(address indexed clankerToken, address indexed treasury, address governor, address staking, address stakedToken)
+          project = {
+            treasury: decoded.args.treasury as `0x${string}`,
+            governor: decoded.args.governor as `0x${string}`,
+            staking: decoded.args.staking as `0x${string}`,
+            stakedToken: decoded.args.stakedToken as `0x${string}`,
+          }
+        }
       }
 
       return {
