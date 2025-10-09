@@ -11,23 +11,22 @@ import { setupTest, type SetupTestReturnType } from './helper'
 import { getBlockTimestamp, warpAnvil } from './util'
 
 /**
- * Governance Tests - Time-Weighted Voting System
+ * Governance Tests - Time-Weighted Voting System with Auto-Cycle Management
  *
  * These tests validate the COMPLETE governance flow with cycle-based voting:
  * 1. Deploy a Clanker token via Levr
  * 2. Stake tokens to accumulate time-weighted voting power
- * 3. Start governance cycle (REQUIRED before proposals)
- * 4. Create proposals during proposal window
- * 5. Vote during voting window (VP = staked balance × time staked)
- * 6. Execute winning proposals after voting ends
+ * 3. Create proposals (auto-starts cycle if needed - proposer pays gas)
+ * 4. Vote during voting window (VP = staked balance × time staked)
+ * 5. Execute winning proposals after voting ends (auto-starts next cycle - executor pays gas)
  *
- * CRITICAL: Governance Flow (MUST follow this order):
- * - startNewCycle() → Opens proposal and voting windows
- * - proposeTransfer()/proposeBoost() → Create proposals during proposal window
+ * CRITICAL: Governance Flow (Auto-Managed Cycles):
+ * - First proposeTransfer()/proposeBoost() → Auto-starts cycle 1 (proposer pays gas)
  * - Warp to voting window start
  * - vote() → Cast votes with time-weighted VP during voting window
  * - Warp to voting window end
- * - execute() → Execute ONLY the winning proposal (highest yes votes)
+ * - execute() → Execute ONLY the winning proposal (highest yes votes) + auto-start next cycle
+ * - New proposals after execution → Go into the fresh auto-started cycle
  *
  * Anti-Gaming Features Tested:
  * - VP snapshot at proposal creation (prevents last-minute staking)
@@ -304,20 +303,11 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('  Treasury:', `${formatEther(treasuryBalanceBefore)} tokens`)
       console.log('  Receiver:', `${formatEther(receiverBalanceBefore)} tokens`)
 
-      // STEP 1: Start a new governance cycle
-      console.log('\n🔄 Starting new governance cycle...')
-      const cycleReceipt = await governance.startNewCycle()
-      expect(cycleReceipt.status).toBe('success')
-      console.log('✅ Governance cycle started')
-
-      const cycleId = await governance.getCurrentCycleId()
-      console.log('  Cycle ID:', cycleId.toString())
-
-      // STEP 2: Propose transfer (within proposal window)
+      // STEP 1: Create transfer proposal (auto-starts governance cycle - proposer pays gas)
       const transferAmount = treasuryBalanceBefore / 2n // Transfer half of treasury
       const description = 'Test transfer to community member'
 
-      console.log('\n📝 Proposing transfer...')
+      console.log('\n📝 Creating first transfer proposal (auto-starts cycle)...')
       console.log('  Amount:', `${formatEther(transferAmount)} tokens`)
       console.log('  To:', receiver)
       console.log('  Description:', description)
@@ -330,6 +320,9 @@ describe('#GOVERNANCE_TEST', () => {
 
       expect(proposeReceipt.status).toBe('success')
       console.log('✅ Transfer proposal created:', proposalId.toString())
+
+      const cycleId = await governance.getCurrentCycleId()
+      console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
       // Get proposal details
       const proposal = await governance.getProposal(proposalId)
@@ -464,22 +457,19 @@ describe('#GOVERNANCE_TEST', () => {
 
       expect(treasuryBalanceBefore).toBeGreaterThan(0n)
 
-      // STEP 1: Start a new governance cycle
-      console.log('\n🔄 Starting new governance cycle...')
-      const cycleReceipt = await governance.startNewCycle()
-      expect(cycleReceipt.status).toBe('success')
-      console.log('✅ Governance cycle started')
-
-      // STEP 2: Propose boost (within proposal window)
+      // STEP 1: Create boost proposal (auto-starts governance cycle - proposer pays gas)
       const boostAmount = treasuryBalanceBefore / 3n // Boost 1/3 of treasury to staking rewards
 
-      console.log('\n📝 Proposing boost...')
+      console.log('\n📝 Creating boost proposal (auto-starts cycle)...')
       console.log('  Amount:', `${formatEther(boostAmount)} tokens`)
 
       const { receipt: proposeReceipt, proposalId } = await governance.proposeBoost(boostAmount)
       expect(proposeReceipt.status).toBe('success')
 
       console.log('✅ Boost proposal created:', proposalId.toString())
+
+      const cycleId = await governance.getCurrentCycleId()
+      console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
       // Get proposal details
       const proposal = await governance.getProposal(proposalId)
@@ -591,20 +581,19 @@ describe('#GOVERNANCE_TEST', () => {
         args: [project.treasury],
       })
 
-      // STEP 1: Start new cycle
-      console.log('\n🔄 Starting new governance cycle for window test...')
-      await governance.startNewCycle()
-
-      // STEP 2: Create a new proposal for voting window testing
+      // STEP 1: Create a new proposal for voting window testing (auto-starts new cycle)
       const transferAmount = updatedTreasuryBalance / 2n
       const receiver = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 
-      console.log('\n📝 Creating proposal for voting window test...')
+      console.log('\n📝 Creating proposal for voting window test (auto-starts cycle)...')
       const { proposalId } = await governance.proposeTransfer(
         receiver,
         transferAmount,
         'Voting window test proposal'
       )
+
+      const cycleId = await governance.getCurrentCycleId()
+      console.log('✅ New cycle auto-started, Cycle ID:', cycleId.toString())
 
       // Get proposal details using governance class
       const proposal = await governance.getProposal(proposalId)
@@ -796,12 +785,6 @@ describe('#GOVERNANCE_TEST', () => {
     async () => {
       console.log('\n🧪 Testing ALL governance class methods...')
 
-      // Start a fresh cycle for comprehensive testing
-      console.log('\n🔄 Starting fresh governance cycle...')
-      await governance.startNewCycle()
-      const cycleId = await governance.getCurrentCycleId()
-      console.log(`  ✅ Cycle ${cycleId.toString()} started`)
-
       // 1. Test getActiveProposalCount (before creating proposals)
       console.log('\n📊 Testing getActiveProposalCount()...')
       const boostCountBefore = await governance.getActiveProposalCount(0) // 0 = BoostStakingPool
@@ -811,11 +794,14 @@ describe('#GOVERNANCE_TEST', () => {
       expect(typeof boostCountBefore).toBe('bigint')
       expect(typeof transferCountBefore).toBe('bigint')
 
-      // 2. Create multiple proposals to test getProposalsForCycle
-      console.log('\n📝 Creating multiple proposals for cycle testing...')
+      // 2. Create multiple proposals to test getProposalsForCycle (first auto-starts cycle)
+      console.log('\n📝 Creating multiple proposals for cycle testing (auto-starts fresh cycle)...')
 
       const { proposalId: boostId } = await governance.proposeBoost(10000000n)
       console.log(`  ✅ Boost proposal created: ${boostId.toString()}`)
+
+      const cycleId = await governance.getCurrentCycleId()
+      console.log(`  ✅ Fresh cycle ${cycleId.toString()} auto-started`)
 
       const { proposalId: transferId1 } = await governance.proposeTransfer(
         '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',

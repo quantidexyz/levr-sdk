@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -37,9 +37,6 @@ export type UseGovernanceParams = {
   onExecuteProposalSuccess?: (receipt: TransactionReceipt) => void
   onExecuteProposalError?: (error: unknown) => void
 
-  onStartCycleSuccess?: (receipt: TransactionReceipt) => void
-  onStartCycleError?: (error: unknown) => void
-
   onClaimAirdropSuccess?: (receipt: TransactionReceipt) => void
   onClaimAirdropError?: (error: unknown) => void
 }
@@ -65,13 +62,12 @@ export function useGovernance({
   onVoteError,
   onExecuteProposalSuccess,
   onExecuteProposalError,
-  onStartCycleSuccess,
-  onStartCycleError,
   onClaimAirdropSuccess,
   onClaimAirdropError,
 }: UseGovernanceParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
+  const queryClient = useQueryClient()
 
   // Create governance instance
   const governance =
@@ -84,6 +80,17 @@ export function useGovernance({
           clankerToken,
         })
       : null
+
+  /**
+   * Invalidate relevant queries to refetch data
+   */
+  const invalidateGovernanceQueries = () => {
+    // Invalidate all governance-related queries
+    queryClient.invalidateQueries({ queryKey: ['governance'] })
+    queryClient.invalidateQueries({ queryKey: ['proposals'] })
+    // Invalidate project data (contains treasury balance, etc.)
+    queryClient.invalidateQueries({ queryKey: ['project'] })
+  }
 
   // Query: Get proposal details
   const proposal = useQuery({
@@ -263,27 +270,11 @@ export function useGovernance({
       return await governance.vote(proposalId, support)
     },
     onSuccess: (receipt) => {
-      // Refetch proposal data and vote receipt
-      proposal.refetch()
-      voteReceipt.refetch()
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
       onVoteSuccess?.(receipt)
     },
     onError: onVoteError,
-  })
-
-  // Mutation: Start new cycle (admin only)
-  const startNewCycle = useMutation({
-    mutationFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
-      if (!wallet.data) throw new Error('Wallet is not connected')
-      return await governance.startNewCycle()
-    },
-    onSuccess: (receipt) => {
-      // Refetch cycle data
-      currentCycleId.refetch()
-      onStartCycleSuccess?.(receipt)
-    },
-    onError: onStartCycleError,
   })
 
   // Mutation: Propose transfer
@@ -303,9 +294,8 @@ export function useGovernance({
       return result
     },
     onSuccess: (result) => {
-      // Refetch related queries
-      currentCycleId.refetch()
-      proposal.refetch()
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
       onProposeTransferSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeTransferError,
@@ -324,9 +314,8 @@ export function useGovernance({
       return result
     },
     onSuccess: (result) => {
-      // Refetch related queries
-      currentCycleId.refetch()
-      proposal.refetch()
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
       onProposeBoostSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeBoostError,
@@ -343,8 +332,8 @@ export function useGovernance({
       return receipt
     },
     onSuccess: (receipt) => {
-      // Refetch proposal data to show it's executed
-      proposal.refetch()
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
       onExecuteProposalSuccess?.(receipt)
     },
     onError: onExecuteProposalError,
@@ -359,9 +348,8 @@ export function useGovernance({
       return await governance.claimAirdrop()
     },
     onSuccess: (receipt) => {
-      // Refetch airdrop status to show it's been claimed
-      airdropStatus.refetch()
-      // Also refetch project data to update treasury balance
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
       onClaimAirdropSuccess?.(receipt)
     },
     onError: onClaimAirdropError,
@@ -421,10 +409,9 @@ export function useGovernance({
 
       return result
     },
-    onSuccess: (result) => {
-      // Refetch related queries
-      currentCycleId.refetch()
-      proposal.refetch()
+    onSuccess: () => {
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
     },
   })
 
@@ -439,10 +426,9 @@ export function useGovernance({
 
       return result
     },
-    onSuccess: (result) => {
-      // Refetch related queries
-      currentCycleId.refetch()
-      proposal.refetch()
+    onSuccess: () => {
+      // Invalidate queries to refetch updated data
+      invalidateGovernanceQueries()
     },
   })
 
@@ -452,7 +438,6 @@ export function useGovernance({
     proposeBoost,
     vote,
     executeProposal,
-    startNewCycle,
     claimAirdrop,
 
     // Convenience mutations (for testing/development)
@@ -532,7 +517,6 @@ export function useGovernance({
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
     isVoting: vote.isPending,
     isExecuting: executeProposal.isPending,
-    isStartingCycle: startNewCycle.isPending,
     isClaiming: claimAirdrop.isPending,
   }
 }

@@ -216,6 +216,7 @@ export class Governance {
 
   /**
    * Execute a proposal by ID
+   * Note: Automatically starts a new cycle after successful execution
    */
   async executeProposal(proposalId: number | bigint): Promise<TransactionReceipt> {
     const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
@@ -232,26 +233,6 @@ export class Governance {
 
     if (receipt.status === 'reverted') {
       throw new Error('Execute proposal transaction reverted')
-    }
-
-    return receipt
-  }
-
-  /**
-   * Start a new governance cycle (admin only)
-   */
-  async startNewCycle(): Promise<TransactionReceipt> {
-    const hash = await this.wallet.writeContract({
-      address: this.governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'startNewCycle',
-      chain: this.wallet.chain,
-    })
-
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
-
-    if (receipt.status === 'reverted') {
-      throw new Error('Start new cycle transaction reverted')
     }
 
     return receipt

@@ -420,13 +420,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'startNewCycle',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'state',
     inputs: [
       {
