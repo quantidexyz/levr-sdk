@@ -68,6 +68,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'deployer',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'eip712Domain',
     inputs: [],
     outputs: [
@@ -372,6 +385,13 @@ export default [
     stateMutability: 'view',
   },
   {
+    type: 'function',
+    name: 'withdrawTrappedETH',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
     type: 'event',
     name: 'EIP712DomainChanged',
     inputs: [],
@@ -496,6 +516,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'ETHTransferFailed',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'FailedCall',
     inputs: [],
   },
@@ -549,12 +574,48 @@ export default [
   },
   {
     type: 'error',
+    name: 'NoETHToWithdraw',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'OnlyDeployer',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'OnlyMulticallCanExecuteTransaction',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'StringTooLong',
     inputs: [
       {
         name: 'str',
         type: 'string',
         internalType: 'string',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'ValueMismatch',
+    inputs: [
+      {
+        name: 'provided',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'required',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
