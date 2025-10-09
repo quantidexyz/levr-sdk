@@ -143,6 +143,7 @@ export async function proposals({
       proposer: `0x${string}`
       amount: bigint
       recipient: `0x${string}`
+      description: string
       createdAt: bigint
       votingStartsAt: bigint
       votingEndsAt: bigint
@@ -167,6 +168,7 @@ export async function proposals({
         formatted: formatUnits(result.amount, tokenDecimals),
       },
       recipient: result.recipient,
+      description: result.description,
       createdAt: {
         timestamp: result.createdAt,
         date: new Date(Number(result.createdAt) * 1000),

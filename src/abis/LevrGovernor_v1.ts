@@ -135,6 +135,11 @@ export default [
             internalType: 'address',
           },
           {
+            name: 'description',
+            type: 'string',
+            internalType: 'string',
+          },
+          {
             name: 'createdAt',
             type: 'uint256',
             internalType: 'uint256',

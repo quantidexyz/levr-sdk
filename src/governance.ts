@@ -21,6 +21,7 @@ export type ProposalDetails = {
   proposer: `0x${string}`
   amount: bigint
   recipient: `0x${string}`
+  description: string
   createdAt: bigint
   votingStartsAt: bigint
   votingEndsAt: bigint
@@ -37,6 +38,7 @@ export type FormattedProposalDetails = {
   proposer: `0x${string}`
   amount: { raw: bigint; formatted: string }
   recipient: `0x${string}`
+  description: string
   createdAt: { timestamp: bigint; date: Date }
   votingStartsAt: { timestamp: bigint; date: Date }
   votingEndsAt: { timestamp: bigint; date: Date }
@@ -261,12 +263,12 @@ export class Governance {
   async getProposal(proposalId: number | bigint): Promise<FormattedProposalDetails> {
     const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
 
-    const result = await this.publicClient.readContract({
+    const result = (await this.publicClient.readContract({
       address: this.governorAddress,
       abi: LevrGovernor_v1,
       functionName: 'getProposal',
       args: [parsedProposalId],
-    })
+    })) as ProposalDetails
 
     return {
       id: result.id,
@@ -277,6 +279,7 @@ export class Governance {
         formatted: formatUnits(result.amount, this.tokenDecimals),
       },
       recipient: result.recipient,
+      description: result.description,
       createdAt: {
         timestamp: result.createdAt,
         date: new Date(Number(result.createdAt) * 1000),

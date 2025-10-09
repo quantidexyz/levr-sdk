@@ -36,6 +36,16 @@ export const getWallet = (timeout?: number) => {
 }
 
 /**
+ * Get current blockchain timestamp
+ * @returns Current block timestamp in seconds
+ */
+export const getBlockTimestamp = async (): Promise<number> => {
+  const publicClient = getPublicClient()
+  const block = await publicClient.getBlock()
+  return Number(block.timestamp)
+}
+
+/**
  * Warp anvil forward in time
  * @param seconds Number of seconds to warp forward
  */
