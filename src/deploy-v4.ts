@@ -33,19 +33,20 @@ export const deployV4 = async ({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address is required')
 
+  const trustedForwarder = await publicClient.readContract({
+    address: factoryAddress,
+    abi: LevrFactory_v1,
+    functionName: 'trustedForwarder',
+  })
+
   const { callDatas, clankerTokenAddress, totalValue } = await buildCalldatasV4({
     c,
     clanker,
     publicClient,
     wallet,
     factoryAddress,
+    forwarderAddress: trustedForwarder,
     treasuryAirdropAmount,
-  })
-
-  const trustedForwarder = await publicClient.readContract({
-    address: factoryAddress,
-    abi: LevrFactory_v1,
-    functionName: 'trustedForwarder',
   })
 
   const txHash = await wallet.writeContract({

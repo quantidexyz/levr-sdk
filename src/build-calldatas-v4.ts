@@ -22,6 +22,7 @@ export type BuildCalldatasV4Params = {
   wallet: WalletClient
   factoryAddress: `0x${string}`
   treasuryAirdropAmount: number
+  forwarderAddress: `0x${string}`
 }
 
 export type BuildCalldatasV4ReturnType = {
@@ -43,6 +44,7 @@ export const buildCalldatasV4 = async ({
   publicClient,
   wallet,
   factoryAddress,
+  forwarderAddress,
   treasuryAirdropAmount,
 }: BuildCalldatasV4Params): Promise<BuildCalldatasV4ReturnType> => {
   const deployer = wallet.account?.address
@@ -118,7 +120,7 @@ export const buildCalldatasV4 = async ({
       callData: prepareForDeploymentTransaction,
     },
     {
-      target: factoryAddress,
+      target: forwarderAddress,
       allowFailure: false,
       value: devBuyValue, // ETH forwarded through executeTransaction to Clanker deployment
       callData: proxyDeployTransaction,

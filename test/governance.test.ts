@@ -11,14 +11,29 @@ import { setupTest, type SetupTestReturnType } from './helper'
 import { warpAnvil } from './util'
 
 /**
- * Governance Tests
+ * Governance Tests - Time-Weighted Voting System
  *
- * These tests validate the complete governance flow:
+ * These tests validate the COMPLETE governance flow with cycle-based voting:
  * 1. Deploy a Clanker token via Levr
- * 2. Stake tokens to meet minimum requirements
- * 3. Propose transfers and boosts with custom amounts
- * 4. Execute proposals
- * 5. Test deadline enforcement and minimum balance gating
+ * 2. Stake tokens to accumulate time-weighted voting power
+ * 3. Start governance cycle (REQUIRED before proposals)
+ * 4. Create proposals during proposal window
+ * 5. Vote during voting window (VP = staked balance × time staked)
+ * 6. Execute winning proposals after voting ends
+ *
+ * CRITICAL: Governance Flow (MUST follow this order):
+ * - startNewCycle() → Opens proposal and voting windows
+ * - proposeTransfer()/proposeBoost() → Create proposals during proposal window
+ * - Warp to voting window start
+ * - vote() → Cast votes with time-weighted VP during voting window
+ * - Warp to voting window end
+ * - execute() → Execute ONLY the winning proposal (highest yes votes)
+ *
+ * Anti-Gaming Features Tested:
+ * - VP snapshot at proposal creation (prevents last-minute staking)
+ * - Quorum threshold (balance participation)
+ * - Approval threshold (VP-weighted voting)
+ * - Winner selection (only one proposal per cycle)
  *
  * Prerequisites:
  * 1. Anvil must be running with Base fork: `cd contracts && make anvil-fork`
@@ -266,7 +281,7 @@ describe('#GOVERNANCE_TEST', () => {
   )
 
   it(
-    'should propose and execute transfer proposal',
+    'should follow complete governance cycle: start cycle, propose, vote, and execute transfer',
     async () => {
       const receiver = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' // Different address
 
@@ -289,7 +304,16 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('  Treasury:', `${formatEther(treasuryBalanceBefore)} tokens`)
       console.log('  Receiver:', `${formatEther(receiverBalanceBefore)} tokens`)
 
-      // Propose transfer (custom amount - no tiers)
+      // STEP 1: Start a new governance cycle
+      console.log('\n🔄 Starting new governance cycle...')
+      const cycleReceipt = await governance.startNewCycle()
+      expect(cycleReceipt.status).toBe('success')
+      console.log('✅ Governance cycle started')
+
+      const cycleId = await governance.getCurrentCycleId()
+      console.log('  Cycle ID:', cycleId.toString())
+
+      // STEP 2: Propose transfer (within proposal window)
       const transferAmount = treasuryBalanceBefore / 2n // Transfer half of treasury
       const description = 'Test transfer to community member'
 
@@ -307,13 +331,15 @@ describe('#GOVERNANCE_TEST', () => {
       expect(proposeReceipt.status).toBe('success')
       console.log('✅ Transfer proposal created:', proposalId.toString())
 
-      // Get proposal details using governance class
+      // Get proposal details
       const proposal = await governance.getProposal(proposalId)
 
       console.log('📋 Proposal details:', {
         proposalType: proposal.proposalType,
         amount: proposal.amount.formatted,
         recipient: proposal.recipient,
+        cycleId: proposal.cycleId.toString(),
+        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
         votingEndsAt: proposal.votingEndsAt.date.toISOString(),
         executed: proposal.executed,
       })
@@ -322,14 +348,63 @@ describe('#GOVERNANCE_TEST', () => {
       expect(proposal.recipient.toLowerCase()).toBe(receiver.toLowerCase())
       expect(proposal.executed).toBe(false)
 
-      // Execute the proposal using governance class
+      // Check proposal state (should be Pending before voting starts)
+      const stateBefore = await governance.getProposalState(proposalId)
+      console.log('  Proposal state before voting:', stateBefore) // 0 = Pending
+
+      // STEP 3: Wait for voting window to start
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
+
+      if (timeUntilVoting > 0) {
+        console.log(`\n⏰ Warping ${timeUntilVoting + 1} seconds to voting window...`)
+        await warpAnvil(timeUntilVoting + 1)
+      }
+
+      // STEP 4: Vote on the proposal (with time-weighted voting power)
+      console.log('\n🗳️  Voting on proposal...')
+      const voteReceipt = await governance.vote(proposalId, true) // Vote YES
+      expect(voteReceipt.status).toBe('success')
+      console.log('✅ Vote cast successfully')
+
+      // Check vote receipt
+      const voteReceiptData = await governance.getVoteReceipt(proposalId)
+      console.log('  Vote receipt:', {
+        hasVoted: voteReceiptData.hasVoted,
+        support: voteReceiptData.support,
+        votes: voteReceiptData.votes.toString(),
+      })
+      expect(voteReceiptData.hasVoted).toBe(true)
+      expect(voteReceiptData.support).toBe(true)
+
+      // Check if proposal meets quorum and approval
+      const meetsQuorum = await governance.meetsQuorum(proposalId)
+      const meetsApproval = await governance.meetsApproval(proposalId)
+      console.log('  Meets quorum:', meetsQuorum)
+      console.log('  Meets approval:', meetsApproval)
+
+      // STEP 5: Wait for voting window to end
+      const updatedProposal = await governance.getProposal(proposalId)
+      const currentTime2 = Math.floor(Date.now() / 1000)
+      const timeUntilVotingEnds = Number(updatedProposal.votingEndsAt.timestamp) - currentTime2
+
+      if (timeUntilVotingEnds > 0) {
+        console.log(`\n⏰ Warping ${timeUntilVotingEnds + 1} seconds to end voting window...`)
+        await warpAnvil(timeUntilVotingEnds + 1)
+      }
+
+      // Check proposal state (should be Succeeded if quorum/approval met)
+      const stateAfter = await governance.getProposalState(proposalId)
+      console.log('  Proposal state after voting:', stateAfter) // 3 = Succeeded
+
+      // STEP 6: Execute the winning proposal
       console.log('\n⚡ Executing transfer proposal...')
       const executeReceipt = await governance.executeProposal(proposalId)
       expect(executeReceipt.status).toBe('success')
 
       console.log('✅ Transfer proposal executed')
 
-      // Verify balances after execution
+      // STEP 7: Verify balances after execution
       const treasuryBalanceAfter = await publicClient.readContract({
         address: deployedTokenAddress,
         abi: erc20Abi,
@@ -352,17 +427,21 @@ describe('#GOVERNANCE_TEST', () => {
       expect(receiverBalanceAfter).toBe(receiverBalanceBefore + transferAmount)
       console.log('✅ Transfer executed correctly!')
 
-      // Verify proposal is marked as executed using governance class
+      // Verify proposal is marked as executed
       const executedProposal = await governance.getProposal(proposalId)
       expect(executedProposal.executed).toBe(true)
+
+      // Check final proposal state (should be Executed)
+      const stateFinal = await governance.getProposalState(proposalId)
+      console.log('  Final proposal state:', stateFinal) // 4 = Executed
     },
     {
-      timeout: 60000,
+      timeout: 120000, // Increased timeout for full cycle
     }
   )
 
   it(
-    'should propose and execute boost proposal',
+    'should follow complete governance cycle for boost proposal with voting',
     async () => {
       // Get balances before boost
       const treasuryBalanceBefore = await publicClient.readContract({
@@ -385,7 +464,13 @@ describe('#GOVERNANCE_TEST', () => {
 
       expect(treasuryBalanceBefore).toBeGreaterThan(0n)
 
-      // Propose boost (custom amount)
+      // STEP 1: Start a new governance cycle
+      console.log('\n🔄 Starting new governance cycle...')
+      const cycleReceipt = await governance.startNewCycle()
+      expect(cycleReceipt.status).toBe('success')
+      console.log('✅ Governance cycle started')
+
+      // STEP 2: Propose boost (within proposal window)
       const boostAmount = treasuryBalanceBefore / 3n // Boost 1/3 of treasury to staking rewards
 
       console.log('\n📝 Proposing boost...')
@@ -396,14 +481,50 @@ describe('#GOVERNANCE_TEST', () => {
 
       console.log('✅ Boost proposal created:', proposalId.toString())
 
-      // Execute the proposal using governance class
+      // Get proposal details
+      const proposal = await governance.getProposal(proposalId)
+      console.log('📋 Proposal voting window:', {
+        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
+        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
+      })
+
+      // STEP 3: Wait for voting window to start
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
+
+      if (timeUntilVoting > 0) {
+        console.log(`\n⏰ Warping ${timeUntilVoting + 1} seconds to voting window...`)
+        await warpAnvil(timeUntilVoting + 1)
+      }
+
+      // STEP 4: Vote on the proposal
+      console.log('\n🗳️  Voting YES on boost proposal...')
+      const voteReceipt = await governance.vote(proposalId, true)
+      expect(voteReceipt.status).toBe('success')
+      console.log('✅ Vote cast successfully')
+
+      // Check voting power used
+      const voteReceiptData = await governance.getVoteReceipt(proposalId)
+      console.log('  Voting power used:', voteReceiptData.votes.toString())
+
+      // STEP 5: Wait for voting window to end
+      const updatedProposal = await governance.getProposal(proposalId)
+      const currentTime2 = Math.floor(Date.now() / 1000)
+      const timeUntilVotingEnds = Number(updatedProposal.votingEndsAt.timestamp) - currentTime2
+
+      if (timeUntilVotingEnds > 0) {
+        console.log(`\n⏰ Warping ${timeUntilVotingEnds + 1} seconds to end voting window...`)
+        await warpAnvil(timeUntilVotingEnds + 1)
+      }
+
+      // STEP 6: Execute the proposal
       console.log('\n⚡ Executing boost proposal...')
       const executeReceipt = await governance.executeProposal(proposalId)
       expect(executeReceipt.status).toBe('success')
 
       console.log('✅ Boost proposal executed')
 
-      // Verify balances after execution
+      // STEP 7: Verify balances after execution
       const treasuryBalanceAfter = await publicClient.readContract({
         address: deployedTokenAddress,
         abi: erc20Abi,
@@ -427,12 +548,12 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('✅ Boost executed correctly - rewards boosted to staking!')
     },
     {
-      timeout: 60000,
+      timeout: 120000, // Increased timeout for full cycle
     }
   )
 
   it(
-    'should enforce voting window on proposals',
+    'should enforce voting window timing on proposals',
     async () => {
       // Get remaining treasury balance
       const treasuryBalance = await publicClient.readContract({
@@ -470,7 +591,11 @@ describe('#GOVERNANCE_TEST', () => {
         args: [project.treasury],
       })
 
-      // Create a new proposal for voting window testing
+      // STEP 1: Start new cycle
+      console.log('\n🔄 Starting new governance cycle for window test...')
+      await governance.startNewCycle()
+
+      // STEP 2: Create a new proposal for voting window testing
       const transferAmount = updatedTreasuryBalance / 2n
       const receiver = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 
@@ -483,17 +608,19 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Get proposal details using governance class
       const proposal = await governance.getProposal(proposalId)
-      console.log('📋 Proposal voting ends at:', proposal.votingEndsAt.date.toISOString())
+      console.log('📋 Proposal voting window:', {
+        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
+        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
+      })
 
-      // Calculate seconds to warp past voting end
+      // STEP 3: Warp PAST the voting window end
       const currentTime = Math.floor(Date.now() / 1000)
       const timeToWarp = Number(proposal.votingEndsAt.timestamp) - currentTime + 1
 
-      // Warp past voting window
       console.log(`\n⏰ Warping ${timeToWarp} seconds forward to exceed voting window...`)
       await warpAnvil(timeToWarp)
 
-      // Try to vote - should fail with VotingNotActive
+      // STEP 4: Try to vote - should fail with VotingNotActive
       console.log('\n❌ Attempting to vote after voting window (should fail)...')
       try {
         await governance.vote(proposalId, true)
@@ -508,7 +635,7 @@ describe('#GOVERNANCE_TEST', () => {
       }
     },
     {
-      timeout: 60000,
+      timeout: 120000, // Increased for cycle start
     }
   )
 

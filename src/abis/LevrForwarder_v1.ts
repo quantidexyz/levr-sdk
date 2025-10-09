@@ -501,6 +501,17 @@ export default [
   },
   {
     type: 'error',
+    name: 'ForbiddenSelectorOnSelf',
+    inputs: [
+      {
+        name: 'selector',
+        type: 'bytes4',
+        internalType: 'bytes4',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'InsufficientBalance',
     inputs: [
       {

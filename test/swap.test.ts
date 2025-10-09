@@ -87,12 +87,31 @@ describe('#QUOTE_SWAP_TEST', () => {
 
       console.log('Token info:', { name: tokenName, symbol: tokenSymbol })
 
+      // Verify devBuy succeeded by checking deployer's token balance
+      if (!wallet.account) throw new Error('Wallet account not found')
+
+      const deployerTokenBalance = await publicClient.readContract({
+        address: clankerToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('\n✅ DevBuy verification:')
+      console.log(`  Deployer token balance: ${formatEther(deployerTokenBalance)}`)
+      console.log(`  DevBuy amount: ${testDeploymentConfig.devBuy}`)
+
+      // Verify deployer received tokens from devBuy
+      expect(deployerTokenBalance).toBeGreaterThan(0n)
+
+      console.log('  ✓ Deployer received tokens from devBuy')
+
       // Wait for MEV protection delay (120 seconds)
       console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
       await warpAnvil(120)
     },
     {
-      timeout: 50000,
+      timeout: 100000,
     }
   )
 
