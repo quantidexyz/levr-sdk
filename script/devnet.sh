@@ -176,6 +176,25 @@ fi
 
 echo "[devnet] Updated $ROOT_ENV_FILE with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
 
+# Try to update monorepo root .env (three levels up from script) - gracefully fail if not accessible
+MONOREPO_ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../../.. && pwd)/.env"
+if [[ -f "$MONOREPO_ENV_FILE" ]] || [[ -w "$(dirname "$MONOREPO_ENV_FILE")" ]]; then
+  echo "[devnet] Attempting to update monorepo root .env at $MONOREPO_ENV_FILE"
+  touch "$MONOREPO_ENV_FILE" 2>/dev/null || true
+  if [[ -w "$MONOREPO_ENV_FILE" ]]; then
+    if grep -q '^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=' "$MONOREPO_ENV_FILE" 2>/dev/null; then
+      sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR/" "$MONOREPO_ENV_FILE" 2>/dev/null || true
+    else
+      echo "NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR" >> "$MONOREPO_ENV_FILE" 2>/dev/null || true
+    fi
+    echo "[devnet] ✓ Updated monorepo root .env with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
+  else
+    echo "[devnet] ⚠ Monorepo root .env not writable, skipping"
+  fi
+else
+  echo "[devnet] ⚠ Monorepo root .env not found or not accessible, skipping"
+fi
+
 # In redeploy mode, exit cleanly; otherwise wait for anvil
 if [[ "$REDEPLOY_ONLY" == "true" ]]; then
   echo "[devnet] Factory redeployed successfully. Anvil still running on :8545"

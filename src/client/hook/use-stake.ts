@@ -302,6 +302,29 @@ export function useStake({
     refetchInterval: 30000, // Refetch every 30 seconds
   })
 
+  // Query: WETH APR (calculated off-chain using pool price)
+  const aprBpsWeth = useQuery({
+    queryKey: [
+      'staking',
+      'aprBpsWeth',
+      project.data?.staking,
+      project.data?.pool?.poolKey,
+      wethAddress,
+    ],
+    queryFn: async () => {
+      if (!wethAddress || !project.data?.pool?.poolKey) return null
+      return stakeService!.calculateWethApr(project.data.pool.poolKey)
+    },
+    enabled:
+      enabled &&
+      !!publicClient &&
+      !!project.data &&
+      !!project.data.pool?.poolKey &&
+      !!stakeService &&
+      !!wethAddress,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  })
+
   // Combine outstanding rewards (for accrual display)
   const outstandingRewards = useMemo(() => {
     const stakingRewards = outstandingRewardsStaking.data
@@ -352,6 +375,7 @@ export function useStake({
     claimableRewardsStaking,
     claimableRewardsWeth,
     wethRewardRate,
+    aprBpsWeth,
     balances,
 
     // Helpers
@@ -365,7 +389,7 @@ export function useStake({
     streamParams: poolData.data?.streamParams,
     rewardRatePerSecond: poolData.data?.rewardRatePerSecond,
     aprBps: userData.data?.aprBps,
-    aprBpsWeth: userData.data?.aprBpsWeth,
+    // aprBpsWeth is now a separate query (calculated off-chain)
     rewardsData: outstandingRewards, // For accrual display
     claimableData: claimableRewards, // For user claimable amounts
 

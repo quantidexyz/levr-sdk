@@ -49,13 +49,7 @@ export default [
   {
     type: 'function',
     name: 'aprBps',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: '',

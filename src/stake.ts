@@ -3,7 +3,8 @@ import type { TransactionReceipt } from 'viem'
 
 import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
 import { WETH } from './constants'
-import type { PopPublicClient, PopWalletClient } from './types'
+import { quoteV4 } from './quote-v4'
+import type { PoolKey, PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
   wallet: PopWalletClient
@@ -249,14 +250,7 @@ export class Stake {
   async getUserData(): Promise<{
     stakedBalance: { raw: bigint; formatted: string }
     aprBps: { raw: bigint; percentage: number }
-    aprBpsWeth: { raw: bigint; percentage: number }
   }> {
-    const wethAddress = WETH(this.chainId)?.address
-
-    if (!wethAddress) {
-      throw new Error('WETH address not found')
-    }
-
     const results = await this.publicClient.multicall({
       contracts: [
         {
@@ -269,21 +263,13 @@ export class Stake {
           address: this.stakingAddress,
           abi: LevrStaking_v1,
           functionName: 'aprBps',
-          args: [this.tokenAddress],
-        },
-
-        {
-          address: this.stakingAddress,
-          abi: LevrStaking_v1,
-          functionName: 'aprBps',
-          args: [wethAddress],
+          args: [],
         },
       ],
     })
 
     const stakedBalance = results[0].result as bigint
     const aprBps = results[1].result as bigint
-    const aprBpsWeth = wethAddress && results[2] ? (results[2].result as bigint) : 0n
 
     return {
       stakedBalance: {
@@ -292,11 +278,7 @@ export class Stake {
       },
       aprBps: {
         raw: aprBps,
-        percentage: Number(aprBps) / 100, // Convert bps to percentage
-      },
-      aprBpsWeth: {
-        raw: aprBpsWeth,
-        percentage: Number(aprBpsWeth) / 100, // Convert bps to percentage
+        percentage: Number(aprBps) / 100,
       },
     }
   }
@@ -433,5 +415,79 @@ export class Stake {
     }
 
     return receipt
+  }
+
+  /**
+   * Calculate WETH APR using pool price and reward rates
+   * Formula: (wethRewardRatePerSecond * secondsPerYear * wethPriceInUnderlying / totalStaked) * 10000
+   *
+   * @param poolKey - The Uniswap V4 pool key for price discovery
+   * @returns WETH APR in basis points and percentage
+   */
+  async calculateWethApr(poolKey: PoolKey): Promise<{
+    raw: bigint
+    percentage: number
+  }> {
+    const wethAddress = WETH(this.chainId)?.address
+    if (!wethAddress) {
+      throw new Error('WETH address not found for this chain')
+    }
+
+    // Get pool data and WETH reward rate
+    const [poolData, wethRewardRate] = await Promise.all([
+      this.getPoolData(),
+      this.getRewardRatePerSecond(wethAddress),
+    ])
+
+    const totalStaked = poolData.totalStaked.raw
+
+    // If no stakers or no WETH rewards, APR is 0
+    if (totalStaked === 0n || wethRewardRate.raw === 0n) {
+      return { raw: 0n, percentage: 0 }
+    }
+
+    // Quote 1 WETH to determine price in underlying tokens
+    // Determine swap direction: WETH -> underlying
+    const wethIsCurrency0 = wethAddress.toLowerCase() < this.tokenAddress.toLowerCase()
+    const zeroForOne = wethIsCurrency0 // Swap WETH for underlying
+
+    // Quote 1 WETH (18 decimals)
+    const oneWeth = parseUnits('1', 18)
+
+    let wethPriceInUnderlying: bigint
+    try {
+      const quote = await quoteV4({
+        publicClient: this.publicClient,
+        chainId: this.chainId,
+        poolKey,
+        zeroForOne,
+        amountIn: oneWeth,
+      })
+
+      // amountOut is how many underlying tokens we get for 1 WETH
+      wethPriceInUnderlying = quote.amountOut
+    } catch (error) {
+      // If quote fails, return 0 APR
+      console.error('Failed to quote WETH price:', error)
+      return { raw: 0n, percentage: 0 }
+    }
+
+    // Calculate annual WETH rewards (rewards per second * seconds per year)
+    const secondsPerYear = BigInt(365 * 24 * 60 * 60)
+    const annualWethRewards = wethRewardRate.raw * secondsPerYear
+
+    // Convert WETH rewards to underlying token equivalent
+    // wethPriceInUnderlying is already in underlying token decimals from the quote
+    // annualWethRewards is in WETH (18 decimals)
+    // Both need to be normalized to underlying token decimals
+    const annualRewardsInUnderlying = (annualWethRewards * wethPriceInUnderlying) / BigInt(1e18)
+
+    // Calculate APR: (annualRewardsInUnderlying / totalStaked) * 10000
+    const aprBps = (annualRewardsInUnderlying * 10000n) / totalStaked
+
+    return {
+      raw: aprBps,
+      percentage: Number(aprBps) / 100, // Convert bps to percentage
+    }
   }
 }
