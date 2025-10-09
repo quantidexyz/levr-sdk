@@ -86,10 +86,10 @@ export function useGovernance({
    */
   const invalidateGovernanceQueries = () => {
     // Invalidate all governance-related queries
-    queryClient.invalidateQueries({ queryKey: ['governance'] })
-    queryClient.invalidateQueries({ queryKey: ['proposals'] })
+    queryClient.invalidateQueries({ queryKey: ['governance'], refetchType: 'active' })
+    queryClient.invalidateQueries({ queryKey: ['proposals'], refetchType: 'active' })
     // Invalidate project data (contains treasury balance, etc.)
-    queryClient.invalidateQueries({ queryKey: ['project'] })
+    queryClient.invalidateQueries({ queryKey: ['project'], refetchType: 'active' })
   }
 
   // Query: Get proposal details

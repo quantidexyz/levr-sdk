@@ -51,7 +51,7 @@ export function useProposals({
     },
     enabled: enabled && !!publicClient && !!governorAddress,
     retry: 1,
-    staleTime: 30000, // 30 seconds
-    refetchInterval: 60000, // 1 minute
+    staleTime: 5000, // 5 seconds - allows quick refetch after invalidation
+    refetchInterval: 30000, // 30 seconds
   })
 }
