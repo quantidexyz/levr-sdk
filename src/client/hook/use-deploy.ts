@@ -17,7 +17,7 @@ export type UseDeployParams = {
  * Returns tx hash and deployed address.
  */
 export function useDeploy({
-  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS[0], // Use first amount as default
+  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS['30B'], // Use first amount as default
   onSuccess,
   onError,
 }: UseDeployParams) {

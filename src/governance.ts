@@ -506,7 +506,7 @@ export class Governance {
     if (!airdropAddress) return null
 
     // Try each known treasury airdrop amount
-    for (const amountInTokens of TREASURY_AIRDROP_AMOUNTS) {
+    for (const amountInTokens of Object.values(TREASURY_AIRDROP_AMOUNTS)) {
       const amount = BigInt(amountInTokens) * 10n ** 18n // Convert to wei
 
       try {

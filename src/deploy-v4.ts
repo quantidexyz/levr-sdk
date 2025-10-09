@@ -19,7 +19,7 @@ export type DeployV4ReturnType = {
 
 export const deployV4 = async ({
   c,
-  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS[0], // Use first amount as default
+  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS['30B'], // Use first amount as default
   clanker,
 }: DeployV4Params): Promise<DeployV4ReturnType> => {
   if (!clanker) throw new Error('Clanker SDK not found')

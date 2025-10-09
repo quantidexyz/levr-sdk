@@ -159,9 +159,12 @@ export const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'
  * Common treasury airdrop amounts in tokens (not wei)
  * First value is used as default in deployV4
  */
-export const TREASURY_AIRDROP_AMOUNTS = [
-  250_000_000, // 250M tokens (minimum required)
-  500_000_000, // 500M tokens
-  1_000_000_000, // 1B tokens
-  100_000_000, // 100M tokens (legacy)
-] as const
+export const TREASURY_AIRDROP_AMOUNTS = {
+  '30B': 30_000_000_000, // 30B tokens (30% of 100B)
+  '40B': 40_000_000_000, // 40B tokens (40% of 100B)
+  '50B': 50_000_000_000, // 50B tokens (50% of 100B)
+  '60B': 60_000_000_000, // 60B tokens (60% of 100B)
+  '70B': 70_000_000_000, // 70B tokens (70% of 100B)
+  '80B': 80_000_000_000, // 80B tokens (80% of 100B)
+  '90B': 90_000_000_000, // 90B tokens (90% of 100B)
+} as const
