@@ -53,6 +53,11 @@ describe('#GOVERNANCE_TEST', () => {
       telegramLink: 'https://t.me/govtoken',
     },
     devBuy: '0.5 ETH', // Add initial liquidity
+    fees: {
+      type: 'static',
+      feeTier: '3%',
+    },
+    treasuryFunding: '90%',
   }
 
   // ---

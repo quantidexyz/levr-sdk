@@ -15,7 +15,6 @@ export type BuildCalldatasV4Params = {
   publicClient: PublicClient
   wallet: WalletClient
   factoryAddress: `0x${string}`
-  treasuryAirdropAmount: number
   forwarderAddress: `0x${string}`
 }
 
@@ -39,7 +38,6 @@ export const buildCalldatasV4 = async ({
   wallet,
   factoryAddress,
   forwarderAddress,
-  treasuryAirdropAmount,
 }: BuildCalldatasV4Params): Promise<BuildCalldatasV4ReturnType> => {
   const deployer = wallet.account?.address
 
@@ -74,7 +72,6 @@ export const buildCalldatasV4 = async ({
   const config = buildClankerV4({
     c,
     treasuryAddress: treasury,
-    treasuryAirdropAmount,
     deployer,
     staking,
     chainId,

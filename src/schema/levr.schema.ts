@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from '../constants'
+import { STAKING_REWARDS, STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from '../constants'
 import { EthereumAddress } from './base.schema'
 import { ClankerDeploymentSchema } from './clanker.schema'
 
@@ -56,14 +56,43 @@ const LevrStaticFeeTier = Schema.Literal(
 const LevrStaticFee = Schema.Struct({
   type: Schema.Literal('static'),
   feeTier: LevrStaticFeeTier,
+}).annotations({
+  description: "Fees don't fluctuate",
 })
 
 const LevrDynamicFee = Schema.Struct({
-  type: Schema.Literal('dynamic'),
+  type: Schema.Literal('dynamic 3%'),
+}).annotations({
+  description: 'Fees fluctuate based on market conditions',
 })
 
 const LevrFees = Schema.Union(LevrStaticFee, LevrDynamicFee).annotations({
   description: 'Fees for the clanker token',
+})
+
+const LevrRewardRecipients = Schema.Array(
+  Schema.Struct({
+    admin: EthereumAddress.annotations({
+      description: 'Admin address for recipient',
+    }),
+    recipient: EthereumAddress.annotations({
+      description: 'Recipient address',
+    }),
+    percentage: Schema.Number.annotations({
+      description: 'Percentage of rewards to recipient',
+    }),
+    token: Schema.Literal('Both', 'Paired', 'Clanker').annotations({
+      description: 'Token type for rewards',
+    }),
+  })
+).annotations({
+  description: 'Reward recipient for the clanker token',
+})
+
+const LevrStakingReward = Schema.Literal(
+  ...(Object.keys(STAKING_REWARDS) as [keyof typeof STAKING_REWARDS])
+).annotations({
+  description: 'The precentage that is distributed to the staking contract',
 })
 
 /**
@@ -71,13 +100,20 @@ const LevrFees = Schema.Union(LevrStaticFee, LevrDynamicFee).annotations({
  */
 const MAX_TOTAL_ALLOCATION = 90_000_000_000 // 90B tokens
 
+/**
+ * Maximum allowed sum of staking reward and rewards recipients
+ */
+const MAX_TOTAL_REWARDS = 10_000 // 100% of rewards are distributed to the staking contract
+
 export const LevrClankerDeploymentSchema = Schema.Struct({
   ...ClankerDeploymentSchema.pick('name', 'symbol', 'image').fields,
   metadata: Schema.optional(LevrMetadata),
   devBuy: Schema.optional(LevrDevBuy),
   airdrop: Schema.optional(LevrAirdrop),
-  treasuryFunding: Schema.optional(TreasuryFunding),
-  fees: Schema.optional(LevrFees),
+  treasuryFunding: TreasuryFunding,
+  fees: LevrFees,
+  stakingReward: Schema.optional(LevrStakingReward),
+  rewards: Schema.optional(LevrRewardRecipients),
 }).pipe(
   Schema.filter(
     (data) => {
@@ -85,7 +121,7 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
       const airdropTotal = data.airdrop?.reduce((sum, entry) => sum + entry.amount, 0) ?? 0
 
       // Get treasury funding (default to 0 if not provided)
-      const treasuryAmount = TREASURY_AIRDROP_AMOUNTS[data.treasuryFunding ?? '30B']
+      const treasuryAmount = TREASURY_AIRDROP_AMOUNTS[data.treasuryFunding ?? '30%']
 
       // Check if the sum exceeds the maximum allocation
       const total = airdropTotal + treasuryAmount
@@ -95,6 +131,25 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
     {
       message: () =>
         `Total allocation (airdrop + treasury funding) cannot exceed ${MAX_TOTAL_ALLOCATION.toLocaleString()} tokens (90% of 100B)`,
+    }
+  ),
+  Schema.filter(
+    (data) => {
+      // Get staking reward in basis points (default to 100% if not provided)
+      const stakingRewardBps = STAKING_REWARDS[data.stakingReward ?? '100%']
+
+      // Calculate total rewards recipients percentage
+      const rewardRecipientsTotal =
+        data.rewards?.reduce((sum, entry) => sum + entry.percentage, 0) ?? 0
+
+      // Check if the sum exceeds 100% (10,000 basis points)
+      const totalRewards = stakingRewardBps + rewardRecipientsTotal
+
+      return totalRewards <= MAX_TOTAL_REWARDS
+    },
+    {
+      message: () =>
+        `Total rewards (staking reward + reward recipients) cannot exceed 100% (${MAX_TOTAL_REWARDS.toLocaleString()} basis points)`,
     }
   )
 )

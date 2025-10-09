@@ -3,13 +3,12 @@ import type { TransactionReceipt } from 'viem'
 
 import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import { buildCalldatasV4 } from './build-calldatas-v4'
-import { GET_FACTORY_ADDRESS, TREASURY_AIRDROP_AMOUNTS } from './constants'
+import { GET_FACTORY_ADDRESS } from './constants'
 import type { LevrClankerDeploymentSchemaType } from './schema'
 
 export type DeployV4Params = {
   c: LevrClankerDeploymentSchemaType
   clanker: Clanker | undefined | null
-  treasuryAirdropAmount?: number
 }
 
 export type DeployV4ReturnType = {
@@ -17,11 +16,7 @@ export type DeployV4ReturnType = {
   address: `0x${string}`
 }
 
-export const deployV4 = async ({
-  c,
-  treasuryAirdropAmount = TREASURY_AIRDROP_AMOUNTS['30B'], // Use first amount as default
-  clanker,
-}: DeployV4Params): Promise<DeployV4ReturnType> => {
+export const deployV4 = async ({ c, clanker }: DeployV4Params): Promise<DeployV4ReturnType> => {
   if (!clanker) throw new Error('Clanker SDK not found')
 
   const wallet = clanker.wallet
@@ -46,7 +41,6 @@ export const deployV4 = async ({
     wallet,
     factoryAddress,
     forwarderAddress: trustedForwarder,
-    treasuryAirdropAmount,
   })
 
   const txHash = await wallet.writeContract({

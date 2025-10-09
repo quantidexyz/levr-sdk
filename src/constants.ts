@@ -160,13 +160,24 @@ export const ADDRESS_THIS = '0x0000000000000000000000000000000000000002'
  * First value is used as default in deployV4
  */
 export const TREASURY_AIRDROP_AMOUNTS = {
-  '30B': 30_000_000_000, // 30B tokens (30% of 100B)
-  '40B': 40_000_000_000, // 40B tokens (40% of 100B)
-  '50B': 50_000_000_000, // 50B tokens (50% of 100B)
-  '60B': 60_000_000_000, // 60B tokens (60% of 100B)
-  '70B': 70_000_000_000, // 70B tokens (70% of 100B)
-  '80B': 80_000_000_000, // 80B tokens (80% of 100B)
-  '90B': 90_000_000_000, // 90B tokens (90% of 100B)
+  '30%': 30_000_000_000, // 30B tokens (30% of 100B)
+  '40%': 40_000_000_000, // 40B tokens (40% of 100B)
+  '50%': 50_000_000_000, // 50B tokens (50% of 100B)
+  '60%': 60_000_000_000, // 60B tokens (60% of 100B)
+  '70%': 70_000_000_000, // 70B tokens (70% of 100B)
+  '80%': 80_000_000_000, // 80B tokens (80% of 100B)
+  '90%': 90_000_000_000, // 90B tokens (90% of 100B)
+} as const
+
+/**
+ * Staking rewards in basis points
+ * The amount of rewards that are distributed to the staking contract
+ */
+export const STAKING_REWARDS = {
+  '100%': 10_000, // 100% of rewards are distributed to the staking contract
+  '90%': 9_000, // 90% of rewards are distributed to the staking contract
+  '80%': 8_000, // 80% of rewards are distributed to the staking contract
+  '70%': 7_000, // 70% of rewards are distributed to the staking contract
 } as const
 
 export const STATIC_FEE_TIERS = {

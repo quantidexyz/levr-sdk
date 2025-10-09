@@ -37,6 +37,11 @@ describe('#STAKE_TEST', () => {
       telegramLink: 'https://t.me/swaptoken',
     },
     devBuy: '0.5 ETH', // Add initial liquidity
+    fees: {
+      type: 'static',
+      feeTier: '3%',
+    },
+    treasuryFunding: '90%',
   }
 
   // ---
