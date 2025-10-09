@@ -168,3 +168,9 @@ export const TREASURY_AIRDROP_AMOUNTS = {
   '80B': 80_000_000_000, // 80B tokens (80% of 100B)
   '90B': 90_000_000_000, // 90B tokens (90% of 100B)
 } as const
+
+export const STATIC_FEE_TIERS = {
+  '1%': 100,
+  '2%': 200,
+  '3%': 300,
+} as const

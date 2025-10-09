@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { TREASURY_AIRDROP_AMOUNTS } from '../constants'
+import { STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from '../constants'
 import { EthereumAddress } from './base.schema'
 import { ClankerDeploymentSchema } from './clanker.schema'
 
@@ -47,6 +47,25 @@ const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH').annotations({
   description: 'Amount to buy during deployment',
 })
 
+const LevrStaticFeeTier = Schema.Literal(
+  ...(Object.keys(STATIC_FEE_TIERS) as [keyof typeof STATIC_FEE_TIERS])
+).annotations({
+  description: 'Fee tier for the static fee',
+})
+
+const LevrStaticFee = Schema.Struct({
+  type: Schema.Literal('static'),
+  feeTier: LevrStaticFeeTier,
+})
+
+const LevrDynamicFee = Schema.Struct({
+  type: Schema.Literal('dynamic'),
+})
+
+const LevrFees = Schema.Union(LevrStaticFee, LevrDynamicFee).annotations({
+  description: 'Fees for the clanker token',
+})
+
 /**
  * Maximum allowed sum of treasury funding and airdrop amounts (90% of 100B tokens)
  */
@@ -58,6 +77,7 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   devBuy: Schema.optional(LevrDevBuy),
   airdrop: Schema.optional(LevrAirdrop),
   treasuryFunding: Schema.optional(TreasuryFunding),
+  fees: Schema.optional(LevrFees),
 }).pipe(
   Schema.filter(
     (data) => {
