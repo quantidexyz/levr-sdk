@@ -30,6 +30,7 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL,
+    [baseSepolia.id]: '0x6A6559AA1D48A2d9A346bA870575e27Ee4DF2AFb',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -75,6 +76,7 @@ export const UNISWAP_V4_PERMIT2 = (chainId?: number): `0x${string}` | undefined 
   return {
     [anvil.id]: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
     [base.id]: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+    [baseSepolia.id]: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -89,6 +91,7 @@ export const UNISWAP_V4_QUOTER = (chainId?: number): `0x${string}` | undefined =
   return {
     [anvil.id]: '0x0d5e0f971ed27fbff6c2837bf31316121532048d',
     [base.id]: '0x0d5e0f971ed27fbff6c2837bf31316121532048d',
+    [baseSepolia.id]: '0x4a6513c898fe1b2d0e78d3b0e0a4a151589b1cba',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -103,6 +106,7 @@ export const UNISWAP_V4_UNIVERSAL_ROUTER = (chainId?: number): `0x${string}` | u
   return {
     [anvil.id]: '0x6ff5693b99212da76ad316178a184ab56d299b43',
     [base.id]: '0x6ff5693b99212da76ad316178a184ab56d299b43',
+    [baseSepolia.id]: '0x492e6456d9528771018deb9e87ef7750ef184104',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -117,7 +121,27 @@ export const UNISWAP_V4_POOL_MANAGER = (chainId?: number): `0x${string}` | undef
   return {
     [anvil.id]: '0x498581ff718922c3f8e6a244956af099b2652b2b',
     [base.id]: '0x498581ff718922c3f8e6a244956af099b2652b2b',
+    [baseSepolia.id]: '0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408',
   }[chainId] as `0x${string}` | undefined
+}
+
+/**
+ * Get the Clanker Factory address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Clanker Factory address (same on Base mainnet and Base Sepolia)
+ */
+export const GET_CLANKER_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  const chainMap = {
+    // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
+    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.factoryAddress,
+    // Same address on both Base mainnet (8453) and Base Sepolia (84532)
+    [base.id]: '0xE85A59c628F7d27878ACeB4bf3b35733630083a9',
+    [baseSepolia.id]: '0xE85A59c628F7d27878ACeB4bf3b35733630083a9',
+  } as Record<number, `0x${string}` | undefined>
+
+  return chainMap?.[chainId]
 }
 
 /**
