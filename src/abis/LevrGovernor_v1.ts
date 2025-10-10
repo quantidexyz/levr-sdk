@@ -420,6 +420,13 @@ export default [
   },
   {
     type: 'function',
+    name: 'startNewCycle',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'state',
     inputs: [
       {
@@ -638,12 +645,27 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyProposedInCycle',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'AlreadyVoted',
     inputs: [],
   },
   {
     type: 'error',
+    name: 'CycleStillActive',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InsufficientStake',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InsufficientVotingPower',
     inputs: [],
   },
   {

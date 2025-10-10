@@ -555,6 +555,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyInitialized',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InsufficientEscrow',
     inputs: [],
   },
@@ -571,6 +576,11 @@ export default [
   {
     type: 'error',
     name: 'InvalidAmount',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'OnlyFactory',
     inputs: [],
   },
   {

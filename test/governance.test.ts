@@ -813,14 +813,10 @@ describe('#GOVERNANCE_TEST', () => {
         5000000n,
         'Test transfer 1'
       )
-      console.log(`  ✅ Transfer proposal 1 created: ${transferId1.toString()}`)
+      console.log(`  ✅ Transfer proposal created: ${transferId1.toString()}`)
 
-      const { proposalId: transferId2 } = await governance.proposeTransfer(
-        '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
-        3000000n,
-        'Test transfer 2'
-      )
-      console.log(`  ✅ Transfer proposal 2 created: ${transferId2.toString()}`)
+      // Note: Cannot create a second transfer proposal from the same user in the same cycle
+      // The contract enforces: one proposal per type per user per cycle (AlreadyProposedInCycle error)
 
       // 3. Test getActiveProposalCount (after creating proposals)
       console.log('\n📊 Testing getActiveProposalCount() after proposals...')
@@ -830,7 +826,9 @@ describe('#GOVERNANCE_TEST', () => {
       console.log(`  Transfer proposals active: ${transferCountAfter.toString()}`)
       expect(boostCountAfter).toBeGreaterThan(boostCountBefore)
       expect(transferCountAfter).toBeGreaterThan(transferCountBefore)
-      console.log('  ✅ Active proposal counts increased correctly')
+      console.log(
+        '  ✅ Active proposal counts increased correctly (note: limited to 1 per type per user per cycle)'
+      )
 
       // 4. Test getProposalsForCycle
       console.log('\n📋 Testing getProposalsForCycle()...')
@@ -838,10 +836,9 @@ describe('#GOVERNANCE_TEST', () => {
       console.log(`  Found ${cycleProposals.length} proposals in cycle ${cycleId.toString()}`)
       console.log(`  Proposal IDs: ${cycleProposals.map((id) => id.toString()).join(', ')}`)
 
-      expect(cycleProposals.length).toBeGreaterThanOrEqual(3) // At least the 3 we just created
+      expect(cycleProposals.length).toBeGreaterThanOrEqual(2) // At least the 2 we just created
       expect(cycleProposals).toContain(boostId)
       expect(cycleProposals).toContain(transferId1)
-      expect(cycleProposals).toContain(transferId2)
       console.log('  ✅ All created proposals found in cycle')
 
       // 5. Test getVotingPowerSnapshot (before and after voting window)
@@ -866,7 +863,6 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('\n🗳️  Voting on all proposals...')
       await governance.vote(boostId, true)
       await governance.vote(transferId1, true)
-      await governance.vote(transferId2, false) // Vote NO on this one
 
       // Check VP snapshot during voting (should be same as before)
       const vpSnapshotDuring = await governance.getVotingPowerSnapshot(boostId)
@@ -878,14 +874,11 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('\n📝 Testing getVoteReceipt() for multiple proposals...')
       const receipt1 = await governance.getVoteReceipt(boostId)
       const receipt2 = await governance.getVoteReceipt(transferId1)
-      const receipt3 = await governance.getVoteReceipt(transferId2)
 
       expect(receipt1.hasVoted).toBe(true)
       expect(receipt1.support).toBe(true)
       expect(receipt2.hasVoted).toBe(true)
       expect(receipt2.support).toBe(true)
-      expect(receipt3.hasVoted).toBe(true)
-      expect(receipt3.support).toBe(false) // Voted NO
       console.log('  ✅ All vote receipts recorded correctly')
 
       // 7. Warp to end of voting and test winner selection
@@ -903,39 +896,35 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Winner should be one of the proposals with YES votes
       expect([boostId, transferId1]).toContain(winnerProposalId)
-      expect(winnerProposalId).not.toBe(transferId2) // This one has NO votes
-      console.log('  ✅ Winner correctly determined')
+      console.log('  ✅ Winner correctly determined (highest YES votes)')
 
       // 9. Test meetsQuorum and meetsApproval for all proposals
       console.log('\n📊 Testing meetsQuorum() and meetsApproval() for all proposals...')
       const quorum1 = await governance.meetsQuorum(boostId)
       const quorum2 = await governance.meetsQuorum(transferId1)
-      const quorum3 = await governance.meetsQuorum(transferId2)
 
       const approval1 = await governance.meetsApproval(boostId)
       const approval2 = await governance.meetsApproval(transferId1)
-      const approval3 = await governance.meetsApproval(transferId2)
 
       console.log(`  Boost: quorum=${quorum1}, approval=${approval1}`)
-      console.log(`  Transfer1: quorum=${quorum2}, approval=${approval2}`)
-      console.log(`  Transfer2: quorum=${quorum3}, approval=${approval3}`)
+      console.log(`  Transfer: quorum=${quorum2}, approval=${approval2}`)
 
       expect(quorum1).toBe(true)
       expect(approval1).toBe(true)
-      expect(approval3).toBe(false) // Voted NO
+      expect(quorum2).toBe(true)
+      expect(approval2).toBe(true)
       console.log('  ✅ Quorum and approval checks working correctly')
 
       // 10. Test getProposalState for different states
       console.log('\n📊 Testing getProposalState() for all proposals...')
       const state1 = await governance.getProposalState(boostId)
       const state2 = await governance.getProposalState(transferId1)
-      const state3 = await governance.getProposalState(transferId2)
 
-      console.log(`  Boost state: ${state1} (3=Succeeded, 2=Defeated)`)
-      console.log(`  Transfer1 state: ${state2}`)
-      console.log(`  Transfer2 state: ${state3} (should be Defeated=2)`)
+      console.log(`  Boost state: ${state1} (3=Succeeded)`)
+      console.log(`  Transfer state: ${state2} (3=Succeeded)`)
 
-      expect(state3).toBe(2) // Defeated because voted NO
+      expect(state1).toBe(3) // Succeeded
+      expect(state2).toBe(3) // Succeeded
       console.log('  ✅ Proposal states correct')
 
       // 11. Execute winner and verify execution
@@ -959,11 +948,6 @@ describe('#GOVERNANCE_TEST', () => {
       console.log(`  Description for transfer 1: "${proposal1.description}"`)
       expect(typeof proposal1.description).toBe('string')
       expect(proposal1.description).toBe('Test transfer 1')
-
-      const proposal2 = await governance.getProposal(transferId2)
-      console.log(`  Description for transfer 2: "${proposal2.description}"`)
-      expect(typeof proposal2.description).toBe('string')
-      expect(proposal2.description).toBe('Test transfer 2')
 
       const boostProposal = await governance.getProposal(boostId)
       console.log(`  Description for boost: "${boostProposal.description}"`)
