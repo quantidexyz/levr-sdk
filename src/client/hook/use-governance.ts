@@ -1,7 +1,8 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { TransactionReceipt } from 'viem'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import type { Address, TransactionReceipt } from 'viem'
 import { parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
@@ -12,6 +13,89 @@ import type {
   ProposeTransferConfig,
 } from '../../governance'
 import { Governance } from '../../governance'
+import { useLevrContext } from '../levr-provider'
+import { queryKeys } from '../query-keys'
+
+export type UseGovernanceQueriesParams = {
+  clankerToken: Address | null
+  projectData: any
+  enabled?: boolean
+}
+
+/**
+ * Internal: Creates global governance queries with all logic
+ * Used by LevrProvider
+ */
+export function useGovernanceQueries({
+  clankerToken,
+  projectData,
+  enabled: e = true,
+}: UseGovernanceQueriesParams) {
+  const wallet = useWalletClient()
+  const publicClient = usePublicClient()
+
+  // Create Governance instance
+  const governance = useMemo(() => {
+    if (!wallet.data || !publicClient || !projectData || !clankerToken) {
+      return null
+    }
+    return new Governance({
+      wallet: wallet.data,
+      publicClient,
+      governorAddress: projectData.governor,
+      tokenDecimals: projectData.token.decimals,
+      clankerToken,
+    })
+  }, [wallet.data, publicClient, projectData, clankerToken])
+
+  const currentCycleId = useQuery({
+    queryKey: queryKeys.governance.currentCycleId(projectData?.governor!),
+    queryFn: async (): Promise<bigint> => {
+      if (!governance) throw new Error('Governance not initialized')
+      return await governance.getCurrentCycleId()
+    },
+    enabled: e && !!governance && !!projectData,
+    retry: 1,
+  })
+
+  const addresses = useQuery({
+    queryKey: queryKeys.governance.addresses(projectData?.governor!),
+    queryFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+
+      const [treasury, factory, stakedToken] = await Promise.all([
+        governance.getTreasury(),
+        governance.getFactory(),
+        governance.getStakedToken(),
+      ])
+
+      return { treasury, factory, stakedToken }
+    },
+    enabled: e && !!governance && !!projectData,
+    retry: 1,
+  })
+
+  const airdropStatus = useQuery({
+    queryKey: queryKeys.governance.airdropStatus(projectData?.governor!, clankerToken!),
+    queryFn: async () => {
+      if (!governance) throw new Error('Governance not initialized')
+      return await governance.getAirdropStatus()
+    },
+    enabled: e && !!governance && !!projectData && !!clankerToken,
+    retry: 1,
+    refetchInterval: 30000,
+  })
+
+  return {
+    currentCycleId,
+    addresses,
+    airdropStatus,
+  }
+}
+
+// ========================================
+// PUBLIC HOOK (exported from index.ts)
+// ========================================
 
 export type UseGovernanceParams = {
   governorAddress: `0x${string}`
@@ -22,7 +106,7 @@ export type UseGovernanceParams = {
   // Query params (optional - for reactive data)
   proposalId?: number | bigint
   cycleId?: number | bigint
-  userAddress?: `0x${string}` // For checking specific user's votes/VP
+  userAddress?: `0x${string}`
 
   // Success/error callbacks
   onProposeTransferSuccess?: (receipt: TransactionReceipt, proposalId: bigint) => void
@@ -43,12 +127,11 @@ export type UseGovernanceParams = {
 
 /**
  * Hook for managing governance operations
- * @param params - Hook parameters
- * @returns Queries and mutations for governance operations
+ * Global queries from LevrProvider, dynamic queries created per-component
  */
 export function useGovernance({
   governorAddress,
-  clankerToken,
+  clankerToken: _clankerToken,
   tokenDecimals = 18,
   enabled = true,
   proposalId,
@@ -65,13 +148,13 @@ export function useGovernance({
   onClaimAirdropSuccess,
   onClaimAirdropError,
 }: UseGovernanceParams) {
+  const { governance: governanceQueries, refetch, clankerToken } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
-  const queryClient = useQueryClient()
 
-  // Create governance instance
+  // Create governance instance for mutations
   const governance =
-    wallet.data && publicClient
+    wallet.data && publicClient && clankerToken
       ? new Governance({
           wallet: wallet.data,
           publicClient,
@@ -81,20 +164,14 @@ export function useGovernance({
         })
       : null
 
-  /**
-   * Invalidate relevant queries to refetch data
-   */
-  const invalidateGovernanceQueries = () => {
-    // Invalidate all governance-related queries
-    queryClient.invalidateQueries({ queryKey: ['governance'], refetchType: 'active' })
-    queryClient.invalidateQueries({ queryKey: ['proposals'], refetchType: 'active' })
-    // Invalidate project data (contains treasury balance, etc.)
-    queryClient.invalidateQueries({ queryKey: ['project'], refetchType: 'active' })
-  }
+  // Global queries from context
+  const currentCycleId = governanceQueries.currentCycleId
+  const addresses = governanceQueries.addresses
+  const airdropStatus = governanceQueries.airdropStatus
 
-  // Query: Get proposal details
+  // Dynamic queries (component-specific)
   const proposal = useQuery({
-    queryKey: ['governance', 'proposal', governorAddress, proposalId?.toString()],
+    queryKey: queryKeys.governance.proposal(governorAddress, proposalId?.toString()),
     queryFn: async (): Promise<FormattedProposalDetails> => {
       if (!governance || !proposalId)
         throw new Error('Governance not initialized or no proposal ID')
@@ -104,50 +181,8 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get current cycle ID
-  const currentCycleId = useQuery({
-    queryKey: ['governance', 'currentCycleId', governorAddress],
-    queryFn: async (): Promise<bigint> => {
-      if (!governance) throw new Error('Governance not initialized')
-      return await governance.getCurrentCycleId()
-    },
-    enabled: enabled && !!governance,
-    retry: 1,
-  })
-
-  // Query: Get governance contract addresses
-  const addresses = useQuery({
-    queryKey: ['governance', 'addresses', governorAddress],
-    queryFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
-
-      const [treasury, factory, stakedToken] = await Promise.all([
-        governance.getTreasury(),
-        governance.getFactory(),
-        governance.getStakedToken(),
-      ])
-
-      return { treasury, factory, stakedToken }
-    },
-    enabled: enabled && !!governance,
-    retry: 1,
-  })
-
-  // Query: Get airdrop status
-  const airdropStatus = useQuery({
-    queryKey: ['governance', 'airdropStatus', governorAddress, clankerToken],
-    queryFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
-      return await governance.getAirdropStatus()
-    },
-    enabled: enabled && !!governance,
-    retry: 1,
-    refetchInterval: 30000, // Refetch every 30 seconds to check if lockup has passed
-  })
-
-  // Query: Get proposals for cycle
   const proposalsForCycle = useQuery({
-    queryKey: ['governance', 'proposalsForCycle', governorAddress, cycleId?.toString()],
+    queryKey: queryKeys.governance.proposalsForCycle(governorAddress, cycleId?.toString()),
     queryFn: async (): Promise<readonly bigint[]> => {
       if (!governance || cycleId === undefined)
         throw new Error('Governance not initialized or no cycle ID')
@@ -157,9 +192,8 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get winner for cycle
   const winner = useQuery({
-    queryKey: ['governance', 'winner', governorAddress, cycleId?.toString()],
+    queryKey: queryKeys.governance.winner(governorAddress, cycleId?.toString()),
     queryFn: async (): Promise<bigint> => {
       if (!governance || cycleId === undefined)
         throw new Error('Governance not initialized or no cycle ID')
@@ -169,7 +203,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get vote receipt for user on proposal
   const voteReceipt = useQuery({
     queryKey: [
       'governance',
@@ -187,7 +220,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get voting power snapshot for proposal
   const votingPowerSnapshot = useQuery({
     queryKey: [
       'governance',
@@ -205,7 +237,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Check if proposal meets quorum
   const meetsQuorum = useQuery({
     queryKey: ['governance', 'meetsQuorum', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
@@ -217,7 +248,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Check if proposal meets approval
   const meetsApproval = useQuery({
     queryKey: ['governance', 'meetsApproval', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
@@ -229,7 +259,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get proposal state
   const proposalState = useQuery({
     queryKey: ['governance', 'proposalState', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<number> => {
@@ -241,14 +270,13 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Query: Get active proposal count by type
   const activeProposalCount = useQuery({
     queryKey: ['governance', 'activeProposalCount', governorAddress],
     queryFn: async () => {
       if (!governance) throw new Error('Governance not initialized')
       const [boostCount, transferCount] = await Promise.all([
-        governance.getActiveProposalCount(0), // BoostStakingPool
-        governance.getActiveProposalCount(1), // TransferToAddress
+        governance.getActiveProposalCount(0),
+        governance.getActiveProposalCount(1),
       ])
       return { boost: boostCount, transfer: transferCount }
     },
@@ -256,7 +284,7 @@ export function useGovernance({
     retry: 1,
   })
 
-  // Mutation: Vote on proposal
+  // Mutations
   const vote = useMutation({
     mutationFn: async ({
       proposalId,
@@ -269,15 +297,13 @@ export function useGovernance({
       if (!wallet.data) throw new Error('Wallet is not connected')
       return await governance.vote(proposalId, support)
     },
-    onSuccess: (receipt) => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
+    onSuccess: async (receipt) => {
+      await refetch.afterGovernance()
       onVoteSuccess?.(receipt)
     },
     onError: onVoteError,
   })
 
-  // Mutation: Propose transfer
   const proposeTransfer = useMutation({
     mutationFn: async (config: ProposeTransferConfig) => {
       if (!governance) throw new Error('Governance not initialized')
@@ -293,15 +319,13 @@ export function useGovernance({
 
       return result
     },
-    onSuccess: (result) => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
+    onSuccess: async (result) => {
+      await refetch.afterGovernance()
       onProposeTransferSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeTransferError,
   })
 
-  // Mutation: Propose boost
   const proposeBoost = useMutation({
     mutationFn: async (config: ProposeBoostConfig) => {
       if (!governance) throw new Error('Governance not initialized')
@@ -313,15 +337,13 @@ export function useGovernance({
 
       return result
     },
-    onSuccess: (result) => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
+    onSuccess: async (result) => {
+      await refetch.afterGovernance()
       onProposeBoostSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeBoostError,
   })
 
-  // Mutation: Execute proposal
   const executeProposal = useMutation({
     mutationFn: async (config: ExecuteProposalConfig) => {
       if (!governance) throw new Error('Governance not initialized')
@@ -331,15 +353,13 @@ export function useGovernance({
 
       return receipt
     },
-    onSuccess: (receipt) => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
+    onSuccess: async (receipt) => {
+      await refetch.afterGovernance()
       onExecuteProposalSuccess?.(receipt)
     },
     onError: onExecuteProposalError,
   })
 
-  // Mutation: Claim airdrop
   const claimAirdrop = useMutation({
     mutationFn: async () => {
       if (!governance) throw new Error('Governance not initialized')
@@ -347,15 +367,48 @@ export function useGovernance({
 
       return await governance.claimAirdrop()
     },
-    onSuccess: (receipt) => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
+    onSuccess: async (receipt) => {
+      await refetch.afterGovernance()
       onClaimAirdropSuccess?.(receipt)
     },
     onError: onClaimAirdropError,
   })
 
-  // Helper: Build propose transfer config from simple params
+  const proposeAndExecuteTransfer = useMutation({
+    mutationFn: async (config: ProposeTransferConfig) => {
+      if (!governance) throw new Error('Governance not initialized')
+
+      const amountBigInt = parseUnits(config.amount, config.amountDecimals)
+
+      const result = await governance.proposeAndExecuteTransfer(
+        config.recipient,
+        amountBigInt,
+        config.description
+      )
+
+      return result
+    },
+    onSuccess: async () => {
+      await refetch.afterGovernance()
+    },
+  })
+
+  const proposeAndExecuteBoost = useMutation({
+    mutationFn: async (config: ProposeBoostConfig) => {
+      if (!governance) throw new Error('Governance not initialized')
+
+      const amountBigInt = parseUnits(config.amount, config.amountDecimals)
+
+      const result = await governance.proposeAndExecuteBoost(amountBigInt)
+
+      return result
+    },
+    onSuccess: async () => {
+      await refetch.afterGovernance()
+    },
+  })
+
+  // Helpers
   const buildProposeTransferConfig = ({
     recipient,
     amount,
@@ -373,7 +426,6 @@ export function useGovernance({
     description,
   })
 
-  // Helper: Build propose boost config from simple params
   const buildProposeBoostConfig = ({
     amount,
     amountDecimals = tokenDecimals,
@@ -385,51 +437,12 @@ export function useGovernance({
     amountDecimals,
   })
 
-  // Helper: Build execute proposal config from simple params
   const buildExecuteProposalConfig = ({
     proposalId,
   }: {
     proposalId: number | bigint
   }): ExecuteProposalConfig => ({
     proposalId,
-  })
-
-  // Helper: Propose and execute transfer in sequence (for testing/convenience)
-  const proposeAndExecuteTransfer = useMutation({
-    mutationFn: async (config: ProposeTransferConfig) => {
-      if (!governance) throw new Error('Governance not initialized')
-
-      const amountBigInt = parseUnits(config.amount, config.amountDecimals)
-
-      const result = await governance.proposeAndExecuteTransfer(
-        config.recipient,
-        amountBigInt,
-        config.description
-      )
-
-      return result
-    },
-    onSuccess: () => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
-    },
-  })
-
-  // Helper: Propose and execute boost in sequence (for testing/convenience)
-  const proposeAndExecuteBoost = useMutation({
-    mutationFn: async (config: ProposeBoostConfig) => {
-      if (!governance) throw new Error('Governance not initialized')
-
-      const amountBigInt = parseUnits(config.amount, config.amountDecimals)
-
-      const result = await governance.proposeAndExecuteBoost(amountBigInt)
-
-      return result
-    },
-    onSuccess: () => {
-      // Invalidate queries to refetch updated data
-      invalidateGovernanceQueries()
-    },
   })
 
   return {
@@ -440,7 +453,7 @@ export function useGovernance({
     executeProposal,
     claimAirdrop,
 
-    // Convenience mutations (for testing/development)
+    // Convenience mutations
     proposeAndExecuteTransfer,
     proposeAndExecuteBoost,
 

@@ -5,11 +5,11 @@ import type { TransactionReceipt } from 'viem'
 import { formatUnits, parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { WETH } from '../../constants'
 import { quoteV4 } from '../../quote-v4'
 import { swapV4 } from '../../swap-v4'
 import type { PoolKey } from '../../types'
-import { useBalance } from './use-balance'
+import { useLevrContext } from '../levr-provider'
+import { queryKeys } from '../query-keys'
 
 export type SwapConfig = {
   poolKey: PoolKey
@@ -46,12 +46,13 @@ export type UseSwapParams = {
 
 /**
  * Hook for managing Uniswap v4 swaps
+ * Balances are fetched from LevrProvider
  * @param params - Hook parameters
  * @returns Queries and mutations for swap operations
  */
 export function useSwap({
   enabled = true,
-  tokenAddress,
+  tokenAddress: _tokenAddress,
   tokenDecimals = 18,
   quoteParams,
   onApproveERC20Success,
@@ -61,32 +62,20 @@ export function useSwap({
   onSwapSuccess,
   onSwapError,
 }: UseSwapParams = {}) {
+  const { balances, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
 
-  const wethAddress = WETH(chainId)?.address
-
-  // Query: Token balances (token + WETH)
-  const balances = useBalance({
-    tokens: [
-      tokenAddress && { address: tokenAddress, decimals: tokenDecimals, key: 'token' },
-      wethAddress && { address: wethAddress, decimals: 18, key: 'weth' },
-    ].filter(Boolean) as any,
-    enabled: enabled && !!(tokenAddress || wethAddress),
-  })
-
   // Query: Get swap quote
   const quote = useQuery({
-    queryKey: [
-      'swap',
-      'quote',
+    queryKey: queryKeys.swap.quote(
       chainId,
       quoteParams?.poolKey,
       quoteParams?.zeroForOne,
       quoteParams?.amountIn,
-      quoteParams?.amountInDecimals,
-    ],
+      quoteParams?.amountInDecimals
+    ),
     queryFn: async () => {
       const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
@@ -138,8 +127,9 @@ export function useSwap({
 
       return receipt
     },
-    onSuccess: (receipt) => {
-      balances.refetch()
+    onSuccess: async (receipt) => {
+      // Use centralized cross-domain refetch
+      await refetch.afterSwap()
       onSwapSuccess?.(receipt)
     },
     onError: onSwapError,

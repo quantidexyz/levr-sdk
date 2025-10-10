@@ -1,57 +1,51 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 
-import type { ProposalsParams, ProposalsResult } from '../../proposals'
-import { proposals } from '../../proposals'
+import type { ProposalsParams } from '../../proposals'
+import { proposals as proposalsListQuery } from '../../proposals'
+import { queryKeys } from '../query-keys'
 
 export type UseProposalsParams = Omit<ProposalsParams, 'publicClient'> & {
   enabled?: boolean
 }
 
+export type UseProposalsQueryParams = {
+  governorAddress?: Address
+  tokenDecimals?: number
+  enabled?: boolean
+}
+
 /**
- * Hook for fetching proposals from a governor contract
- * @param params - Hook parameters
- * @returns Query for proposals data
+ * Internal: Creates proposals query with all logic
+ * Used by LevrProvider
  */
-export function useProposals({
+export function useProposalsQuery({
   governorAddress,
   tokenDecimals = 18,
-  fromBlock,
-  toBlock = 'latest',
-  pageSize = 50,
-  blockRangeLimit = 10000,
-  enabled = true,
-}: UseProposalsParams) {
+  enabled: e = true,
+}: UseProposalsQueryParams) {
   const publicClient = usePublicClient()
 
   return useQuery({
-    queryKey: [
-      'proposals',
-      governorAddress,
-      tokenDecimals,
-      fromBlock?.toString(),
-      toBlock?.toString(),
-      pageSize,
-      blockRangeLimit,
-    ],
-    queryFn: async (): Promise<ProposalsResult> => {
-      if (!publicClient) throw new Error('Public client not connected')
-
-      return await proposals({
+    queryKey: queryKeys.proposals(governorAddress!, tokenDecimals, undefined, 'latest', 50, 10000),
+    queryFn: async () => {
+      if (!publicClient || !governorAddress) return null
+      return proposalsListQuery({
         publicClient,
         governorAddress,
         tokenDecimals,
-        fromBlock,
-        toBlock,
-        pageSize,
-        blockRangeLimit,
+        fromBlock: undefined,
+        toBlock: 'latest',
+        pageSize: 50,
+        blockRangeLimit: 10000,
       })
     },
-    enabled: enabled && !!publicClient && !!governorAddress,
+    enabled: e && !!publicClient && !!governorAddress,
     retry: 1,
-    staleTime: 5000, // 5 seconds - allows quick refetch after invalidation
-    refetchInterval: 30000, // 30 seconds
+    staleTime: 5000,
+    refetchInterval: 30000,
   })
 }

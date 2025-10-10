@@ -1,55 +1,70 @@
 'use client'
 
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import type { Address } from 'viem'
+import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 
 import type { UpdateFeeReceiverParams } from '../../fee-receivers'
 import { feeReceivers, updateFeeReceiver } from '../../fee-receivers'
+import { useLevrContext } from '../levr-provider'
+import { queryKeys } from '../query-keys'
+
+export type UseFeeReceiversQueryParams = {
+  clankerToken: Address | null
+  enabled?: boolean
+}
 
 /**
- * The parameters for the useFeeReceivers hook.
- * @param clankerToken - The clanker token address.
- * @param enabled - Whether the hook is enabled.
- * @param onSuccess - The callback function to call when the mutation is successful.
- * @param onError - The callback function to call when the mutation is errored.
+ * Internal: Creates fee receivers query with all logic
+ * Used by LevrProvider
  */
+export function useFeeReceiversQuery({
+  clankerToken,
+  enabled: e = true,
+}: UseFeeReceiversQueryParams) {
+  const publicClient = usePublicClient()
+  const chainId = useChainId()
+  const { address: userAddress } = useAccount()
+
+  return useQuery({
+    queryKey: queryKeys.feeReceivers(clankerToken!, userAddress, chainId),
+    queryFn: () =>
+      feeReceivers({
+        publicClient: publicClient!,
+        clankerToken: clankerToken!,
+        chainId: chainId!,
+        userAddress,
+      }),
+    enabled: e && !!publicClient && !!chainId && !!clankerToken,
+    staleTime: 15_000,
+  })
+}
+
+// ========================================
+// PUBLIC HOOK (exported from index.ts)
+// ========================================
+
 export type UseFeeReceiversParams = {
-  clankerToken: `0x${string}` | undefined
+  clankerToken?: `0x${string}` | undefined
   enabled?: boolean
   onSuccess?: (hash: `0x${string}`) => void
   onError?: (error: unknown) => void
 }
 
 /**
- * Hook to get the fee receivers and update them.
- * @param FeeReceiversParams - The parameters for the hook.
- * @returns The query and mutate functions.
+ * Hook to get the fee receivers and update them
+ * Query data from LevrProvider, mutations with callbacks
  */
 export function useFeeReceivers({
-  clankerToken,
-  enabled: e = true,
+  clankerToken: _clankerToken,
+  enabled: _e = true,
   onSuccess,
   onError,
-}: UseFeeReceiversParams) {
+}: UseFeeReceiversParams = {}) {
+  const { feeReceivers, refetch } = useLevrContext()
   const publicClient = usePublicClient()
   const wallet = useWalletClient()
   const chainId = publicClient?.chain?.id
-  const address = wallet.data?.account?.address
-
-  const enabled = !!publicClient && !!chainId && !!clankerToken && e
-
-  const query = useQuery({
-    queryKey: ['fee-receivers', clankerToken, address, chainId],
-    enabled,
-    queryFn: () =>
-      feeReceivers({
-        publicClient: publicClient!,
-        clankerToken: clankerToken!,
-        chainId: chainId!,
-        userAddress: address,
-      }),
-    staleTime: 15_000,
-  })
 
   const mutate = useMutation({
     mutationFn: (params: Omit<UpdateFeeReceiverParams, 'walletClient' | 'chainId'>) =>
@@ -60,12 +75,15 @@ export function useFeeReceivers({
         rewardIndex: params.rewardIndex,
         newRecipient: params.newRecipient,
       }),
-    onSuccess: (hash) => onSuccess?.(hash),
+    onSuccess: async (hash) => {
+      await refetch.feeReceivers()
+      onSuccess?.(hash)
+    },
     onError: onError,
   })
 
   return {
-    query,
+    query: feeReceivers,
     mutate,
   }
 }

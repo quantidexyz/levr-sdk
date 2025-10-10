@@ -2,32 +2,30 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Clanker } from 'clanker-sdk/v4'
+import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { IClankerToken } from '../../abis'
+import { useLevrContext } from '../levr-provider'
+import { queryKeys } from '../query-keys'
+
+export type UseClankerTokenQueryParams = {
+  clankerToken: Address | null
+  enabled?: boolean
+}
 
 /**
- * Returns a Clanker SDK instance bound to the current wagmi public and wallet clients.
- * If the wallet client is not available (disconnected), returns undefined.
+ * Internal: Creates clanker token metadata query
+ * Used by LevrProvider
  */
-export function useClanker(clankerToken?: `0x${string}`) {
+export function useClankerTokenQuery({
+  clankerToken,
+  enabled: e = true,
+}: UseClankerTokenQueryParams) {
   const publicClient = usePublicClient()
-  const { data: wallet } = useWalletClient()
 
-  const clanker = useQuery({
-    queryKey: ['clanker', publicClient?.chain.id, wallet?.account?.address],
-    queryFn: () => {
-      try {
-        return new Clanker({ publicClient: publicClient!, wallet: wallet! })
-      } catch {
-        return null
-      }
-    },
-    enabled: !!publicClient && !!wallet,
-  })
-
-  const token = useQuery({
-    queryKey: ['clanker-token', clankerToken],
+  return useQuery({
+    queryKey: queryKeys.clankerToken(clankerToken!),
     queryFn: async () => {
       const allData = await publicClient?.readContract({
         address: clankerToken!,
@@ -47,8 +45,34 @@ export function useClanker(clankerToken?: `0x${string}`) {
         context,
       }
     },
-    enabled: !!clankerToken,
+    enabled: e && !!clankerToken && !!publicClient,
+  })
+}
+
+// ========================================
+// PUBLIC HOOK (exported from index.ts)
+// ========================================
+
+/**
+ * Hook to get Clanker SDK instance and token data
+ * Creates Clanker SDK, token data comes from LevrProvider
+ */
+export function useClanker(_clankerToken?: `0x${string}`) {
+  const publicClient = usePublicClient()
+  const { data: wallet } = useWalletClient()
+  const tokenData = useLevrContext().tokenData
+
+  const clanker = useQuery({
+    queryKey: queryKeys.clanker(publicClient?.chain.id, wallet?.account?.address),
+    queryFn: () => {
+      try {
+        return new Clanker({ publicClient: publicClient!, wallet: wallet! })
+      } catch {
+        return null
+      }
+    },
+    enabled: !!publicClient && !!wallet,
   })
 
-  return { clanker, token }
+  return { clanker, token: tokenData }
 }

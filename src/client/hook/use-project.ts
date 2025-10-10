@@ -1,26 +1,31 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import { GET_FACTORY_ADDRESS } from '../../constants'
-import type { Project } from '../../project'
 import { project } from '../../project'
+import { queryKeys } from '../query-keys'
 
-export type UseProjectParams = {
-  clankerToken?: `0x${string}`
+export type UseProjectQueryParams = {
+  clankerToken: Address | null
   enabled?: boolean
 }
 
-export function useProject({ clankerToken, enabled: e = true }: UseProjectParams) {
+/**
+ * Internal: Creates project query with all logic
+ * Used by LevrProvider
+ */
+export function useProjectQuery({ clankerToken, enabled: e = true }: UseProjectQueryParams) {
   const { chainId } = useAccount()
   const publicClient = usePublicClient()
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
 
   const enabled = !!publicClient && !!factoryAddress && !!clankerToken && e
 
-  return useQuery<Project | null>({
-    queryKey: ['project', factoryAddress, clankerToken, chainId],
+  return useQuery({
+    queryKey: queryKeys.project(factoryAddress!, clankerToken!, chainId!),
     enabled,
     queryFn: async () => {
       return project({

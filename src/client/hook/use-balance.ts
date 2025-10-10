@@ -1,10 +1,14 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useMemo } from 'react'
+import type { Address } from 'viem'
+import { useAccount, useChainId, usePublicClient } from 'wagmi'
 
 import type { TokenConfig } from '../../balance'
 import { balance } from '../../balance'
+import { WETH } from '../../constants'
+import { queryKeys } from '../query-keys'
 
 export type UseBalanceParams = {
   tokens?: TokenConfig[]
@@ -12,36 +16,59 @@ export type UseBalanceParams = {
   refetchInterval?: number | false
 }
 
+export type UseBalanceQueryParams = {
+  clankerToken: Address | null
+  projectTokenDecimals?: number
+  enabled?: boolean
+}
+
 /**
- * Flexible balance hook that fetches balances for multiple tokens in a single multicall
- * @param tokens - Array of token configurations to fetch balances for
- * @param enabled - Whether the query is enabled
- * @param refetchInterval - Refetch interval in milliseconds (default: 10_000)
- * @returns Query result with balances keyed by token address or custom key
+ * Internal: Creates balance query with all logic
+ * Used by LevrProvider
  */
-export function useBalance({
-  tokens = [],
-  enabled = true,
-  refetchInterval = 10_000,
-}: UseBalanceParams = {}) {
-  const wallet = useWalletClient()
+export function useBalanceQuery({
+  clankerToken,
+  projectTokenDecimals = 18,
+  enabled: e = true,
+}: UseBalanceQueryParams) {
   const publicClient = usePublicClient()
-  const address = wallet.data?.account?.address
+  const chainId = useChainId()
+  const { address: userAddress } = useAccount()
+  const wethAddress = WETH(chainId)?.address
 
-  const query = useQuery({
-    queryKey: ['balance', tokens.map((t) => t.address).join(','), address],
+  const tokenAddresses = useMemo(() => {
+    const addresses: Array<{ address: Address; decimals: number; key: string }> = []
+
+    if (clankerToken) {
+      addresses.push({
+        address: clankerToken,
+        decimals: projectTokenDecimals,
+        key: 'token',
+      })
+    }
+
+    if (wethAddress) {
+      addresses.push({
+        address: wethAddress,
+        decimals: 18,
+        key: 'weth',
+      })
+    }
+
+    return addresses
+  }, [clankerToken, projectTokenDecimals, wethAddress])
+
+  return useQuery({
+    queryKey: queryKeys.balance(tokenAddresses.map((t) => t.address).join(','), userAddress!),
     queryFn: async () => {
-      if (!address || tokens.length === 0) return {}
-
+      if (!userAddress || tokenAddresses.length === 0) return {}
       return balance({
         publicClient: publicClient!,
-        address,
-        tokens,
+        address: userAddress,
+        tokens: tokenAddresses,
       })
     },
-    enabled: enabled && !!publicClient && !!address && tokens.length > 0,
-    refetchInterval,
+    enabled: e && !!publicClient && !!userAddress && tokenAddresses.length > 0,
+    refetchInterval: 10_000,
   })
-
-  return query
 }
