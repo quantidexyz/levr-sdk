@@ -10,8 +10,8 @@
   // ---------------------------
   // Files & Associations
   "files.associations": {
-    ".env*": "env",
-    ".env": "env"
+    ".env*": "shellscript",
+    ".env": "shellscript"
   },
 
   // ---------------------------

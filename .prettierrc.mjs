@@ -7,4 +7,15 @@ export default {
   arrowParens: 'always',
   printWidth: 100,
   plugins: ['prettier-plugin-sh'],
+
+  // ---------------------------
+  // Override Rules
+  overrides: [
+    {
+      files: ['.env*'],
+      options: {
+        parser: 'sh',
+      },
+    },
+  ],
 }
