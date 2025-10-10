@@ -1,6 +1,13 @@
 {
-  "typescript.experimental.useTsgo": true,
-  "include": ["src", "example", "test", "script"],
+  "include": [
+    "src",
+    "example",
+    "test",
+    "script",
+    ".prettierrc.mjs",
+    "eslint.config.mjs",
+    "commitlint.config.mjs"
+  ],
   "exclude": ["**/bak/*", "dist"],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",

@@ -21,7 +21,7 @@ echo "[devnet] Contracts: $CONTRACTS_DIR"
 
 # Requirements
 for cmd in anvil forge jq lsof; do
-  if ! command -v "$cmd" >/dev/null 2>&1; then
+  if ! command -v "$cmd" > /dev/null 2>&1; then
     echo "[devnet] ERROR: '$cmd' is required but not found in PATH" >&2
     exit 1
   fi
@@ -32,7 +32,9 @@ if [[ -z "${TESTNET_PRIVATE_KEY:-}" ]]; then
   if [[ -f "$ENV_FILE" ]] && grep -q '^TESTNET_PRIVATE_KEY=' "$ENV_FILE"; then
     echo "[devnet] Using TESTNET_PRIVATE_KEY from $ENV_FILE"
     # shellcheck disable=SC1090
-    set -a; . "$ENV_FILE"; set +a
+    set -a
+    . "$ENV_FILE"
+    set +a
   else
     echo "[devnet] ERROR: TESTNET_PRIVATE_KEY not provided; set env var or add to $ENV_FILE" >&2
     exit 1
@@ -49,29 +51,29 @@ ANVIL_ALREADY_RUNNING=false
 cleanup() {
   local code=$?
   echo "[devnet] Cleaning up..."
-  
+
   # Only kill anvil if we started it (not in redeploy mode or wasn't already running)
   if [[ "$ANVIL_ALREADY_RUNNING" == "false" ]]; then
     # Kill anvil process listening on 8545 if still alive
-    if [[ -n "$ANVIL_PID" ]] && ps -p "$ANVIL_PID" >/dev/null 2>&1; then
+    if [[ -n "$ANVIL_PID" ]] && ps -p "$ANVIL_PID" > /dev/null 2>&1; then
       echo "[devnet] Killing anvil (pid=$ANVIL_PID)"
-      kill -TERM "$ANVIL_PID" 2>/dev/null || true
-      wait "$ANVIL_PID" 2>/dev/null || true
+      kill -TERM "$ANVIL_PID" 2> /dev/null || true
+      wait "$ANVIL_PID" 2> /dev/null || true
     else
       # Fallback: kill listener on :8545 if any
-      PID_ON_PORT=$(lsof -i :8545 -sTCP:LISTEN -t 2>/dev/null || true)
+      PID_ON_PORT=$(lsof -i :8545 -sTCP:LISTEN -t 2> /dev/null || true)
       if [[ -n "${PID_ON_PORT:-}" ]]; then
         echo "[devnet] Killing anvil by port (pid=$PID_ON_PORT)"
-        kill -TERM "$PID_ON_PORT" 2>/dev/null || true
-        wait "$PID_ON_PORT" 2>/dev/null || true
+        kill -TERM "$PID_ON_PORT" 2> /dev/null || true
+        wait "$PID_ON_PORT" 2> /dev/null || true
       fi
     fi
 
     # Kill make wrapper if still running
-    if [[ -n "$MAKE_PID" ]] && ps -p "$MAKE_PID" >/dev/null 2>&1; then
+    if [[ -n "$MAKE_PID" ]] && ps -p "$MAKE_PID" > /dev/null 2>&1; then
       echo "[devnet] Stopping make anvil-fork (pid=$MAKE_PID)"
-      kill -TERM "$MAKE_PID" 2>/dev/null || true
-      wait "$MAKE_PID" 2>/dev/null || true
+      kill -TERM "$MAKE_PID" 2> /dev/null || true
+      wait "$MAKE_PID" 2> /dev/null || true
     fi
   else
     echo "[devnet] Leaving anvil running (was already running)"
@@ -83,11 +85,11 @@ cleanup() {
 trap cleanup INT TERM EXIT
 
 # Check if anvil is already running
-if nc -z localhost 8545 >/dev/null 2>&1; then
+if nc -z localhost 8545 > /dev/null 2>&1; then
   ANVIL_ALREADY_RUNNING=true
-  ANVIL_PID=$(lsof -i :8545 -sTCP:LISTEN -t 2>/dev/null | head -n1 || true)
+  ANVIL_PID=$(lsof -i :8545 -sTCP:LISTEN -t 2> /dev/null | head -n1 || true)
   echo "[devnet] anvil already running on :8545 (pid: ${ANVIL_PID:-unknown})"
-  
+
   if [[ "$REDEPLOY_ONLY" == "false" ]]; then
     echo "[devnet] ERROR: anvil is already running. Use --redeploy flag to redeploy factory without restarting anvil." >&2
     exit 1
@@ -97,32 +99,32 @@ else
     echo "[devnet] ERROR: --redeploy flag requires anvil to be already running on :8545" >&2
     exit 1
   fi
-  
+
   echo "[devnet] Starting anvil fork (via Makefile)..."
   set -m
   (
     cd "$CONTRACTS_DIR"
     make anvil-fork
-  ) >>"$ANVIL_LOG" 2>&1 &
+  ) >> "$ANVIL_LOG" 2>&1 &
   MAKE_PID=$!
   echo "[devnet] anvil-fork started (make pid=$MAKE_PID), logs: $ANVIL_LOG"
 
   echo -n "[devnet] Waiting for anvil on :8545"
   for i in $(seq 1 120); do
-    if nc -z localhost 8545 >/dev/null 2>&1; then
+    if nc -z localhost 8545 > /dev/null 2>&1; then
       echo " ✓"
       break
     fi
     echo -n "."
     sleep 0.5
   done
-  if ! nc -z localhost 8545 >/dev/null 2>&1; then
+  if ! nc -z localhost 8545 > /dev/null 2>&1; then
     echo "\n[devnet] ERROR: anvil did not start on :8545 in time" >&2
     exit 1
   fi
 
   # Capture anvil PID (listener on port 8545)
-  ANVIL_PID=$(lsof -i :8545 -sTCP:LISTEN -t 2>/dev/null | head -n1 || true)
+  ANVIL_PID=$(lsof -i :8545 -sTCP:LISTEN -t 2> /dev/null | head -n1 || true)
   echo "[devnet] anvil pid: ${ANVIL_PID:-unknown}"
 fi
 
@@ -180,12 +182,12 @@ echo "[devnet] Updated $ROOT_ENV_FILE with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
 MONOREPO_ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../../.. && pwd)/.env"
 if [[ -f "$MONOREPO_ENV_FILE" ]] || [[ -w "$(dirname "$MONOREPO_ENV_FILE")" ]]; then
   echo "[devnet] Attempting to update monorepo root .env at $MONOREPO_ENV_FILE"
-  touch "$MONOREPO_ENV_FILE" 2>/dev/null || true
+  touch "$MONOREPO_ENV_FILE" 2> /dev/null || true
   if [[ -w "$MONOREPO_ENV_FILE" ]]; then
-    if grep -q '^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=' "$MONOREPO_ENV_FILE" 2>/dev/null; then
-      sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR/" "$MONOREPO_ENV_FILE" 2>/dev/null || true
+    if grep -q '^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=' "$MONOREPO_ENV_FILE" 2> /dev/null; then
+      sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR/" "$MONOREPO_ENV_FILE" 2> /dev/null || true
     else
-      echo "NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR" >> "$MONOREPO_ENV_FILE" 2>/dev/null || true
+      echo "NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=$FACTORY_ADDR" >> "$MONOREPO_ENV_FILE" 2> /dev/null || true
     fi
     echo "[devnet] ✓ Updated monorepo root .env with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
   else
@@ -204,5 +206,3 @@ else
   echo "[devnet] Devnet running. Press Ctrl+C to stop."
   wait "$MAKE_PID"
 fi
-
-

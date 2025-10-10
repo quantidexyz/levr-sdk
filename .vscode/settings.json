@@ -1,0 +1,48 @@
+{
+  // ---------------------------
+  // Editor Settings
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // ---------------------------
+  // Files & Associations
+  "files.associations": {
+    ".env*": "env",
+    ".env": "env"
+  },
+
+  // ---------------------------
+  // Language-Specific Settings
+
+  // ESLint
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+
+  // ---------------------------
+  // Language Updates
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.experimental.useTsgo": true,
+
+  // ---------------------------
+  // Extension Settings
+  "emmet.useInlineCompletions": true,
+  "eslint.format.enable": true,
+  "prettier.enable": true,
+  "prettier.requireConfig": true,
+  "prettier.configPath": ".prettierrc.mjs",
+
+  // ---------------------------
+  // Cursor Settings
+  "cursor.cpp.enablePartialAccepts": true
+}
