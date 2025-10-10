@@ -1,8 +1,8 @@
 'use client'
 
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { formatUnits, parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { WETH } from '../../constants'

@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import { GET_FACTORY_ADDRESS } from '../../constants'
-import { project } from '../../project'
 import type { Project } from '../../project'
+import { project } from '../../project'
 
 export type UseProjectParams = {
   clankerToken?: `0x${string}`

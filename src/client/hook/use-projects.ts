@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import { GET_FACTORY_ADDRESS } from '../../constants'
-import { projects } from '../../projects'
 import type { ProjectsParams, ProjectsResult } from '../../projects'
+import { projects } from '../../projects'
 
 export type UseProjectsParams = {
   enabled?: boolean

@@ -1,5 +1,5 @@
-import { encodeAbiParameters, keccak256 } from 'viem'
 import type { PublicClient } from 'viem'
+import { encodeAbiParameters, keccak256 } from 'viem'
 
 import { IClankerHookDynamicFee, IClankerHookStaticFee, V4Quoter } from './abis'
 import { UNISWAP_V4_QUOTER } from './constants'

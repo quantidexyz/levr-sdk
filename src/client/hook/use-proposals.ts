@@ -3,8 +3,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 
-import { proposals } from '../../proposals'
 import type { ProposalsParams, ProposalsResult } from '../../proposals'
+import { proposals } from '../../proposals'
 
 export type UseProposalsParams = Omit<ProposalsParams, 'publicClient'> & {
   enabled?: boolean

@@ -3,8 +3,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { feeReceivers, updateFeeReceiver } from '../../fee-receivers'
 import type { UpdateFeeReceiverParams } from '../../fee-receivers'
+import { feeReceivers, updateFeeReceiver } from '../../fee-receivers'
 
 /**
  * The parameters for the useFeeReceivers hook.

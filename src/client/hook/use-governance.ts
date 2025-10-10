@@ -1,17 +1,17 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { parseUnits } from 'viem'
 import type { TransactionReceipt } from 'viem'
+import { parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { Governance } from '../../governance'
 import type {
   ExecuteProposalConfig,
   FormattedProposalDetails,
   ProposeBoostConfig,
   ProposeTransferConfig,
 } from '../../governance'
+import { Governance } from '../../governance'
 
 export type UseGovernanceParams = {
   governorAddress: `0x${string}`

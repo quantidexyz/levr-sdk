@@ -3,8 +3,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { balance } from '../../balance'
 import type { TokenConfig } from '../../balance'
+import { balance } from '../../balance'
 
 export type UseBalanceParams = {
   tokens?: TokenConfig[]

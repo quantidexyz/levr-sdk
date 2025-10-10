@@ -1,5 +1,5 @@
-import { formatUnits } from 'viem'
 import type { ExtractAbiItem, Log } from 'viem'
+import { formatUnits } from 'viem'
 
 import { LevrGovernor_v1 } from './abis'
 import type { FormattedProposalDetails } from './governance'

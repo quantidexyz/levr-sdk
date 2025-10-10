@@ -1,7 +1,7 @@
 import { CommandType, RoutePlanner } from '@uniswap/universal-router-sdk'
 import { Actions, V4Planner } from '@uniswap/v4-sdk'
-import { erc20Abi } from 'viem'
 import type { PublicClient, TransactionReceipt, WalletClient } from 'viem'
+import { erc20Abi } from 'viem'
 
 import Permit2Abi from './abis/Permit2'
 import {
