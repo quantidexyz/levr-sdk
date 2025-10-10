@@ -52,8 +52,8 @@ export type UseFeeReceiversParams = {
 }
 
 /**
- * Hook to get the fee receivers and update them
- * Query data from LevrProvider, mutations with callbacks
+ * Hook to access fee receivers query and mutations
+ * Returns both query data and mutation function
  */
 export function useFeeReceivers({
   clankerToken: _clankerToken,
@@ -61,7 +61,7 @@ export function useFeeReceivers({
   onSuccess,
   onError,
 }: UseFeeReceiversParams = {}) {
-  const { feeReceivers, refetch } = useLevrContext()
+  const { feeReceivers: query, refetch } = useLevrContext()
   const publicClient = usePublicClient()
   const wallet = useWalletClient()
   const chainId = publicClient?.chain?.id
@@ -83,7 +83,7 @@ export function useFeeReceivers({
   })
 
   return {
-    query: feeReceivers,
+    query,
     mutate,
   }
 }

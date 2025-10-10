@@ -11,10 +11,10 @@ import type { Stake } from '../stake'
 import { useBalanceQuery } from './hook/use-balance'
 import { useClankerTokenQuery } from './hook/use-clanker'
 import { useFeeReceiversQuery } from './hook/use-fee-receivers'
-import { useGovernanceQueries as useGovernanceQueriesInternal } from './hook/use-governance'
+import { useGovernanceQueries } from './hook/use-governance'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposals'
-import { useStakingQueries as useStakingQueriesInternal } from './hook/use-stake'
+import { useStakingQueries } from './hook/use-stake'
 
 type Project = NonNullable<ReturnType<typeof useProjectQuery>['data']>
 
@@ -119,13 +119,13 @@ export function LevrProvider({ children, enabled = true }: LevrProviderProps) {
     enabled,
   })
 
-  const staking = useStakingQueriesInternal({
+  const staking = useStakingQueries({
     clankerToken,
     projectData: project.data,
     enabled,
   })
 
-  const governance = useGovernanceQueriesInternal({
+  const governance = useGovernanceQueries({
     clankerToken,
     projectData: project.data,
     enabled,

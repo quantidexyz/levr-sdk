@@ -20,16 +20,9 @@ export const useBalance = () => useLevrContext().balances
 export const useProposals = () => useLevrContext().proposals
 
 /**
- * Hook to access token metadata from LevrProvider
- * Alias for compatibility
+ * Hook to access clanker token metadata from LevrProvider
  */
-export const useTokenData = () => useLevrContext().tokenData
-export const useClankerTokenData = () => useLevrContext().tokenData
-
-/**
- * Hook to access fee receivers from LevrProvider
- */
-export const useFeeReceiversData = () => useLevrContext().feeReceivers
+export const useClankerToken = () => useLevrContext().tokenData
 
 // ========================================
 // COMPLEX HOOKS (with mutations/callbacks)

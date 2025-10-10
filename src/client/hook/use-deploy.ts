@@ -16,7 +16,7 @@ export type UseDeployParams = {
  * Returns tx hash and deployed address.
  */
 export function useDeploy({ onSuccess, onError }: UseDeployParams) {
-  const { clanker } = useClanker()
+  const clanker = useClanker()
 
   return useMutation({
     mutationFn: (c: LevrClankerDeploymentSchemaType) => deployV4({ c, clanker: clanker.data }),

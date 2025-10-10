@@ -54,15 +54,14 @@ export function useClankerTokenQuery({
 // ========================================
 
 /**
- * Hook to get Clanker SDK instance and token data
- * Creates Clanker SDK, token data comes from LevrProvider
+ * Hook to get Clanker SDK instance
+ * For token metadata, use useClankerToken() from index.ts
  */
 export function useClanker(_clankerToken?: `0x${string}`) {
   const publicClient = usePublicClient()
   const { data: wallet } = useWalletClient()
-  const tokenData = useLevrContext().tokenData
 
-  const clanker = useQuery({
+  return useQuery({
     queryKey: queryKeys.clanker(publicClient?.chain.id, wallet?.account?.address),
     queryFn: () => {
       try {
@@ -73,6 +72,4 @@ export function useClanker(_clankerToken?: `0x${string}`) {
     },
     enabled: !!publicClient && !!wallet,
   })
-
-  return { clanker, token: tokenData }
 }
