@@ -3,15 +3,35 @@ import prettier from 'eslint-plugin-prettier'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import tseslint from 'typescript-eslint'
 
+const basePlugins = {
+  prettier: prettier,
+  'simple-import-sort': simpleImportSort,
+}
+
+const baseRules = {
+  'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
+  'simple-import-sort/imports': 'error',
+  'simple-import-sort/exports': 'error',
+  'prettier/prettier': 'error',
+}
+
 export default defineConfig([
   globalIgnores(['dist/**', 'node_modules/**', 'contracts/**']),
+  // JavaScript/Config files (no TypeScript parser)
   {
-    files: ['**/*.{mjs,cjs,js,ts,tsx,jsx}'],
+    files: ['**/*.{mjs,cjs,js}'],
+
+    plugins: basePlugins,
+
+    rules: baseRules,
+  },
+  // TypeScript files
+  {
+    files: ['**/*.{ts,tsx,jsx}'],
 
     plugins: {
+      ...basePlugins,
       '@typescript-eslint': tseslint.plugin,
-      prettier: prettier,
-      'simple-import-sort': simpleImportSort,
     },
 
     languageOptions: {
@@ -22,13 +42,7 @@ export default defineConfig([
     },
 
     rules: {
-      // General rules
-      'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
-      'simple-import-sort/imports': 'error',
-      'simple-import-sort/exports': 'error',
-
-      // Prettier rules
-      'prettier/prettier': 'error',
+      ...baseRules,
 
       // TypeScript rules
       '@typescript-eslint/ban-ts-comment': 'off',
@@ -37,8 +51,8 @@ export default defineConfig([
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {
-          fixStyle: 'separate-type-imports',
           prefer: 'type-imports',
+          fixStyle: 'separate-type-imports',
         },
       ],
     },

@@ -1,13 +1,5 @@
 {
-  "include": [
-    "src",
-    "example",
-    "test",
-    "script",
-    ".prettierrc.mjs",
-    "eslint.config.mjs",
-    "commitlint.config.mjs"
-  ],
+  "include": ["src", "example", "test", "script"],
   "exclude": ["**/bak/*", "dist"],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
