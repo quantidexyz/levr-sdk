@@ -1,6 +1,6 @@
 {
   "include": ["src", "example", "test", "script"],
-  "exclude": ["**/bak/*", "dist"],
+  "exclude": ["**/bak/*", "dist", "node_modules"],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
 
@@ -24,6 +24,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true,
+    "sourceMap": false,
 
     // Language and environment
     "moduleResolution": "Bundler",
