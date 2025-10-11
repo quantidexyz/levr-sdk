@@ -2,9 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { useAccount, usePublicClient } from 'wagmi'
+import { usePublicClient } from 'wagmi'
 
-import { GET_FACTORY_ADDRESS } from '../../constants'
 import { project } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
@@ -24,21 +23,19 @@ export function useProjectQuery({
   oraclePublicClient,
   enabled: e = true,
 }: UseProjectQueryParams) {
-  const { chainId } = useAccount()
   const publicClient = usePublicClient()
-  const factoryAddress = GET_FACTORY_ADDRESS(chainId)
+  const chainId = publicClient?.chain?.id
 
-  const enabled = !!publicClient && !!factoryAddress && !!clankerToken && e
+  const enabled = !!publicClient && !!clankerToken && !!chainId && e
 
   return useQuery({
-    queryKey: queryKeys.project(factoryAddress!, clankerToken!, chainId!),
+    queryKey: queryKeys.project(clankerToken!, chainId!),
     enabled,
     queryFn: async () => {
       return project({
         publicClient: publicClient!,
-        factoryAddress: factoryAddress!,
         clankerToken: clankerToken!,
-        oraclePublicClient: oraclePublicClient as PopPublicClient,
+        oraclePublicClient: oraclePublicClient,
       })
     },
     staleTime: 300_000, // 5 minutes cache for pricing data

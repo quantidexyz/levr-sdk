@@ -1,13 +1,12 @@
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
 import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
-import { GET_LP_LOCKER_ADDRESS } from './constants'
+import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS } from './constants'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
 export type ProjectParams = {
   publicClient: PopPublicClient
-  factoryAddress: `0x${string}`
   clankerToken: `0x${string}`
   oraclePublicClient?: PopPublicClient
 }
@@ -55,16 +54,18 @@ export type Project = {
  */
 export async function project({
   publicClient,
-  factoryAddress,
   clankerToken,
   oraclePublicClient,
 }: ProjectParams): Promise<Project | null> {
-  if (Object.values({ publicClient, factoryAddress, clankerToken }).some((value) => !value)) {
+  if (Object.values({ publicClient, clankerToken }).some((value) => !value)) {
     throw new Error('Invalid project params')
   }
 
   const chainId = publicClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found on public client')
+
+  const factoryAddress = GET_FACTORY_ADDRESS(chainId)
+  if (!factoryAddress) throw new Error('Factory address not found')
 
   const { treasury, governor, staking, stakedToken } = await publicClient.readContract({
     address: factoryAddress,

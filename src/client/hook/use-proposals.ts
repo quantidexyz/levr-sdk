@@ -32,10 +32,9 @@ export function useProposalsQuery({
   return useQuery({
     queryKey: queryKeys.proposals(governorAddress!, tokenDecimals, undefined, 'latest', 50),
     queryFn: async () => {
-      if (!publicClient || !governorAddress) return null
       return proposalsListQuery({
-        publicClient,
-        governorAddress,
+        publicClient: publicClient!,
+        governorAddress: governorAddress!,
         tokenDecimals,
         fromBlock: undefined,
         toBlock: 'latest',

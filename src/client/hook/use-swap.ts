@@ -80,23 +80,21 @@ export function useSwap({
       quoteParams?.amountInDecimals
     ),
     queryFn: async () => {
-      if (!poolKey) throw new Error('Pool key not available')
-
       const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
       // Determine currency0 and currency1 decimals based on pool key and token
       const currency0Decimals =
-        poolKey.currency0.toLowerCase() === project.data?.token.address.toLowerCase()
+        poolKey!.currency0.toLowerCase() === project.data?.token.address.toLowerCase()
           ? project.data.token.decimals
           : 18 // WETH decimals
       const currency1Decimals =
-        poolKey.currency1.toLowerCase() === project.data?.token.address.toLowerCase()
+        poolKey!.currency1.toLowerCase() === project.data?.token.address.toLowerCase()
           ? project.data.token.decimals
           : 18 // WETH decimals
 
       const result = await quoteV4({
         publicClient: publicClient!,
-        poolKey,
+        poolKey: poolKey!,
         zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,
         hookData: quoteParams!.hookData,

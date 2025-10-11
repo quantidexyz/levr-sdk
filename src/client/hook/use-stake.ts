@@ -57,8 +57,7 @@ export function useStakingQueries({
       userAddress
     ),
     queryFn: async () => {
-      if (!stakeService) return { raw: 0n, formatted: '0' }
-      return stakeService.getAllowance()
+      return stakeService!.getAllowance()
     },
     enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
   })
@@ -66,8 +65,7 @@ export function useStakingQueries({
   const poolData = useQuery({
     queryKey: queryKeys.staking.poolData(projectData?.staking, projectData?.token.address),
     queryFn: async () => {
-      if (!stakeService) return null
-      return stakeService.getPoolData()
+      return stakeService!.getPoolData()
     },
     enabled: e && !!publicClient && !!projectData && !!stakeService,
   })
@@ -75,8 +73,7 @@ export function useStakingQueries({
   const userData = useQuery({
     queryKey: queryKeys.staking.userData(projectData?.staking, userAddress),
     queryFn: async () => {
-      if (!stakeService) return null
-      return stakeService.getUserData()
+      return stakeService!.getUserData()
     },
     enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
   })
@@ -88,12 +85,7 @@ export function useStakingQueries({
       userAddress
     ),
     queryFn: async () => {
-      if (!stakeService)
-        return {
-          available: { raw: 0n, formatted: '0' },
-          pending: { raw: 0n, formatted: '0' },
-        }
-      return stakeService.getOutstandingRewards()
+      return stakeService!.getOutstandingRewards()
     },
     enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
   })
@@ -101,8 +93,7 @@ export function useStakingQueries({
   const outstandingRewardsWeth = useQuery({
     queryKey: queryKeys.staking.outstandingRewards(projectData?.staking, wethAddress, userAddress),
     queryFn: async () => {
-      if (!wethAddress || !stakeService) return null
-      return stakeService.getOutstandingRewards(wethAddress)
+      return stakeService!.getOutstandingRewards(wethAddress!)
     },
     enabled:
       e && !!publicClient && !!projectData && !!userAddress && !!stakeService && !!wethAddress,
@@ -115,8 +106,7 @@ export function useStakingQueries({
       userAddress
     ),
     queryFn: async () => {
-      if (!stakeService) return null
-      return stakeService.getClaimableRewards()
+      return stakeService!.getClaimableRewards()
     },
     enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
   })
@@ -124,8 +114,7 @@ export function useStakingQueries({
   const claimableRewardsWeth = useQuery({
     queryKey: queryKeys.staking.claimableRewards(projectData?.staking, wethAddress, userAddress),
     queryFn: async () => {
-      if (!wethAddress || !stakeService) return null
-      return stakeService.getClaimableRewards(wethAddress)
+      return stakeService!.getClaimableRewards(wethAddress!)
     },
     enabled:
       e && !!publicClient && !!projectData && !!userAddress && !!stakeService && !!wethAddress,
@@ -135,8 +124,7 @@ export function useStakingQueries({
   const wethRewardRate = useQuery({
     queryKey: ['staking', 'wethRewardRate', projectData?.staking, wethAddress],
     queryFn: async () => {
-      if (!wethAddress || !stakeService) return null
-      return stakeService.getRewardRatePerSecond(wethAddress)
+      return stakeService!.getRewardRatePerSecond(wethAddress!)
     },
     enabled: e && !!publicClient && !!projectData && !!stakeService && !!wethAddress,
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -152,8 +140,7 @@ export function useStakingQueries({
       wethAddress,
     ],
     queryFn: async () => {
-      if (!wethAddress || !stakeService) return null
-      return stakeService.calculateWethApr()
+      return stakeService!.calculateWethApr()
     },
     enabled:
       e &&

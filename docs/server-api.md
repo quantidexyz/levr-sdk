@@ -31,7 +31,11 @@ const projectData = await project({
 })
 
 console.log('Token:', projectData.token.name)
-console.log('Treasury Balance:', projectData.treasuryStats.balance.formatted, 'WETH')
+console.log(
+  'Treasury Balance:',
+  projectData.treasuryStats.balance.formatted,
+  projectData.token.symbol
+)
 console.log('Token Price:', projectData.pricing?.tokenUsd, 'USD')
 ```
 
@@ -170,6 +174,10 @@ Array<{
 
 Manage staking operations.
 
+::: tip Protocol Fees
+Staking and unstaking operations incur a variable protocol fee (set by Levr team) that is deducted from the amount.
+:::
+
 ```typescript
 import { Stake } from 'levr-sdk'
 
@@ -273,7 +281,7 @@ console.log('Reward Rate:', formatUnits(rewardData.rewardRate, 18), 'WETH/second
 
 ##### `stake(amount)`
 
-Stake tokens.
+Stake tokens. Protocol fee is deducted from the amount.
 
 ```typescript
 const receipt = await stake.stake(parseUnits('100', 18))
@@ -282,7 +290,7 @@ console.log('Staked:', receipt.transactionHash)
 
 ##### `unstake(params)`
 
-Unstake tokens.
+Unstake tokens. Protocol fee is deducted from the amount.
 
 ```typescript
 const receipt = await stake.unstake({
@@ -308,7 +316,7 @@ console.log('Claimed rewards:', receipt.transactionHash)
 
 ##### `accrueRewards(tokenAddress)`
 
-Accrue rewards for a specific token.
+Manually accrue rewards for a specific token. Required before rewards can be claimed.
 
 ```typescript
 const receipt = await stake.accrueRewards('0x...')
@@ -317,12 +325,16 @@ console.log('Accrued rewards:', receipt.transactionHash)
 
 ##### `accrueAllRewards()`
 
-Accrue rewards for all tokens.
+Manually accrue rewards for all tokens. Required before rewards can be claimed.
 
 ```typescript
 const receipt = await stake.accrueAllRewards()
 console.log('Accrued all rewards:', receipt.transactionHash)
 ```
+
+::: tip Manual Accrual System
+Levr uses explicit reward accrual for security and predictability. You must call `accrueRewards()` or `accrueAllRewards()` before claiming to update pending rewards from trading fees.
+:::
 
 ### `Governance` Class
 
@@ -370,7 +382,7 @@ const addresses = await governance.getAddresses({
 })
 
 console.log('Treasury:', addresses.treasury.address)
-console.log('Balance:', addresses.treasury.balance.formatted, 'WETH')
+console.log('Balance:', addresses.treasury.balance.formatted, 'Tokens')
 console.log('USD Value:', addresses.treasury.balance.usd, 'USD')
 ```
 

@@ -12,7 +12,7 @@ TypeScript SDK for interacting with Levr protocol - a decentralized governance, 
 - 📦 **Tree-Shakeable** - Import only what you need
 - 💰 **USD Pricing** - Integrated USD price calculations for tokens, balances, and APR
 - 📊 **Price Impact** - Real-time price impact calculation for swaps
-- ⚙️ **Hook Fees** - Automatic extraction of Clanker hook fees (static and dynamic)
+- ⚙️ **Manual Accrual** - Explicit reward accrual system for security and predictability
 
 ## Installation
 

@@ -136,7 +136,7 @@ All mutations automatically trigger appropriate refetches:
 
 | Action                   | Auto-Refetches                                                    |
 | ------------------------ | ----------------------------------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), WETH Rewards      |
+| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), Rewards           |
 | **Swap**                 | Balances, Project (pool data)                                     |
 | **Propose/Vote/Execute** | Governance, Proposals, Project (treasury), Staking (voting power) |
 | **Wallet/Chain Change**  | All Queries                                                       |

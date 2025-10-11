@@ -10,8 +10,7 @@ export const queryKeys = {
   /**
    * Project query key
    */
-  project: (factory: Address, token: Address, chainId: number) =>
-    ['project', factory, token, chainId] as const,
+  project: (token: Address, chainId: number) => ['project', token, chainId] as const,
 
   /**
    * Balance query keys

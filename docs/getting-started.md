@@ -76,7 +76,7 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
   return (
     <div>
       <h1>{project.token.name}</h1>
-      <p>Treasury: {project.treasuryStats.balance.formatted} WETH</p>
+      <p>Treasury: {project.treasuryStats.balance.formatted} {project.token.symbol}</p>
       <StakeComponent />
       <SwapComponent />
       <GovernanceComponent />
@@ -150,7 +150,7 @@ const projectData = await project({
 })
 
 console.log('Project:', projectData.token.name)
-console.log('Treasury:', projectData.treasuryStats.balance.formatted, 'WETH')
+console.log('Treasury:', projectData.treasuryStats.balance.formatted, projectData.token.symbol)
 
 // Get balances
 const balances = await balance({
@@ -192,13 +192,13 @@ The SDK uses a centralized provider pattern that:
 - ✅ Eliminates duplicate network requests
 - ✅ Provides 100% refetch coverage
 
-### Automatic Refetch
+### Automatic Query Refetch
 
-All mutations automatically trigger appropriate refetches:
+All mutations automatically trigger appropriate query refetches:
 
 | Action                   | Auto-Refetches                                                    |
 | ------------------------ | ----------------------------------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), WETH Rewards      |
+| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), Rewards           |
 | **Swap**                 | Balances, Project (pool data)                                     |
 | **Propose/Vote/Execute** | Governance, Proposals, Project (treasury), Staking (voting power) |
 | **Wallet/Chain Change**  | All Queries                                                       |

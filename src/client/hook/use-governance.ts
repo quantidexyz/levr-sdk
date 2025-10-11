@@ -53,8 +53,7 @@ export function useGovernanceQueries({
   const currentCycleId = useQuery({
     queryKey: queryKeys.governance.currentCycleId(projectData?.governor!),
     queryFn: async (): Promise<bigint> => {
-      if (!governance) throw new Error('Governance not initialized')
-      return await governance.getCurrentCycleId()
+      return await governance!.getCurrentCycleId()
     },
     enabled: e && !!governance && !!projectData,
     retry: 1,
@@ -63,12 +62,10 @@ export function useGovernanceQueries({
   const addresses = useQuery({
     queryKey: queryKeys.governance.addresses(projectData?.governor!),
     queryFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
-
       const [treasury, factory, stakedToken] = await Promise.all([
-        governance.getTreasury(),
-        governance.getFactory(),
-        governance.getStakedToken(),
+        governance!.getTreasury(),
+        governance!.getFactory(),
+        governance!.getStakedToken(),
       ])
 
       return { treasury, factory, stakedToken }
@@ -80,8 +77,7 @@ export function useGovernanceQueries({
   const airdropStatus = useQuery({
     queryKey: queryKeys.governance.airdropStatus(projectData?.governor!, clankerToken!),
     queryFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
-      return await governance.getAirdropStatus()
+      return await governance!.getAirdropStatus()
     },
     enabled: e && !!governance && !!projectData && !!clankerToken,
     retry: 1,
@@ -154,18 +150,20 @@ export function useGovernance({
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
 
-  // Create governance instance for mutations
-  const governance =
-    wallet.data && publicClient && clankerToken
-      ? new Governance({
-          wallet: wallet.data,
-          publicClient,
-          governorAddress,
-          tokenDecimals,
-          clankerToken,
-          pricing: project.data?.pricing,
-        })
-      : null
+  // Create Governance instance
+  const governance = useMemo(() => {
+    if (!wallet.data || !publicClient || !project.data || !clankerToken) {
+      return null
+    }
+    return new Governance({
+      wallet: wallet.data,
+      publicClient,
+      governorAddress: project.data.governor,
+      tokenDecimals: project.data.token.decimals,
+      clankerToken,
+      pricing: project.data.pricing,
+    })
+  }, [wallet.data, publicClient, project.data, clankerToken])
 
   // Global queries from context
   const currentCycleId = governanceQueries.currentCycleId
@@ -176,9 +174,7 @@ export function useGovernance({
   const proposal = useQuery({
     queryKey: queryKeys.governance.proposal(governorAddress, proposalId?.toString()),
     queryFn: async (): Promise<FormattedProposalDetails> => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.getProposal(proposalId)
+      return await governance!.getProposal(proposalId!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -187,9 +183,7 @@ export function useGovernance({
   const proposalsForCycle = useQuery({
     queryKey: queryKeys.governance.proposalsForCycle(governorAddress, cycleId?.toString()),
     queryFn: async (): Promise<readonly bigint[]> => {
-      if (!governance || cycleId === undefined)
-        throw new Error('Governance not initialized or no cycle ID')
-      return await governance.getProposalsForCycle(cycleId)
+      return await governance!.getProposalsForCycle(cycleId!)
     },
     enabled: enabled && !!governance && cycleId !== undefined,
     retry: 1,
@@ -198,9 +192,7 @@ export function useGovernance({
   const winner = useQuery({
     queryKey: queryKeys.governance.winner(governorAddress, cycleId?.toString()),
     queryFn: async (): Promise<bigint> => {
-      if (!governance || cycleId === undefined)
-        throw new Error('Governance not initialized or no cycle ID')
-      return await governance.getWinner(cycleId)
+      return await governance!.getWinner(cycleId!)
     },
     enabled: enabled && !!governance && cycleId !== undefined,
     retry: 1,
@@ -215,9 +207,7 @@ export function useGovernance({
       userAddress || wallet.data?.account.address,
     ],
     queryFn: async () => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.getVoteReceipt(proposalId, userAddress)
+      return await governance!.getVoteReceipt(proposalId!, userAddress!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -232,9 +222,7 @@ export function useGovernance({
       userAddress || wallet.data?.account.address,
     ],
     queryFn: async (): Promise<bigint> => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.getVotingPowerSnapshot(proposalId, userAddress)
+      return await governance!.getVotingPowerSnapshot(proposalId!, userAddress!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -243,9 +231,7 @@ export function useGovernance({
   const meetsQuorum = useQuery({
     queryKey: ['governance', 'meetsQuorum', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.meetsQuorum(proposalId)
+      return await governance!.meetsQuorum(proposalId!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -254,9 +240,7 @@ export function useGovernance({
   const meetsApproval = useQuery({
     queryKey: ['governance', 'meetsApproval', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.meetsApproval(proposalId)
+      return await governance!.meetsApproval(proposalId!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -265,9 +249,7 @@ export function useGovernance({
   const proposalState = useQuery({
     queryKey: ['governance', 'proposalState', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<number> => {
-      if (!governance || !proposalId)
-        throw new Error('Governance not initialized or no proposal ID')
-      return await governance.getProposalState(proposalId)
+      return await governance!.getProposalState(proposalId!)
     },
     enabled: enabled && !!governance && proposalId !== undefined,
     retry: 1,
@@ -276,10 +258,9 @@ export function useGovernance({
   const activeProposalCount = useQuery({
     queryKey: ['governance', 'activeProposalCount', governorAddress],
     queryFn: async () => {
-      if (!governance) throw new Error('Governance not initialized')
       const [boostCount, transferCount] = await Promise.all([
-        governance.getActiveProposalCount(0),
-        governance.getActiveProposalCount(1),
+        governance!.getActiveProposalCount(0),
+        governance!.getActiveProposalCount(1),
       ])
       return { boost: boostCount, transfer: transferCount }
     },
