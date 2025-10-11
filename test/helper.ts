@@ -10,7 +10,11 @@ export type SetupTestReturnType = ReturnType<typeof setupTest>
 /**
  * Setup test environment
  */
-export const setupTest = (): {
+export const setupTest = (
+  { oracleChainId } = {
+    oracleChainId: undefined as number | undefined,
+  }
+): {
   publicClient: PopPublicClient
   wallet: PopWalletClient
   chainId: number
@@ -18,6 +22,7 @@ export const setupTest = (): {
   lpLockerAddress: `0x${string}`
   clanker: Clanker
   weth: NonNullable<ReturnType<typeof WETH>> & { abi: typeof WETH9 }
+  oraclePublicClient: PopPublicClient
 } => {
   const publicClient = getPublicClient()
   const wallet = getWallet()
@@ -50,6 +55,7 @@ export const setupTest = (): {
     lpLockerAddress,
     clanker,
     weth,
+    oraclePublicClient: !!oracleChainId ? getPublicClient(undefined, oracleChainId) : publicClient,
   }
 }
 

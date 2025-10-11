@@ -126,6 +126,21 @@ export const UNISWAP_V4_POOL_MANAGER = (chainId?: number): `0x${string}` | undef
 }
 
 /**
+ * Get the Uniswap V4 StateView address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The StateView address
+ */
+export const UNISWAP_V4_STATE_VIEW = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0xa3c0c9b65bad0b08107aa264b0f3db444b867a71',
+    [base.id]: '0xa3c0c9b65bad0b08107aa264b0f3db444b867a71',
+    [baseSepolia.id]: '0x571291b572ed32ce6751a2cb2486ebee8defb9b4',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
  * Get the Clanker Factory address for a given chain ID
  * @param chainId - The chain ID
  * @returns The Clanker Factory address (same on Base mainnet and Base Sepolia)

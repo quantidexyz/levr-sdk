@@ -10,6 +10,7 @@ export { default as LevrTreasury_v1 } from './LevrTreasury_v1'
 // -----------------------------
 // Uniswap V4
 export { default as Permit2 } from './Permit2'
+export { default as StateView } from './StateView'
 export { default as V4Quoter } from './V4Quoter'
 
 // -----------------------------

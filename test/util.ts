@@ -1,37 +1,62 @@
-import type { HttpTransport } from 'viem'
+import type { Chain, HttpTransport } from 'viem'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as internalChains from 'viem/chains'
+
+import type { PopPublicClient, PopWalletClient } from '../src'
 
 export const levrAnvil = {
   ...internalChains.anvil,
   contracts: internalChains.base.contracts,
 }
 
+const getChain = (chainId = levrAnvil.id as number): Chain => {
+  const chain =
+    chainId === levrAnvil.id
+      ? levrAnvil
+      : (Object.values(internalChains).find((c) => c.id === chainId) as Chain)
+  if (!chain) throw new Error(`Chain ${chainId} not found`)
+  return chain
+}
+
 /**
  * Creates an HTTP transport for local anvil chain
  */
-export const getLocalAnvilTransport = (timeout?: number): HttpTransport => {
-  return http(`http://localhost:8545`, {
+export const getTransport = (timeout?: number, chainId?: number): HttpTransport => {
+  if (chainId === levrAnvil.id)
+    return http(`http://localhost:8545`, {
+      timeout: timeout ?? 60000, // Increased from 10s to 60s for complex deployments
+    })
+
+  const chain = getChain(chainId)
+
+  return http(chain.rpcUrls.default.http[0], {
     timeout: timeout ?? 60000, // Increased from 10s to 60s for complex deployments
   })
 }
 
-export const getPublicClient = (timeout?: number) => {
+export const getPublicClient = (
+  timeout?: number,
+  chainId = levrAnvil.id as number
+): PopPublicClient => {
+  const chain: Chain = getChain(chainId)
+
   return createPublicClient({
-    chain: levrAnvil,
-    transport: getLocalAnvilTransport(timeout),
+    chain,
+    transport: getTransport(timeout, chainId),
   })
 }
 
-export const getWallet = (timeout?: number) => {
+export const getWallet = (timeout?: number, chainId?: number): PopWalletClient => {
   const privateKey = process.env.TEST_PRIVATE_KEY as `0x${string}` | undefined
   if (!privateKey) throw new Error('TEST_PRIVATE_KEY is not set')
 
+  const chain: Chain = getChain(chainId)
+
   return createWalletClient({
     account: privateKeyToAccount(privateKey),
-    chain: levrAnvil,
-    transport: getLocalAnvilTransport(timeout),
+    chain,
+    transport: getTransport(timeout, chainId),
   })
 }
 
