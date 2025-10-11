@@ -20,6 +20,9 @@ TypeScript SDK for interacting with Levr protocol - a decentralized governance, 
 - 🪝 **React Hooks** - Easy integration with React applications
 - 🔌 **Server & Client** - Works in both server and client environments
 - 📦 **Tree-Shakeable** - Import only what you need
+- 💰 **USD Pricing** - Integrated USD price calculations for tokens, balances, and APR
+- 📊 **Price Impact** - Real-time price impact calculation for swaps
+- ⚙️ **Hook Fees** - Automatic extraction of Clanker hook fees (static and dynamic)
 
 ## Installation
 
@@ -258,6 +261,7 @@ const {
   quote,
   balances,
   poolKey,
+  pricing, // USD pricing data
 
   // Convenience
   tokenBalance,
@@ -272,6 +276,10 @@ const {
   },
   onSwapSuccess: (receipt) => console.log('Swapped!', receipt),
 })
+
+// Access quote with price impact
+console.log(quote.data?.priceImpactBps) // 0.5 (0.5% impact)
+console.log(quote.data?.hookFees) // { type: 'static', clankerFee: 500, ... }
 
 // Build swap config (poolKey from context)
 const config = buildSwapConfig({
@@ -375,7 +383,7 @@ All mutations automatically trigger appropriate refetches - no manual coordinati
 
 #### `project()`
 
-Get project data including token, contracts, and pool information:
+Get project data including token, contracts, pool information, and optional USD pricing:
 
 ```typescript
 import { project } from 'levr-sdk'
@@ -383,10 +391,18 @@ import { project } from 'levr-sdk'
 const projectData = await project({
   publicClient,
   factoryAddress: '0x...',
-  chainId: 8453, // Base
   clankerToken: '0x...',
+  // Optional: Provide oracle client for USD pricing
+  oraclePublicClient: mainnetClient, // For WETH/USD and token/USD prices
 })
+
+// Access USD-denominated values
+console.log(projectData.pricing) // { wethUsd: "2543.21", tokenUsd: "0.05" }
+console.log(projectData.treasuryStats.balance.usd) // "50000.00"
+console.log(projectData.treasuryStats.totalAllocated.usd) // "150000.00"
 ```
+
+**Note**: `chainId` parameter is no longer required - it's automatically derived from `publicClient.chain.id`.
 
 #### `balance()`
 
@@ -412,7 +428,7 @@ console.log(balances.eth?.formatted) // "0.1"
 
 #### `Stake` Class
 
-Manage staking operations:
+Manage staking operations with optional USD pricing:
 
 ```typescript
 import { Stake } from 'levr-sdk'
@@ -431,6 +447,13 @@ const poolData = await stake.getPoolData()
 const userData = await stake.getUserData()
 const allowance = await stake.getAllowance()
 
+// Get APR with USD pricing
+const aprData = await stake.getWethRewardRate({
+  totalStaked: poolData.totalStaked,
+  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' }, // Optional USD prices
+})
+console.log(aprData.aprBps) // 1500 (15% APR)
+
 // Perform operations
 await stake.approve(amount)
 await stake.stake(amount)
@@ -441,7 +464,7 @@ await stake.accrueRewards(tokenAddress)
 
 #### `Governance` Class
 
-Manage governance operations:
+Manage governance operations with optional USD pricing:
 
 ```typescript
 import { Governance } from 'levr-sdk'
@@ -457,6 +480,14 @@ const governance = new Governance({
 // Get governance data
 const cycleId = await governance.getCurrentCycleId()
 const treasury = await governance.getTreasury()
+
+// Get addresses with USD values
+const addresses = await governance.getAddresses({
+  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' },
+})
+console.log(addresses.treasury.balance.usd) // "50000.00"
+
+// Get airdrop status
 const airdropStatus = await governance.getAirdropStatus()
 
 // Propose actions
@@ -473,17 +504,41 @@ await governance.vote(proposalId, true) // true = support
 await governance.executeProposal(proposalId)
 ```
 
-#### `swapV4()` and `quoteV4()`
+#### `quoteV3()`
 
-Uniswap v4 swap operations:
+Quote swaps on Uniswap V3:
 
 ```typescript
-import { swapV4, quoteV4 } from 'levr-sdk'
+import { quoteV3, UNISWAP_V3_QUOTER_V2, WETH, GET_USDC_ADDRESS } from 'levr-sdk'
 
-// Get swap quote
+const chainId = 8453 // Base
+const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
+const wethData = WETH(chainId)
+const usdcAddress = GET_USDC_ADDRESS(chainId)
+
+// Get V3 quote
+const quote = await quoteV3({
+  publicClient,
+  quoterAddress,
+  tokenIn: wethData.address,
+  tokenOut: usdcAddress,
+  amountIn: parseUnits('1', 18),
+  fee: 3000, // 0.3%
+})
+
+console.log(formatUnits(quote.amountOut, 6)) // "2543.21"
+```
+
+#### `quoteV4()`
+
+Get swap quotes on Uniswap V4 with price impact and hook fees:
+
+```typescript
+import { quoteV4 } from 'levr-sdk'
+
+// Get V4 quote with price impact
 const quote = await quoteV4({
   publicClient,
-  chainId: 8453,
   poolKey: {
     currency0: '0x...',
     currency1: '0x...',
@@ -493,20 +548,59 @@ const quote = await quoteV4({
   },
   zeroForOne: true,
   amountIn: parseUnits('100', 18),
+  // Optional: Provide pricing data for price impact calculation
+  pricing: {
+    wethUsd: '2543.21',
+    tokenUsd: '0.05',
+  },
+  tokenAddress: '0x...', // Project token address
+  currency0Decimals: 18,
+  currency1Decimals: 18,
 })
 
 console.log(formatUnits(quote.amountOut, 18)) // "95.5"
+console.log(quote.priceImpactBps) // 0.5 (0.5% price impact)
+console.log(quote.hookFees) // { type: 'static', clankerFee: 500, pairedFee: 100 }
+console.log(quote.gasEstimate) // 150000n
+```
+
+**Note**: `chainId` parameter is no longer required - it's automatically derived from `publicClient.chain.id`.
+
+#### `swapV4()`
+
+Execute swaps on Uniswap V4:
+
+```typescript
+import { swapV4 } from 'levr-sdk'
 
 // Execute swap
 const receipt = await swapV4({
   publicClient,
   wallet: walletClient,
-  chainId: 8453,
   poolKey,
   zeroForOne: true,
   amountIn: parseUnits('100', 18),
   amountOutMinimum: parseUnits('95', 18),
 })
+```
+
+#### `getUsdPrice()`
+
+Get USD price for any token paired with WETH:
+
+```typescript
+import { getUsdPrice } from 'levr-sdk'
+
+// Get token price in USD
+// Uses mainnet for accurate WETH/USDC oracle, testnet for token quote
+const { priceUsd, tokenPerWeth, wethPerUsdc } = await getUsdPrice({
+  oraclePublicClient: mainnetClient, // For WETH/USDC price (auto-discovers best V3 pool)
+  quotePublicClient: testnetClient, // For token/WETH price (your chain)
+  tokenAddress: '0x...', // Token to price
+  quoteFee: 3000, // Optional: Pool fee tier (default: 3000 = 0.3%)
+})
+
+console.log(`Token price: $${priceUsd}`) // "0.05"
 ```
 
 ## Architecture: Centralized Provider Pattern
@@ -674,8 +768,10 @@ levr-sdk/
 │   ├── balance.ts            # Balance queries
 │   ├── stake.ts              # Stake class
 │   ├── governance.ts         # Governance class
-│   ├── swap-v4.ts            # Swap functions
-│   ├── quote-v4.ts           # Quote functions
+│   ├── swap-v4.ts            # V4 swap functions
+│   ├── quote-v3.ts           # V3 quote functions
+│   ├── quote-v4.ts           # V4 quote functions with price impact
+│   ├── usd-price.ts          # USD pricing utilities
 │   └── client/
 │       ├── index.ts          # Client-only exports
 │       ├── levr-provider.tsx # Centralized provider
