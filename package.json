@@ -1,7 +1,7 @@
 {
   "name": "levr-sdk",
   "description": "Leverage your Clanker launch with DAO capabilities",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "license": "Apache-2.0",
   "sideEffects": false,
   "exports": {
@@ -30,7 +30,7 @@
     "build": "bun build:esm && bun build:types && bun build:cleanup",
     "build:esm": "tsc --project ./tsconfig.esm.json && tsc-alias --outDir ./dist/esm && ts-add-js-extension --dir=dist/esm --showprogress=false",
     "build:types": "tsc --project ./tsconfig.types.json && tsc-alias --outDir ./dist/types",
-    "build:cleanup": "rm -f dist/types/abis/*.d.ts.map dist/esm/abis/*.js.map && find dist/esm/abis -name '*.js' -type f -exec sed -i '' '/^\\/\\/# sourceMappingURL=/d' {} + && find dist/types/abis -name '*.d.ts' -type f -exec sed -i '' '/^\\/\\/# sourceMappingURL=/d' {} +",
+    "build:cleanup": "rm -f dist/types/abis/*.d.ts.map dist/esm/abis/*.js.map && find dist/esm/abis -name '*.js' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + && find dist/types/abis -name '*.d.ts' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + && find dist -name '*.bak' -type f -delete",
     "clean": "rm -rf dist tsconfig.tsbuildinfo node_modules bun.lockb",
     "postinstall": "husky || true",
     "prepack": "pinst --disable",
