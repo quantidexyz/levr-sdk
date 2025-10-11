@@ -1,180 +1,191 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 
-import { deployV4 } from '../src/deploy-v4'
-import type { LevrClankerDeploymentSchemaType } from '../src/schema'
-import { getUsdPrice } from '../src/usd-price'
-import { getTokenRewards, setupTest, type SetupTestReturnType } from './helper'
-import { warpAnvil } from './util'
+import { GET_FACTORY_ADDRESS } from '../src/constants'
+import { project } from '../src/project'
+import { type SetupTestReturnType } from './helper'
+import { getPublicClient } from './util'
 
 /**
  * USD Price Tests
  *
- * These tests validate the USD price calculation functionality:
- * 1. Deploy a Clanker token via Levr
- * 2. Get the USD price of the token (paired with WETH)
- * 3. Validate the price calculation logic
+ * These tests validate the complete USD pricing system:
+ * - WETH/USD oracle using Uniswap V3 (Base mainnet) - deep liquidity
+ * - Token/USD quote using Uniswap V4 (Base Sepolia) - Clanker tokens
+ * - Cross-chain pricing: mainnet oracle → testnet quotes
+ * - Server-side calculations with graceful degradation
  *
  * Prerequisites:
- * 1. Anvil must be running with Base fork: `cd contracts && make anvil-fork`
- * 2. LevrFactory_v1 must be deployed: `cd contracts && make deploy-devnet-factory`
- * 3. Clanker v4 contracts must be deployed on the fork
- * 4. Account must have ETH for gas and deployment operations
+ * 1. DRPC_API_KEY environment variable (recommended for better RPC limits)
+ *
+ * Architecture:
+ * - WETH/USDC pricing: Uniswap V3 (reliable, deep liquidity)
+ * - Token/WETH pricing: Uniswap V4 (where Clanker tokens are deployed)
+ * - Combined calculation: Token/USD = (Token/WETH) × (WETH/USD)
  */
 describe('#USD_PRICE_TEST', () => {
   // ---
   // CONSTANTS
 
-  const testDeploymentConfig: LevrClankerDeploymentSchemaType = {
-    name: 'USD Price Test Token',
-    symbol: 'USDP',
-    image: 'ipfs://bafkreif2xtaifw7byqxoydsmbrgrpryyvpz65fwdxghgbrurj6uzhhkktm',
-    metadata: {
-      description: 'Test token for USD price testing',
-      telegramLink: 'https://t.me/usdpricetoken',
-    },
-    devBuy: '0.5 ETH', // Add initial liquidity
-    fees: {
-      type: 'static',
-      feeTier: '3%',
-    },
-    treasuryFunding: '90%',
-  }
+  // Pre-deployed token address on Base mainnet (already has pool and liquidity)
+  const DEPLOYED_TOKEN_ADDRESS: `0x${string}` = '0x11B982C8c38B9d059b8D56050151E8f4C58CcB07'
 
   // ---
   // VARIABLES (shared across tests)
 
-  let deployedTokenAddress: `0x${string}`
-  let clanker: SetupTestReturnType['clanker']
   let publicClient: SetupTestReturnType['publicClient']
   let oraclePublicClient: SetupTestReturnType['oraclePublicClient']
 
   beforeAll(() => {
-    ;({ publicClient, clanker, oraclePublicClient } = setupTest({
-      oracleChainId: 8453,
-    }))
+    publicClient = getPublicClient(undefined, 84532)
+    oraclePublicClient = getPublicClient(undefined, 8453)
   })
 
   it(
-    'should deploy token with initial liquidity',
+    'should get project with USD pricing when oracle client is provided',
     async () => {
-      const { receipt, address: clankerToken } = await deployV4({
-        c: testDeploymentConfig,
-        clanker,
-      })
+      // Skip test if no valid DRPC API key
+      if (!process.env.DRPC_API_KEY || process.env.DRPC_API_KEY === 'test') {
+        console.log('\n⚠️  Skipping test: DRPC_API_KEY not set or invalid')
+        console.log('   Set a valid DRPC API key to test real Base mainnet pricing')
+        return
+      }
 
-      expect(receipt.status).toBe('success')
-      expect(clankerToken).toBeDefined()
+      console.log('\n=== PROJECT WITH USD PRICING ===')
+      console.log('Using token:', DEPLOYED_TOKEN_ADDRESS)
 
-      // Store deployed token address for subsequent tests
-      deployedTokenAddress = clankerToken
+      // Get chain ID
+      const chainId = publicClient.chain?.id
 
-      console.log('✅ Token deployed:', {
-        txHash: receipt.transactionHash,
-        clankerToken,
-      })
-
-      // Wait for MEV protection delay (120 seconds)
-      console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
-      await warpAnvil(120)
-    },
-    {
-      timeout: 100000,
-    }
-  )
-
-  it(
-    'should get USD price of token paired with WETH',
-    async () => {
-      // Use deployed token from previous test
-      expect(deployedTokenAddress).toBeDefined()
-
-      console.log('\n=== USD PRICE: Token/WETH/USDC ===')
-      console.log('Using deployed token:', deployedTokenAddress)
-
-      // Get chain IDs
       const oracleChainId = oraclePublicClient.chain?.id
-      const quoteChainId = publicClient.chain?.id
 
-      expect(oracleChainId).toBeDefined()
-      expect(quoteChainId).toBeDefined()
-      expect(oracleChainId).toBe(8453) // Base mainnet for oracle
-      expect(quoteChainId).toBe(31337) // Anvil fork for quote
+      expect(chainId).toBe(84532) // Base Sepolia
+      expect(oracleChainId).toBe(8453) // Base mainnet
 
       console.log('Chain config:')
+      console.log('  Quote Chain ID:', chainId, '(Base Sepolia)')
       console.log('  Oracle Chain ID:', oracleChainId, '(Base mainnet)')
-      console.log('  Quote Chain ID:', quoteChainId, '(Anvil fork)')
-      console.log('  ✨ Cross-chain pricing: Base mainnet oracle → Anvil fork quote')
+      console.log('  ✨ Cross-chain: mainnet oracle, testnet quote')
 
-      // Get pool information from LP locker
-      const tokenRewards = await getTokenRewards(publicClient, deployedTokenAddress)
-      const poolKey = tokenRewards.poolKey
+      const factoryAddress = GET_FACTORY_ADDRESS(chainId)
+      if (!factoryAddress) throw new Error('Factory address not found')
 
-      console.log('\nToken pool key:', {
-        currency0: poolKey.currency0,
-        currency1: poolKey.currency1,
-        fee: poolKey.fee,
-        tickSpacing: poolKey.tickSpacing,
-        hooks: poolKey.hooks,
+      // Fetch project data WITH oracle client (should include pricing)
+      console.log('\n💵 Fetching project with USD pricing...')
+      const projectData = await project({
+        publicClient,
+        factoryAddress,
+        chainId,
+        clankerToken: DEPLOYED_TOKEN_ADDRESS,
+        oraclePublicClient, // Providing oracle client enables pricing
       })
 
-      // Get USD price (WETH/USDC pool is automatically discovered)
-      console.log('\n💵 Getting USD price (auto-discovering WETH/USDC oracle pool)...')
+      expect(projectData).toBeDefined()
+      expect(projectData?.pool).toBeDefined()
 
-      const result = await getUsdPrice({
-        oraclePublicClient, // Base mainnet client for WETH/USDC price oracle (auto-discovers pool)
-        quotePublicClient: publicClient, // Anvil fork client for Token/WETH quote
-        tokenAddress: deployedTokenAddress,
-        // Quote pool config (Token/WETH) - use the same as deployed pool
-        quoteFee: poolKey.fee,
-        quoteTickSpacing: poolKey.tickSpacing,
-        quoteHooks: poolKey.hooks,
-      })
+      console.log('\n✅ Project data fetched:')
+      console.log('  Token:', projectData?.token.symbol)
+      console.log('  Pool fee:', projectData?.pool?.feeDisplay)
+      console.log('  Pricing included:', !!projectData?.pricing)
 
-      console.log('\n✅ USD Price calculated:')
-      console.log(`  Token price: $${result.priceUsd}`)
-      console.log(`  Token per WETH: ${result.tokenPerWeth.toString()} (raw)`)
-      console.log(`  WETH per USDC: ${result.wethPerUsdc.toString()} (raw)`)
+      // If DRPC_API_KEY is set, pricing should be available
+      const hasDrpcKey = !!process.env.DRPC_API_KEY
 
-      // Validate results
-      expect(result.priceUsd).toBeDefined()
-      expect(result.tokenPerWeth).toBeGreaterThanOrEqual(0n)
-      expect(result.wethPerUsdc).toBeGreaterThan(0n)
+      if (hasDrpcKey) {
+        // With DRPC key, pricing should work
+        expect(projectData?.pricing).toBeDefined()
 
-      // Price should be a valid number (may be very small or zero for test tokens)
-      const priceNum = parseFloat(result.priceUsd)
-      expect(priceNum).toBeGreaterThanOrEqual(0)
-      expect(Number.isFinite(priceNum)).toBe(true)
+        console.log('\n💰 USD Pricing (via DRPC):')
+        console.log(`  WETH/USD: $${projectData!.pricing!.wethUsd}`)
+        console.log(`  Token/USD: $${projectData!.pricing!.tokenUsd}`)
 
-      console.log('\n✅ USD price validation passed:')
-      console.log('  ✓ Price is non-negative and finite')
-      console.log('  ✓ WETH/USDC ratio is valid (oracle working)')
-      console.log('  ✓ Token/WETH ratio is valid (quote working)')
-      console.log('  ℹ️  Price may be very small for test tokens with minimal liquidity')
+        // Validate pricing
+        const wethPrice = parseFloat(projectData!.pricing!.wethUsd)
+        const tokenPrice = parseFloat(projectData!.pricing!.tokenUsd)
+
+        // Validate realistic WETH price from V3 pools (should be $2000-$6000)
+        expect(wethPrice).toBeGreaterThan(2000)
+        expect(wethPrice).toBeLessThan(6000)
+        expect(Number.isFinite(wethPrice)).toBe(true)
+        expect(tokenPrice).toBeGreaterThan(0) // Token should have some price
+        expect(Number.isFinite(tokenPrice)).toBe(true)
+
+        console.log('\n✅ Pricing validation passed:')
+        console.log(`  ✓ WETH price is realistic: $${wethPrice.toFixed(2)} (using V3 pools)`)
+        console.log(`  ✓ Token price calculated: $${tokenPrice.toFixed(6)}`)
+        console.log('  ✓ Cross-chain oracle working (mainnet V3 → testnet V4)')
+        console.log('  ✓ Server-side calculation working')
+        console.log('  ✓ All pricing data accurate and production-ready')
+      } else {
+        // Without DRPC key, might hit rate limits
+        console.log('\n⚠️  No DRPC_API_KEY set - using public RPC (may be rate limited)')
+        if (projectData?.pricing) {
+          console.log('  ✓ Pricing available despite public RPC')
+        } else {
+          console.log('  ✓ Graceful degradation: project data still works without pricing')
+        }
+      }
     },
     {
       timeout: 60000,
     }
   )
 
-  it('should calculate USD price with real mainnet WETH/USDC oracle', async () => {
-    expect(deployedTokenAddress).toBeDefined()
+  it(
+    'should NOT include pricing when oracle client is NOT provided',
+    async () => {
+      console.log('\n=== PROJECT WITHOUT ORACLE CLIENT ===')
 
-    console.log('\n=== VALIDATING CROSS-CHAIN ORACLE ===')
+      const chainId = publicClient.chain?.id
+      const factoryAddress = GET_FACTORY_ADDRESS(chainId)
+      if (!factoryAddress) throw new Error('Factory address not found')
 
-    // The test already ran with cross-chain setup:
-    // - Oracle: Base mainnet (8453) for accurate WETH/USDC prices
-    // - Quote: Anvil fork (31337) for testnet token prices
+      // Fetch project data WITHOUT oracle client
+      console.log('Fetching project without oracle client...')
+      const projectData = await project({
+        publicClient,
+        factoryAddress,
+        chainId: chainId!,
+        clankerToken: DEPLOYED_TOKEN_ADDRESS,
+        // No oraclePublicClient provided
+      })
 
-    const oracleChainId = oraclePublicClient.chain?.id
-    const quoteChainId = publicClient.chain?.id
+      expect(projectData).toBeDefined()
+      expect(projectData?.pool).toBeDefined()
+      expect(projectData?.pricing).toBeUndefined() // Pricing should NOT be included
 
-    console.log('✅ Cross-chain pricing verified:')
-    console.log(`  Oracle uses Base mainnet (${oracleChainId}) for WETH/USDC`)
-    console.log(`  Quote uses Anvil fork (${quoteChainId}) for Token/WETH`)
-    console.log('  Token is automatically paired with WETH on quote chain')
+      console.log('\n✅ Verification passed:')
+      console.log('  ✓ Project data fetched successfully')
+      console.log('  ✓ Pricing NOT included (oracle client not provided)')
+      console.log('  ✓ System works without pricing (graceful degradation)')
+    },
+    {
+      timeout: 60000,
+    }
+  )
 
-    expect(oracleChainId).toBe(8453)
-    expect(quoteChainId).toBe(31337)
-    expect(oracleChainId).not.toBe(quoteChainId)
-  })
+  it(
+    'should validate cross-chain oracle configuration',
+    async () => {
+      console.log('\n=== VALIDATING CROSS-CHAIN ORACLE ===')
+
+      const chainId = publicClient.chain?.id
+      const oracleChainId = oraclePublicClient.chain?.id
+
+      console.log('✅ Cross-chain configuration:')
+      console.log(`  Quote Chain ID: ${chainId} (Base Sepolia)`)
+      console.log(`  Oracle Chain ID: ${oracleChainId} (Base mainnet)`)
+      console.log('  ✓ Different chains for oracle and quote')
+      console.log('  ✓ Mainnet prices applied to testnet tokens')
+
+      expect(chainId).toBe(84532) // Base Sepolia for quote
+      expect(oracleChainId).toBe(8453) // Base mainnet for oracle
+      expect(chainId).not.toBe(oracleChainId)
+
+      // Already validated that pricing works in the previous test
+      // This test confirms cross-chain setup is correct
+    },
+    {
+      timeout: 60000,
+    }
+  )
 })

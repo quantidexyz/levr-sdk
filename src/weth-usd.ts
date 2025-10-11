@@ -1,9 +1,8 @@
 import type { PublicClient } from 'viem'
 import { formatUnits, parseUnits } from 'viem'
 
-import { GET_USDC_ADDRESS, WETH } from './constants'
-import { discoverPool } from './pool-key'
-import { quoteV4 } from './quote-v4'
+import { V3QuoterV2 } from './abis'
+import { GET_USDC_ADDRESS, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
 
 /**
  * @description Parameters for getting WETH/USD price
@@ -29,39 +28,35 @@ export type GetWethUsdPriceReturnType = {
    */
   wethPerUsdc: bigint
   /**
-   * The pool key used for the quote
+   * Fee tier of the V3 pool used (500 = 0.05%, 3000 = 0.3%, 10000 = 1%)
    */
-  poolKey: {
-    currency0: `0x${string}`
-    currency1: `0x${string}`
-    fee: number
-    tickSpacing: number
-    hooks: `0x${string}`
-  }
+  fee: number
 }
 
 /**
- * @description Get the USD price of WETH from a WETH/USDC pool
+ * @description Get the USD price of WETH from a WETH/USDC pool using Uniswap V3
  *
  * @param params Parameters for WETH/USD price oracle
  * @returns WETH price in USD and raw quote data
  *
  * @remarks
- * This function automatically discovers and queries a WETH/USDC Uniswap V4 pool
- * to determine the current price of WETH in USD. It:
- * 1. Discovers the best liquid WETH/USDC pool (tries 0.05%, 0.3%, 1% fee tiers)
- * 2. Quotes 1 WETH to get the USDC output
- * 3. Returns the formatted USD price
+ * This function queries Uniswap V3 WETH/USDC pools for accurate pricing.
+ * V3 is used instead of V4 because V3 has much deeper liquidity on most chains.
+ *
+ * The function:
+ * 1. Tries common V3 fee tiers (0.3%, 0.05%, 1%) in order of preference
+ * 2. Quotes 1 WETH to get USDC output
+ * 3. Returns the first successful quote
  *
  * This is commonly used as a price oracle for other token pricing calculations.
  *
  * @example
  * ```typescript
  * // Get current WETH price on Base mainnet
- * const { priceUsd } = await getWethUsdPrice({
+ * const { priceUsd, fee } = await getWethUsdPrice({
  *   publicClient: baseMainnetClient,
  * })
- * console.log(`WETH price: $${priceUsd}`)
+ * console.log(`WETH price: $${priceUsd} (from ${fee/10000}% pool)`)
  * ```
  */
 export const getWethUsdPrice = async ({
@@ -71,6 +66,12 @@ export const getWethUsdPrice = async ({
   const chainId = publicClient.chain?.id
   if (!chainId) {
     throw new Error('Chain ID not found on public client')
+  }
+
+  // Get V3 Quoter address
+  const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
+  if (!quoterAddress) {
+    throw new Error(`V3 Quoter address not found for chain ID ${chainId}`)
   }
 
   // Get WETH and USDC addresses
@@ -85,37 +86,46 @@ export const getWethUsdPrice = async ({
     throw new Error(`USDC address not found for chain ID ${chainId}`)
   }
 
-  // Discover WETH/USDC pool (tries common fee tiers)
-  const pool = await discoverPool({
-    publicClient,
-    token0: wethData.address,
-    token1: usdcAddress,
-  })
+  // V3 fee tiers (in order of preference for WETH/USDC)
+  const V3_FEE_TIERS = [3000, 500, 10000] // 0.3%, 0.05%, 1%
 
-  if (!pool) {
-    throw new Error('No liquid WETH/USDC pool found')
+  // Try each V3 fee tier
+  for (const fee of V3_FEE_TIERS) {
+    try {
+      const oneWeth = parseUnits('1', wethData.decimals)
+
+      // Quote using V3 Quoter V2
+      const result = await publicClient.simulateContract({
+        address: quoterAddress,
+        abi: V3QuoterV2,
+        functionName: 'quoteExactInputSingle',
+        args: [
+          {
+            tokenIn: wethData.address,
+            tokenOut: usdcAddress,
+            amountIn: oneWeth,
+            fee,
+            sqrtPriceLimitX96: 0n, // No price limit
+          },
+        ],
+      })
+
+      const [amountOut] = result.result
+
+      if (amountOut > 0n) {
+        const priceUsd = formatUnits(amountOut, 6)
+
+        return {
+          priceUsd,
+          wethPerUsdc: amountOut,
+          fee,
+        }
+      }
+    } catch (error) {
+      // This fee tier doesn't work, try next
+      continue
+    }
   }
 
-  const { poolKey } = pool
-
-  // Determine trade direction based on sorted currencies
-  const wethIsToken0 = wethData.address.toLowerCase() < usdcAddress.toLowerCase()
-
-  // Quote 1 WETH -> USDC to get WETH price in USD
-  const oneWeth = parseUnits('1', wethData.decimals)
-  const quote = await quoteV4({
-    publicClient,
-    poolKey,
-    zeroForOne: wethIsToken0,
-    amountIn: oneWeth,
-  })
-
-  // USDC has 6 decimals
-  const priceUsd = formatUnits(quote.amountOut, 6)
-
-  return {
-    priceUsd,
-    wethPerUsdc: quote.amountOut,
-    poolKey,
-  }
+  throw new Error('No liquid WETH/USDC V3 pool found')
 }

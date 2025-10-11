@@ -31,7 +31,7 @@ export type BalanceResult = {
 }
 
 /**
- * @description Pricing result with USD values for WETH and token
+ * @description USD pricing result
  */
 export type PricingResult = {
   wethUsd: string

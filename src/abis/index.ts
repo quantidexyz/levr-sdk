@@ -8,6 +8,10 @@ export { default as LevrStaking_v1 } from './LevrStaking_v1'
 export { default as LevrTreasury_v1 } from './LevrTreasury_v1'
 
 // -----------------------------
+// Uniswap V3
+export { default as V3QuoterV2 } from './V3QuoterV2'
+
+// -----------------------------
 // Uniswap V4
 export { default as Permit2 } from './Permit2'
 export { default as StateView } from './StateView'

@@ -141,6 +141,21 @@ export const UNISWAP_V4_STATE_VIEW = (chainId?: number): `0x${string}` | undefin
 }
 
 /**
+ * Get the Uniswap V3 Quoter V2 address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The V3 Quoter V2 address
+ */
+export const UNISWAP_V3_QUOTER_V2 = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a', // V3 Quoter V2
+    [base.id]: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a',
+    [baseSepolia.id]: '0xC5290058841028F1614F3A6F0F5816cAd0df5E27',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
  * Get the Clanker Factory address for a given chain ID
  * @param chainId - The chain ID
  * @returns The Clanker Factory address (same on Base mainnet and Base Sepolia)

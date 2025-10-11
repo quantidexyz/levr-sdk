@@ -30,7 +30,19 @@ export const getTransport = (timeout?: number, chainId?: number): HttpTransport 
 
   const chain = getChain(chainId)
 
-  return http(chain.rpcUrls.default.http[0], {
+  const chainMap: Record<number, string | undefined> = {
+    11155420: 'optimism-sepolia',
+    8453: 'base',
+    84532: 'base-sepolia',
+  }
+
+  const networkName = chainMap[chain.id]
+  const rpcUrl =
+    process.env.DRPC_API_KEY && networkName
+      ? `https://lb.drpc.org/ogrpc?network=${networkName}&dkey=${process.env.DRPC_API_KEY}`
+      : chain.rpcUrls.default.http[0]
+
+  return http(rpcUrl, {
     timeout: timeout ?? 60000, // Increased from 10s to 60s for complex deployments
   })
 }

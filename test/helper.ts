@@ -55,7 +55,7 @@ export const setupTest = (
     lpLockerAddress,
     clanker,
     weth,
-    oraclePublicClient: !!oracleChainId ? getPublicClient(undefined, oracleChainId) : publicClient,
+    oraclePublicClient: oracleChainId ? getPublicClient(undefined, oracleChainId) : publicClient,
   }
 }
 

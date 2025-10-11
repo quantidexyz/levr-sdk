@@ -78,11 +78,12 @@ export const getPoolId = (poolKey: PoolKey): `0x${string}` => {
 
 /**
  * @description Common fee tiers and their corresponding tick spacings
+ * Ordered by preference: 0.3% is most common for major pairs, then 0.05%, then 1%
  * From Uniswap V4 documentation
  */
 export const COMMON_FEE_TIERS = [
+  { fee: 3000, tickSpacing: 60 }, // 0.3% - Most common for major pairs like WETH/USDC
   { fee: 500, tickSpacing: 10 }, // 0.05%
-  { fee: 3000, tickSpacing: 60 }, // 0.3% - Most common
   { fee: 10000, tickSpacing: 200 }, // 1%
 ] as const
 
@@ -150,7 +151,10 @@ export const discoverPool = async ({
     throw new Error(`StateView address not found for chain ID ${chainId}`)
   }
 
-  // Try each fee tier
+  // Check ALL fee tiers and select the most liquid pool
+  let bestPool: DiscoverPoolReturnType = null
+  let maxLiquidity = 0n
+
   for (const { fee, tickSpacing } of feeTiers) {
     try {
       const poolKey = createPoolKey(token0, token1, fee, tickSpacing, hooks)
@@ -175,13 +179,33 @@ export const discoverPool = async ({
       const [sqrtPriceX96, tick] = slot0Result
       const liquidity = liquidityResult
 
-      // Check if pool is initialized (has liquidity)
-      if (liquidity > 0n) {
-        return {
-          poolKey,
-          sqrtPriceX96,
-          liquidity,
-          tick: Number(tick),
+      // In V4, getLiquidity() returns current tick liquidity which can be 0
+      // even if pool has liquidity in other ticks. Check if pool is initialized by sqrtPrice
+      const poolInitialized = sqrtPriceX96 > 0n
+
+      if (poolInitialized) {
+        poolCandidates.push({ fee, liquidity })
+
+        // For WETH/USDC, prefer pools with actual liquidity in current tick
+        // Only use 0.3% preference if it has liquidity, otherwise select by liquidity
+        const hasCurrentTickLiquidity = liquidity > 0n
+
+        if (hasCurrentTickLiquidity && liquidity > maxLiquidity) {
+          maxLiquidity = liquidity
+          bestPool = {
+            poolKey,
+            sqrtPriceX96,
+            liquidity,
+            tick: Number(tick),
+          }
+        } else if (!hasCurrentTickLiquidity && !bestPool) {
+          // Fallback: if no pools with liquidity yet, take any initialized pool
+          bestPool = {
+            poolKey,
+            sqrtPriceX96,
+            liquidity,
+            tick: Number(tick),
+          }
         }
       }
     } catch (error) {
@@ -190,7 +214,7 @@ export const discoverPool = async ({
     }
   }
 
-  return null
+  return bestPool
 }
 
 /**
