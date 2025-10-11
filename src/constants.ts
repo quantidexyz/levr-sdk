@@ -209,3 +209,17 @@ export const STATIC_FEE_TIERS = {
   '2%': 200,
   '3%': 300,
 } as const
+
+/**
+ * Get the USDC address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The USDC address
+ */
+export const GET_USDC_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+    [base.id]: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+  }[chainId] as `0x${string}` | undefined
+}

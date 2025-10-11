@@ -7,7 +7,6 @@ import type { PoolKey } from './types'
 
 export type QuoteV4Params = {
   publicClient: PublicClient
-  chainId: number
   poolKey: PoolKey
   zeroForOne: boolean
   amountIn: bigint
@@ -170,7 +169,6 @@ const getHookFees = async (
  * ```typescript
  * const quote = await quoteV4({
  *   publicClient,
- *   chainId: base.id,
  *   poolKey,
  *   zeroForOne: true,
  *   amountIn: parseEther('1'),
@@ -181,14 +179,16 @@ const getHookFees = async (
  */
 export const quoteV4 = async ({
   publicClient,
-  chainId,
   poolKey,
   zeroForOne,
   amountIn,
   hookData = '0x',
 }: QuoteV4Params): Promise<QuoteV4ReturnType> => {
+  const chainId = publicClient.chain?.id
+  if (!chainId) throw new Error('Chain ID not found on public client')
+
   const quoterAddress = UNISWAP_V4_QUOTER(chainId)
-  if (!quoterAddress) throw new Error('V4 Quoter address not found for chain')
+  if (!quoterAddress) throw new Error(`V4 Quoter address not found for chain ID ${chainId}`)
 
   // Always fetch hook fee information (in parallel with quote)
   const hookFeesPromise = getHookFees(publicClient, poolKey)

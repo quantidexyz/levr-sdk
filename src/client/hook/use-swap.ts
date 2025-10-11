@@ -86,7 +86,6 @@ export function useSwap({
 
       const result = await quoteV4({
         publicClient: publicClient!,
-        chainId: chainId!,
         poolKey,
         zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,

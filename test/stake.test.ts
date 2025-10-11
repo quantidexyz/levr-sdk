@@ -236,7 +236,6 @@ describe('#STAKE_TEST', () => {
       // Execute swap
       const quote = await quoteV4({
         publicClient,
-        chainId,
         poolKey,
         zeroForOne,
         amountIn,

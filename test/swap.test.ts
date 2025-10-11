@@ -172,7 +172,6 @@ describe('#QUOTE_SWAP_TEST', () => {
       console.log('\n📊 Step 1: Getting quote...')
       const quote = await quoteV4({
         publicClient,
-        chainId,
         poolKey,
         zeroForOne,
         amountIn,
@@ -357,7 +356,6 @@ describe('#QUOTE_SWAP_TEST', () => {
       console.log('\n📊 Step 1: Getting quote...')
       const quote = await quoteV4({
         publicClient,
-        chainId,
         poolKey,
         zeroForOne,
         amountIn,

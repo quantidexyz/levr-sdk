@@ -458,7 +458,6 @@ export class Stake {
     try {
       const quote = await quoteV4({
         publicClient: this.publicClient,
-        chainId: this.chainId,
         poolKey,
         zeroForOne,
         amountIn: oneWeth,
