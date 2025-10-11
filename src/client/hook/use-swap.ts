@@ -84,12 +84,26 @@ export function useSwap({
 
       const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
+      // Determine currency0 and currency1 decimals based on pool key and token
+      const currency0Decimals =
+        poolKey.currency0.toLowerCase() === project.data?.token.address.toLowerCase()
+          ? project.data.token.decimals
+          : 18 // WETH decimals
+      const currency1Decimals =
+        poolKey.currency1.toLowerCase() === project.data?.token.address.toLowerCase()
+          ? project.data.token.decimals
+          : 18 // WETH decimals
+
       const result = await quoteV4({
         publicClient: publicClient!,
         poolKey,
         zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,
         hookData: quoteParams!.hookData,
+        pricing: project.data?.pricing,
+        currency0Decimals,
+        currency1Decimals,
+        tokenAddress: project.data?.token.address,
       })
 
       return {

@@ -1,9 +1,9 @@
 import type { PublicClient } from 'viem'
-import { encodeAbiParameters, keccak256 } from 'viem'
+import { encodeAbiParameters, formatUnits, keccak256 } from 'viem'
 
 import { IClankerHookDynamicFee, IClankerHookStaticFee, V4Quoter } from './abis'
 import { UNISWAP_V4_QUOTER } from './constants'
-import type { PoolKey } from './types'
+import type { PoolKey, PricingResult } from './types'
 
 export type QuoteV4Params = {
   publicClient: PublicClient
@@ -11,11 +11,20 @@ export type QuoteV4Params = {
   zeroForOne: boolean
   amountIn: bigint
   hookData?: `0x${string}`
+  pricing?: PricingResult
+  currency0Decimals?: number
+  currency1Decimals?: number
+  tokenAddress?: `0x${string}` // Project token address to determine which currency is token vs WETH
 }
 
 export type QuoteV4ReturnType = {
   amountOut: bigint
   gasEstimate: bigint
+  /**
+   * Price impact percentage (e.g., 0.5 for 0.5%)
+   * Only calculated if pricing data is provided
+   */
+  priceImpactBps?: number
   /**
    * Fee information from Clanker hooks (if available)
    * - Static fees: clankerFee and pairedFee in basis points
@@ -177,12 +186,86 @@ const getHookFees = async (
  * console.log(`Fees:`, quote.hookFees)
  * ```
  */
+/**
+ * Calculate price impact using USD pricing
+ * @param amountIn Input amount in token decimals
+ * @param amountOut Output amount in token decimals
+ * @param currency0 Currency0 address
+ * @param currency1 Currency1 address
+ * @param currency0Decimals Decimals for currency0
+ * @param currency1Decimals Decimals for currency1
+ * @param tokenAddress Project token address
+ * @param pricing USD pricing for WETH and token
+ * @param zeroForOne Swap direction
+ * @returns Price impact as a percentage (e.g., 0.5 for 0.5%) or undefined if calculation fails
+ */
+const calculatePriceImpact = (
+  amountIn: bigint,
+  amountOut: bigint,
+  currency0: `0x${string}`,
+  currency1: `0x${string}`,
+  currency0Decimals: number,
+  currency1Decimals: number,
+  tokenAddress: `0x${string}`,
+  pricing: PricingResult,
+  zeroForOne: boolean
+): number | undefined => {
+  try {
+    // Determine which currency is the token and which is WETH
+    const currency0IsToken = currency0.toLowerCase() === tokenAddress.toLowerCase()
+    const currency1IsToken = currency1.toLowerCase() === tokenAddress.toLowerCase()
+
+    // Determine prices for input and output based on swap direction
+    let priceIn: number
+    let priceOut: number
+
+    if (zeroForOne) {
+      // Swapping currency0 → currency1
+      priceIn = parseFloat(currency0IsToken ? pricing.tokenUsd : pricing.wethUsd)
+      priceOut = parseFloat(currency1IsToken ? pricing.tokenUsd : pricing.wethUsd)
+    } else {
+      // Swapping currency1 → currency0
+      priceIn = parseFloat(currency1IsToken ? pricing.tokenUsd : pricing.wethUsd)
+      priceOut = parseFloat(currency0IsToken ? pricing.tokenUsd : pricing.wethUsd)
+    }
+
+    // Format amounts to decimal strings
+    const amountInFormatted = parseFloat(
+      formatUnits(amountIn, zeroForOne ? currency0Decimals : currency1Decimals)
+    )
+    const amountOutFormatted = parseFloat(
+      formatUnits(amountOut, zeroForOne ? currency1Decimals : currency0Decimals)
+    )
+
+    if (amountInFormatted === 0 || amountOutFormatted === 0) return undefined
+
+    const usdIn = amountInFormatted * priceIn
+    const usdOut = amountOutFormatted * priceOut
+
+    if (usdIn === 0) return undefined
+
+    // Price impact = (usdIn - usdOut) / usdIn * 100
+    // Positive impact means you're losing value (slippage)
+    const impact = ((usdIn - usdOut) / usdIn) * 100
+
+    // Return absolute value (impact is always shown as positive)
+    return Math.abs(impact)
+  } catch (error) {
+    console.warn('Price impact calculation failed:', error)
+    return undefined
+  }
+}
+
 export const quoteV4 = async ({
   publicClient,
   poolKey,
   zeroForOne,
   amountIn,
   hookData = '0x',
+  pricing,
+  currency0Decimals = 18,
+  currency1Decimals = 18,
+  tokenAddress,
 }: QuoteV4Params): Promise<QuoteV4ReturnType> => {
   const chainId = publicClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found on public client')
@@ -190,11 +273,7 @@ export const quoteV4 = async ({
   const quoterAddress = UNISWAP_V4_QUOTER(chainId)
   if (!quoterAddress) throw new Error(`V4 Quoter address not found for chain ID ${chainId}`)
 
-  // Always fetch hook fee information (in parallel with quote)
-  const hookFeesPromise = getHookFees(publicClient, poolKey)
-
-  // Call the quoter using simulateContract (static call simulation)
-  // This is equivalent to ethers.js callStatic
+  // Fetch hook fees and quote in parallel
   const [{ result }, hookFees] = await Promise.all([
     publicClient.simulateContract({
       address: quoterAddress,
@@ -215,15 +294,32 @@ export const quoteV4 = async ({
         },
       ],
     }),
-    hookFeesPromise,
+    getHookFees(publicClient, poolKey),
   ])
 
   // The quoter returns [amountOut: bigint, gasEstimate: bigint]
   const [amountOut, gasEstimate] = result
 
+  // Calculate price impact if pricing and token address are available
+  const priceImpactBps =
+    pricing && tokenAddress
+      ? calculatePriceImpact(
+          amountIn,
+          amountOut,
+          poolKey.currency0,
+          poolKey.currency1,
+          currency0Decimals,
+          currency1Decimals,
+          tokenAddress,
+          pricing,
+          zeroForOne
+        )
+      : undefined
+
   return {
     amountOut,
     gasEstimate,
+    priceImpactBps,
     hookFees,
   }
 }
