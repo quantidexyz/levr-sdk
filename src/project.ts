@@ -3,8 +3,7 @@ import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
 import { GET_LP_LOCKER_ADDRESS } from './constants'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
-import { getUsdPrice } from './usd-price'
-import { getWethUsdPrice } from './weth-usd'
+import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
 export type ProjectParams = {
   publicClient: PopPublicClient
