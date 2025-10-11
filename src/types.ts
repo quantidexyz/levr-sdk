@@ -20,3 +20,20 @@ export type CallData = {
   value: bigint
   callData: `0x${string}`
 }
+
+/**
+ * @description Standard balance/amount result with optional USD value
+ */
+export type BalanceResult = {
+  raw: bigint
+  formatted: string
+  usd?: string
+}
+
+/**
+ * @description Pricing result with USD values for WETH and token
+ */
+export type PricingResult = {
+  wethUsd: string
+  tokenUsd: string
+}

@@ -4,7 +4,13 @@ import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from 'viem'
 import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
 import { WETH } from './constants'
 import { quoteV4 } from './quote-v4'
-import type { PoolKey, PopPublicClient, PopWalletClient } from './types'
+import type {
+  BalanceResult,
+  PoolKey,
+  PopPublicClient,
+  PopWalletClient,
+  PricingResult,
+} from './types'
 
 export type StakeConfig = {
   wallet: PopWalletClient
@@ -13,6 +19,7 @@ export type StakeConfig = {
   tokenAddress: `0x${string}`
   tokenDecimals: number
   trustedForwarder?: `0x${string}`
+  pricing?: PricingResult
 }
 
 export type UnstakeParams = {
@@ -25,6 +32,32 @@ export type ClaimParams = {
   to?: `0x${string}`
 }
 
+export type StakePoolData = {
+  totalStaked: BalanceResult
+  escrowBalance: BalanceResult
+  streamParams: {
+    windowSeconds: number
+    streamStart: bigint
+    streamEnd: bigint
+    isActive: boolean
+  }
+  rewardRatePerSecond: BalanceResult
+}
+
+export type StakeUserData = {
+  stakedBalance: BalanceResult
+  aprBps: { raw: bigint; percentage: number }
+}
+
+export type StakeOutstandingRewards = {
+  available: BalanceResult
+  pending: BalanceResult
+}
+
+export type StakeClaimableRewards = {
+  claimable: BalanceResult
+}
+
 export class Stake {
   private wallet: PopWalletClient
   private publicClient: PopPublicClient
@@ -34,6 +67,7 @@ export class Stake {
   private chainId: number
   private userAddress: `0x${string}`
   private trustedForwarder?: `0x${string}`
+  private pricing?: PricingResult
 
   constructor(config: StakeConfig) {
     if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
@@ -46,6 +80,7 @@ export class Stake {
     this.chainId = config.publicClient.chain?.id ?? 1 // Get chainId from publicClient
     this.userAddress = config.wallet.account.address
     this.trustedForwarder = config.trustedForwarder
+    this.pricing = config.pricing
   }
   /**
    * Approve ERC20 tokens for spending by the staking contract
@@ -150,7 +185,7 @@ export class Stake {
   /**
    * Get allowance for a token and spender
    */
-  async getAllowance(): Promise<{ raw: bigint; formatted: string }> {
+  async getAllowance(): Promise<BalanceResult> {
     const result = await this.publicClient.readContract({
       address: this.tokenAddress,
       abi: erc20Abi,
@@ -167,17 +202,7 @@ export class Stake {
   /**
    * Get pool data from staking contract
    */
-  async getPoolData(): Promise<{
-    totalStaked: { raw: bigint; formatted: string }
-    escrowBalance: { raw: bigint; formatted: string }
-    streamParams: {
-      windowSeconds: number
-      streamStart: bigint
-      streamEnd: bigint
-      isActive: boolean
-    }
-    rewardRatePerSecond: { raw: bigint; formatted: string }
-  }> {
+  async getPoolData(): Promise<StakePoolData> {
     // Get current block to use blockchain time
     const currentBlock = await this.publicClient.getBlock()
     const blockTime = currentBlock.timestamp
@@ -247,10 +272,7 @@ export class Stake {
   /**
    * Get user data from staking contract
    */
-  async getUserData(): Promise<{
-    stakedBalance: { raw: bigint; formatted: string }
-    aprBps: { raw: bigint; percentage: number }
-  }> {
+  async getUserData(): Promise<StakeUserData> {
     const results = await this.publicClient.multicall({
       contracts: [
         {
@@ -286,10 +308,7 @@ export class Stake {
   /**
    * Get outstanding rewards for the token (for accrual purposes)
    */
-  async getOutstandingRewards(tokenAddress?: `0x${string}`): Promise<{
-    available: { raw: bigint; formatted: string }
-    pending: { raw: bigint; formatted: string }
-  }> {
+  async getOutstandingRewards(tokenAddress?: `0x${string}`): Promise<StakeOutstandingRewards> {
     const token = tokenAddress ?? this.tokenAddress
     const decimals = token === this.tokenAddress ? this.tokenDecimals : 18 // Assume 18 for other tokens
 
@@ -300,14 +319,39 @@ export class Stake {
       args: [token],
     })
 
+    const availableFormatted = formatUnits(result[0], decimals)
+    const pendingFormatted = formatUnits(result[1], decimals)
+
+    // Calculate USD values if pricing is available
+    let availableUsd: string | undefined
+    let pendingUsd: string | undefined
+
+    if (this.pricing) {
+      const isTokenReward = token === this.tokenAddress
+      const wethAddress = WETH(this.chainId)?.address
+      const isWethReward = wethAddress && token.toLowerCase() === wethAddress.toLowerCase()
+
+      if (isTokenReward) {
+        const price = parseFloat(this.pricing.tokenUsd)
+        availableUsd = (parseFloat(availableFormatted) * price).toFixed(2)
+        pendingUsd = (parseFloat(pendingFormatted) * price).toFixed(2)
+      } else if (isWethReward) {
+        const price = parseFloat(this.pricing.wethUsd)
+        availableUsd = (parseFloat(availableFormatted) * price).toFixed(2)
+        pendingUsd = (parseFloat(pendingFormatted) * price).toFixed(2)
+      }
+    }
+
     return {
       available: {
         raw: result[0],
-        formatted: formatUnits(result[0], decimals),
+        formatted: availableFormatted,
+        usd: availableUsd,
       },
       pending: {
         raw: result[1],
-        formatted: formatUnits(result[1], decimals),
+        formatted: pendingFormatted,
+        usd: pendingUsd,
       },
     }
   }
@@ -315,9 +359,7 @@ export class Stake {
   /**
    * Get claimable rewards for the current user and token
    */
-  async getClaimableRewards(tokenAddress?: `0x${string}`): Promise<{
-    claimable: { raw: bigint; formatted: string }
-  }> {
+  async getClaimableRewards(tokenAddress?: `0x${string}`): Promise<StakeClaimableRewards> {
     const token = tokenAddress ?? this.tokenAddress
     const decimals = token === this.tokenAddress ? this.tokenDecimals : 18 // Assume 18 for other tokens
 
@@ -328,10 +370,30 @@ export class Stake {
       args: [this.userAddress, token],
     })
 
+    const formatted = formatUnits(result, decimals)
+
+    // Calculate USD value if pricing is available
+    let usd: string | undefined
+
+    if (this.pricing) {
+      const isTokenReward = token === this.tokenAddress
+      const wethAddress = WETH(this.chainId)?.address
+      const isWethReward = wethAddress && token.toLowerCase() === wethAddress.toLowerCase()
+
+      if (isTokenReward) {
+        const price = parseFloat(this.pricing.tokenUsd)
+        usd = (parseFloat(formatted) * price).toFixed(2)
+      } else if (isWethReward) {
+        const price = parseFloat(this.pricing.wethUsd)
+        usd = (parseFloat(formatted) * price).toFixed(2)
+      }
+    }
+
     return {
       claimable: {
         raw: result,
-        formatted: formatUnits(result, decimals),
+        formatted,
+        usd,
       },
     }
   }
@@ -339,10 +401,7 @@ export class Stake {
   /**
    * Get reward rate per second for a specific token
    */
-  async getRewardRatePerSecond(tokenAddress?: `0x${string}`): Promise<{
-    raw: bigint
-    formatted: string
-  }> {
+  async getRewardRatePerSecond(tokenAddress?: `0x${string}`): Promise<BalanceResult> {
     const token = tokenAddress ?? this.tokenAddress
     const decimals = token === this.tokenAddress ? this.tokenDecimals : 18 // Assume 18 for other tokens
 

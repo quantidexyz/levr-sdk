@@ -4,10 +4,20 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useEffect, useMemo } from 'react'
 import type { Address } from 'viem'
+import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
-import type { BalanceResult } from '../balance'
-import type { Stake } from '../stake'
+import type { FeeReceiverAdmin } from '../fee-receivers'
+import type { ProposalsResult } from '../proposals'
+import type {
+  Stake,
+  StakeClaimableRewards,
+  StakeOutstandingRewards,
+  StakePoolData,
+  StakeUserData,
+} from '../stake'
+import type { BalanceResult } from '../types'
+import { getPublicClient } from '../util'
 import { useBalanceQuery } from './hook/use-balance'
 import { useClankerTokenQuery } from './hook/use-clanker'
 import { useFeeReceiversQuery } from './hook/use-fee-receivers'
@@ -40,20 +50,14 @@ export type LevrContextValue = {
   } | null>
 
   staking: {
-    allowance: UseQueryResult<{ raw: bigint; formatted: string }>
-    poolData: UseQueryResult<any>
-    userData: UseQueryResult<any>
-    outstandingRewardsStaking: UseQueryResult<{
-      available: { raw: bigint; formatted: string }
-      pending: { raw: bigint; formatted: string }
-    }>
-    outstandingRewardsWeth: UseQueryResult<{
-      available: { raw: bigint; formatted: string }
-      pending: { raw: bigint; formatted: string }
-    } | null>
-    claimableRewardsStaking: UseQueryResult<any>
-    claimableRewardsWeth: UseQueryResult<any>
-    wethRewardRate: UseQueryResult<{ raw: bigint; formatted: string } | null>
+    allowance: UseQueryResult<BalanceResult>
+    poolData: UseQueryResult<StakePoolData | null>
+    userData: UseQueryResult<StakeUserData | null>
+    outstandingRewardsStaking: UseQueryResult<StakeOutstandingRewards>
+    outstandingRewardsWeth: UseQueryResult<StakeOutstandingRewards | null>
+    claimableRewardsStaking: UseQueryResult<StakeClaimableRewards | null>
+    claimableRewardsWeth: UseQueryResult<StakeClaimableRewards | null>
+    wethRewardRate: UseQueryResult<BalanceResult | null>
     aprBpsWeth: UseQueryResult<{ raw: bigint; percentage: number } | null>
   }
 
@@ -64,11 +68,16 @@ export type LevrContextValue = {
       factory: Address
       stakedToken: Address
     }>
-    airdropStatus: UseQueryResult<any>
+    airdropStatus: UseQueryResult<{
+      availableAmount: BalanceResult
+      allocatedAmount: BalanceResult
+      isAvailable: boolean
+      error?: string
+    } | null>
   }
 
-  proposals: UseQueryResult<any>
-  feeReceivers: UseQueryResult<any>
+  proposals: UseQueryResult<ProposalsResult | null>
+  feeReceivers: UseQueryResult<FeeReceiverAdmin[] | undefined>
 
   // Refetch methods
   refetch: {
@@ -97,27 +106,48 @@ export type LevrProviderProps = {
    * @default true
    */
   enabled?: boolean
+  /**
+   * Chain ID for price oracle (WETH/USDC)
+   * @default 8453 (Base mainnet)
+   */
+  oracleChainId?: number
+  /**
+   * Optional RPC URL for oracle client
+   * If not provided, uses public RPC endpoints
+   */
+  oracleRpcUrl?: string
 }
 
 /**
  * Centralized provider for all Levr blockchain queries
  * Eliminates query duplication and provides unified refetch management
  */
-export function LevrProvider({ children, enabled = true }: LevrProviderProps) {
+export function LevrProvider({
+  children,
+  enabled = true,
+  oracleChainId = base.id,
+  oracleRpcUrl,
+}: LevrProviderProps) {
   const [clankerToken, setClankerToken] = React.useState<Address | null>(null)
   const queryClient = useQueryClient()
   const { address: userAddress } = useAccount()
   const chainId = useChainId()
 
+  // Create oracle public client for WETH/USD pricing
+  const oraclePublicClient = useMemo(() => {
+    return getPublicClient(oracleChainId, oracleRpcUrl)
+  }, [oracleChainId, oracleRpcUrl])
+
   // ========================================
   // USE INTERNAL QUERY HOOKS
   // ========================================
 
-  const project = useProjectQuery({ clankerToken, enabled })
+  const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
   const tokenData = useClankerTokenQuery({ clankerToken, enabled })
   const balancesQuery = useBalanceQuery({
     clankerToken,
     projectTokenDecimals: project.data?.token.decimals,
+    pricing: project.data?.pricing,
     enabled,
   })
 

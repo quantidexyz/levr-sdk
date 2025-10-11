@@ -2,13 +2,16 @@ import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
 import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
 import { GET_LP_LOCKER_ADDRESS } from './constants'
-import type { PoolKey, PopPublicClient } from './types'
+import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
+import { getUsdPrice } from './usd-price'
+import { getWethUsdPrice } from './weth-usd'
 
 export type ProjectParams = {
   publicClient: PopPublicClient
   factoryAddress: `0x${string}`
   chainId: number
   clankerToken: `0x${string}`
+  oraclePublicClient?: PopPublicClient
 }
 
 export type ProjectMetadata = {
@@ -24,8 +27,8 @@ export type PoolInfo = {
 }
 
 export type TreasuryStats = {
-  balance: { raw: bigint; formatted: string }
-  totalAllocated: { raw: bigint; formatted: string }
+  balance: BalanceResult
+  totalAllocated: BalanceResult
   utilization: number // percentage (0-100)
 }
 
@@ -46,6 +49,7 @@ export type Project = {
   }
   pool?: PoolInfo
   treasuryStats?: TreasuryStats
+  pricing?: PricingResult
 }
 
 /**
@@ -56,6 +60,7 @@ export async function project({
   factoryAddress,
   chainId,
   clankerToken,
+  oraclePublicClient,
 }: ProjectParams): Promise<Project | null> {
   if (
     Object.values({ publicClient, factoryAddress, chainId, clankerToken }).some((value) => !value)
@@ -197,6 +202,33 @@ export async function project({
     utilization,
   }
 
+  // Fetch pricing data if oracle client is provided and pool exists
+  let pricing: PricingResult | undefined
+
+  if (oraclePublicClient && poolInfo) {
+    try {
+      const [wethUsdData, tokenUsdData] = await Promise.all([
+        getWethUsdPrice({ publicClient: oraclePublicClient }),
+        getUsdPrice({
+          oraclePublicClient,
+          quotePublicClient: publicClient,
+          tokenAddress: clankerToken,
+          quoteFee: poolInfo.poolKey.fee,
+          quoteTickSpacing: poolInfo.poolKey.tickSpacing,
+          quoteHooks: poolInfo.poolKey.hooks,
+        }),
+      ])
+
+      pricing = {
+        wethUsd: wethUsdData.priceUsd,
+        tokenUsd: tokenUsdData.priceUsd,
+      }
+    } catch (error) {
+      // If pricing fails, continue without it (graceful degradation)
+      console.warn('Failed to fetch USD pricing:', error)
+    }
+  }
+
   return {
     treasury,
     governor,
@@ -214,5 +246,6 @@ export async function project({
     },
     pool: poolInfo,
     treasuryStats,
+    pricing,
   }
 }

@@ -4,7 +4,7 @@ import { decodeEventLog, erc20Abi, formatUnits, parseUnits } from 'viem'
 import { LevrGovernor_v1 } from './abis'
 import IClankerAirdrop from './abis/IClankerAirdrop'
 import { GET_CLANKER_AIRDROP_ADDRESS, TREASURY_AIRDROP_AMOUNTS } from './constants'
-import type { PopPublicClient, PopWalletClient } from './types'
+import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type GovernanceConfig = {
   wallet: PopWalletClient
@@ -36,14 +36,14 @@ export type FormattedProposalDetails = {
   id: bigint
   proposalType: number
   proposer: `0x${string}`
-  amount: { raw: bigint; formatted: string }
+  amount: BalanceResult
   recipient: `0x${string}`
   description: string
   createdAt: { timestamp: bigint; date: Date }
   votingStartsAt: { timestamp: bigint; date: Date }
   votingEndsAt: { timestamp: bigint; date: Date }
-  yesVotes: { raw: bigint; formatted: string }
-  noVotes: { raw: bigint; formatted: string }
+  yesVotes: BalanceResult
+  noVotes: BalanceResult
   totalBalanceVoted: bigint
   executed: boolean
   cycleId: bigint
@@ -656,8 +656,8 @@ export class Governance {
    * Get airdrop status for treasury with detailed status information
    */
   async getAirdropStatus(): Promise<{
-    availableAmount: { raw: bigint; formatted: string }
-    allocatedAmount: { raw: bigint; formatted: string }
+    availableAmount: BalanceResult
+    allocatedAmount: BalanceResult
     isAvailable: boolean
     error?: string
   }> {

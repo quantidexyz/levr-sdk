@@ -6,10 +6,12 @@ import { useAccount, usePublicClient } from 'wagmi'
 
 import { GET_FACTORY_ADDRESS } from '../../constants'
 import { project } from '../../project'
+import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
 
 export type UseProjectQueryParams = {
   clankerToken: Address | null
+  oraclePublicClient: PopPublicClient
   enabled?: boolean
 }
 
@@ -17,7 +19,11 @@ export type UseProjectQueryParams = {
  * Internal: Creates project query with all logic
  * Used by LevrProvider
  */
-export function useProjectQuery({ clankerToken, enabled: e = true }: UseProjectQueryParams) {
+export function useProjectQuery({
+  clankerToken,
+  oraclePublicClient,
+  enabled: e = true,
+}: UseProjectQueryParams) {
   const { chainId } = useAccount()
   const publicClient = usePublicClient()
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
@@ -33,8 +39,9 @@ export function useProjectQuery({ clankerToken, enabled: e = true }: UseProjectQ
         factoryAddress: factoryAddress!,
         chainId: chainId!,
         clankerToken: clankerToken!,
+        oraclePublicClient: oraclePublicClient as PopPublicClient,
       })
     },
-    staleTime: 15_000,
+    staleTime: 300_000, // 5 minutes cache for pricing data
   })
 }

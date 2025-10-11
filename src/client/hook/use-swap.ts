@@ -40,7 +40,7 @@ export type UseSwapParams = {
   onApprovePermit2Success?: (receipt: TransactionReceipt) => void
   onApprovePermit2Error?: (error: unknown) => void
 
-  onSwapSuccess?: (receipt: any) => void
+  onSwapSuccess?: (receipt: TransactionReceipt) => void
   onSwapError?: (error: unknown) => void
 }
 

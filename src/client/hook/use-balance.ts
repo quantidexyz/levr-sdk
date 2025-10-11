@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 
+import type { PricingResult } from '../..'
 import type { TokenConfig } from '../../balance'
 import { balance } from '../../balance'
 import { WETH } from '../../constants'
@@ -20,6 +21,7 @@ export type UseBalanceParams = {
 export type UseBalanceQueryParams = {
   clankerToken: Address | null
   projectTokenDecimals?: number
+  pricing?: PricingResult
   enabled?: boolean
 }
 
@@ -30,6 +32,7 @@ export type UseBalanceQueryParams = {
 export function useBalanceQuery({
   clankerToken,
   projectTokenDecimals = 18,
+  pricing,
   enabled: e = true,
 }: UseBalanceQueryParams) {
   const publicClient = usePublicClient()
@@ -70,10 +73,12 @@ export function useBalanceQuery({
     queryKey: queryKeys.balance(tokenAddresses.map((t) => t.address).join(','), userAddress!),
     queryFn: async () => {
       if (!userAddress || tokenAddresses.length === 0) return {}
+
       return balance({
         publicClient: publicClient!,
         address: userAddress,
         tokens: tokenAddresses,
+        pricing,
       })
     },
     enabled: e && !!publicClient && !!userAddress && tokenAddresses.length > 0,

@@ -13,12 +13,13 @@ import type {
   ProposeTransferConfig,
 } from '../../governance'
 import { Governance } from '../../governance'
+import type { Project } from '../../project'
 import { useLevrContext } from '../levr-provider'
 import { queryKeys } from '../query-keys'
 
 export type UseGovernanceQueriesParams = {
   clankerToken: Address | null
-  projectData: any
+  projectData: Project | null | undefined
   enabled?: boolean
 }
 

@@ -6,6 +6,7 @@ import type { Address, TransactionReceipt } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 
 import { WETH } from '../../constants'
+import type { Project } from '../../project'
 import type { ClaimParams } from '../../stake'
 import { Stake } from '../../stake'
 import { needsApproval } from '../../util'
@@ -14,7 +15,7 @@ import { queryKeys } from '../query-keys'
 
 export type UseStakingQueriesParams = {
   clankerToken: Address | null
-  projectData: any
+  projectData: Project | null | undefined
   enabled?: boolean
 }
 
@@ -45,6 +46,7 @@ export function useStakingQueries({
       tokenAddress: projectData.token.address,
       tokenDecimals: projectData.token.decimals,
       trustedForwarder: projectData.forwarder,
+      pricing: projectData.pricing,
     })
   }, [wallet.data, publicClient, projectData])
 

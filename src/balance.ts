@@ -1,6 +1,6 @@
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
-import type { PopPublicClient } from './types'
+import type { BalanceResult, PopPublicClient, PricingResult } from './types'
 
 export type TokenConfig = {
   address: `0x${string}`
@@ -12,11 +12,16 @@ export type BalanceParams = {
   publicClient: PopPublicClient
   address: `0x${string}`
   tokens: TokenConfig[]
+  pricing?: PricingResult
 }
 
-export type BalanceResult = {
-  raw: bigint
-  formatted: string
+/**
+ * Calculate USD value for a balance
+ */
+const calculateUsd = (formatted: string, usdPrice: string): string => {
+  const amount = parseFloat(formatted)
+  const price = parseFloat(usdPrice)
+  return (amount * price).toFixed(2)
 }
 
 /**
@@ -24,12 +29,14 @@ export type BalanceResult = {
  * @param publicClient - The public client to use for queries
  * @param address - The address to check balances for
  * @param tokens - Array of token configurations (use zeroAddress for native currency)
+ * @param pricing - Optional pricing data for USD values
  * @returns Object with balances keyed by token address or custom key
  */
 export async function balance({
   publicClient,
   address,
   tokens,
+  pricing,
 }: BalanceParams): Promise<Record<string, BalanceResult>> {
   if (!address || tokens.length === 0) return {}
 
@@ -46,9 +53,11 @@ export async function balance({
 
       nativeTokens.forEach((token) => {
         const key = token.key || token.address
+        const formatted = formatUnits(nativeBalance, token.decimals)
         balances[key] = {
           raw: nativeBalance,
-          formatted: formatUnits(nativeBalance, token.decimals),
+          formatted,
+          usd: pricing && key === 'eth' ? calculateUsd(formatted, pricing.wethUsd) : undefined,
         }
       })
     } catch (error) {
@@ -58,6 +67,7 @@ export async function balance({
         balances[key] = {
           raw: 0n,
           formatted: '0',
+          usd: pricing ? '0.00' : undefined,
         }
       })
     }
@@ -78,9 +88,23 @@ export async function balance({
       erc20Tokens.forEach((token, index) => {
         const result = results[index].result
         const key = token.key || token.address
+        const raw = (result as bigint) || 0n
+        const formatted = formatUnits(raw, token.decimals)
+
+        // Calculate USD value based on token type
+        let usd: string | undefined
+        if (pricing) {
+          if (key === 'token') {
+            usd = calculateUsd(formatted, pricing.tokenUsd)
+          } else if (key === 'weth') {
+            usd = calculateUsd(formatted, pricing.wethUsd)
+          }
+        }
+
         balances[key] = {
-          raw: (result as bigint) || 0n,
-          formatted: formatUnits((result as bigint) || 0n, token.decimals),
+          raw,
+          formatted,
+          usd,
         }
       })
     } catch (error) {
@@ -90,6 +114,7 @@ export async function balance({
         balances[key] = {
           raw: 0n,
           formatted: '0',
+          usd: pricing ? '0.00' : undefined,
         }
       })
     }
