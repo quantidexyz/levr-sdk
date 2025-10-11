@@ -1,17 +1,18 @@
 # Getting Started
 
-This guide will help you get started with Levr SDK in both React and server-side environments.
+TypeScript SDK for interacting with Levr protocol - a decentralized governance, staking, and liquidity management system built on Uniswap v4.
 
-## Prerequisites
+## Features
 
-Before you begin, make sure you have:
-
-- Node.js 18+ or Bun installed
-- A basic understanding of:
-  - TypeScript
-  - React (for client-side usage)
-  - Viem (for blockchain interactions)
-  - TanStack Query (for client-side usage)
+- 🎯 **Type-Safe** - Full TypeScript support with comprehensive types
+- 🔄 **Centralized Refetch** - 100% coverage with smart cross-domain awareness
+- ⚡ **Zero Duplication** - Optimized query management via React Context
+- 🪝 **React Hooks** - Easy integration with React applications
+- 🔌 **Server & Client** - Works in both server and client environments
+- 📦 **Tree-Shakeable** - Import only what you need
+- 💰 **USD Pricing** - Integrated USD price calculations for tokens, balances, and APR
+- 📊 **Price Impact** - Real-time price impact calculation for swaps
+- ⚙️ **Manual Accrual** - Explicit reward accrual system for security and predictability
 
 ## Installation
 
@@ -27,23 +28,38 @@ npm install levr-sdk viem @tanstack/react-query wagmi
 
 :::
 
-## Client-Side Usage (React)
+## Two Entry Points
 
-For React applications, use the centralized provider pattern:
+### Client Entry (`levr-sdk/client`)
 
-### Step 1: Wrap Your App with LevrProvider
+For React applications:
+
+```typescript
+import { LevrProvider, useStake, useSwap, useGovernance } from 'levr-sdk/client'
+```
+
+### Server Entry (`levr-sdk`)
+
+For server-side operations:
+
+```typescript
+import { project, balance, Stake, Governance, quoteV4 } from 'levr-sdk'
+```
+
+## Client Usage (React)
+
+### 1. Wrap Your App
 
 ```typescript
 import { LevrProvider } from 'levr-sdk/client'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
-import { config } from './wagmi-config'
 
 const queryClient = new QueryClient()
 
 export function App() {
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <LevrProvider>
           <YourApp />
@@ -54,9 +70,7 @@ export function App() {
 }
 ```
 
-### Step 2: Set the Active Token
-
-In your project pages, set the active Clanker token:
+### 2. Set Active Token
 
 ```typescript
 import { useSetClankerToken, useProject } from 'levr-sdk/client'
@@ -64,55 +78,35 @@ import { useEffect } from 'react'
 
 export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
   const setClankerToken = useSetClankerToken()
-  const { data: project, isLoading } = useProject()
+  const { data: project } = useProject()
 
   useEffect(() => {
-    setClankerToken(clankerToken) // Updates global context
+    setClankerToken(clankerToken)
   }, [clankerToken, setClankerToken])
 
-  if (isLoading) return <div>Loading...</div>
-  if (!project) return <div>Project not found</div>
+  if (!project) return <div>Loading...</div>
 
   return (
     <div>
       <h1>{project.token.name}</h1>
       <p>Treasury: {project.treasuryStats.balance.formatted} {project.token.symbol}</p>
-      <StakeComponent />
-      <SwapComponent />
-      <GovernanceComponent />
     </div>
   )
 }
 ```
 
-### Step 3: Use Hooks in Components
-
-Child components automatically share queries - no prop drilling needed!
+### 3. Use Hooks
 
 ```typescript
-import { useStake, useBalance } from 'levr-sdk/client'
+import { useStake } from 'levr-sdk/client'
 
 function StakeComponent() {
-  const { data: balances } = useBalance()
-  const {
-    stake,
-    stakedBalance,
-    needsApproval,
-  } = useStake({
-    onStakeSuccess: () => {
-      console.log('Staked successfully!')
-      // All related data automatically refetches
-    },
-  })
+  const { stake, stakedBalance, needsApproval } = useStake()
 
   return (
     <div>
-      <p>Balance: {balances?.token?.formatted}</p>
       <p>Staked: {stakedBalance?.formatted}</p>
-      <button
-        onClick={() => stake.mutate(1000n)}
-        disabled={needsApproval}
-      >
+      <button onClick={() => stake.mutate(1000n)}>
         Stake
       </button>
     </div>
@@ -120,17 +114,14 @@ function StakeComponent() {
 }
 ```
 
-## Server-Side Usage
-
-For server-side operations, use the core APIs directly:
+## Server Usage
 
 ```typescript
-import { project, balance, Stake, Governance } from 'levr-sdk'
+import { project, Stake } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 
-// Initialize clients
 const publicClient = createPublicClient({
   chain: base,
   transport: http(),
@@ -149,22 +140,6 @@ const projectData = await project({
   clankerToken: '0x...',
 })
 
-console.log('Project:', projectData.token.name)
-console.log('Treasury:', projectData.treasuryStats.balance.formatted, projectData.token.symbol)
-
-// Get balances
-const balances = await balance({
-  publicClient,
-  address: walletClient.account.address,
-  tokens: [
-    { address: projectData.token.address, decimals: 18, key: 'token' },
-    { address: projectData.weth, decimals: 18, key: 'weth' },
-  ],
-})
-
-console.log('Token Balance:', balances.token?.formatted)
-console.log('WETH Balance:', balances.weth?.formatted)
-
 // Stake tokens
 const stake = new Stake({
   wallet: walletClient,
@@ -172,63 +147,45 @@ const stake = new Stake({
   stakingAddress: projectData.staking,
   tokenAddress: projectData.token.address,
   tokenDecimals: 18,
-  trustedForwarder: projectData.forwarder,
 })
 
-// Approve and stake
 await stake.approve(1000n)
-const receipt = await stake.stake(1000n)
-console.log('Staked! Transaction:', receipt.transactionHash)
+await stake.stake(1000n)
 ```
 
 ## Key Concepts
 
-### Centralized Provider Pattern
+### Centralized Provider
 
-The SDK uses a centralized provider pattern that:
+All queries created once and shared across components:
 
-- ✅ Creates each query once and shares it across all components
-- ✅ Automatically refetches related data after mutations
-- ✅ Eliminates duplicate network requests
-- ✅ Provides 100% refetch coverage
+- ✅ Zero duplication
+- ✅ Automatic refetches after mutations
+- ✅ Better performance
 
-### Automatic Query Refetch
+### Manual Reward Accrual
 
-All mutations automatically trigger appropriate query refetches:
-
-| Action                   | Auto-Refetches                                                    |
-| ------------------------ | ----------------------------------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), Rewards           |
-| **Swap**                 | Balances, Project (pool data)                                     |
-| **Propose/Vote/Execute** | Governance, Proposals, Project (treasury), Staking (voting power) |
-| **Wallet/Chain Change**  | All Queries                                                       |
-
-### USD Pricing
-
-The SDK provides integrated USD pricing for:
-
-- Token prices
-- Balance values
-- APR calculations
-- Treasury balances
-
-Simply provide an `oraclePublicClient` (mainnet) to enable USD pricing:
+Rewards must be manually accrued before claiming:
 
 ```typescript
-const projectData = await project({
-  publicClient,
-  factoryAddress: '0x...',
-  clankerToken: '0x...',
-  oraclePublicClient: mainnetClient, // For WETH/USD pricing
-})
+// Accrue rewards first
+await stake.accrueAllRewards()
 
-console.log('Token Price:', projectData.pricing?.tokenUsd, 'USD')
-console.log('Treasury Value:', projectData.treasuryStats.balance.usd, 'USD')
+// Then claim
+await stake.claimRewards()
 ```
+
+### Protocol Fees
+
+Staking and unstaking incur a variable protocol fee (set by Levr team) deducted from the amount.
+
+### Time-Weighted Voting
+
+Voting power = Staked amount × Time staked. Unstaking resets the timer.
 
 ## Next Steps
 
-- Learn about all available [Client Hooks](./client-hooks.md)
-- Explore the [Server API](./server-api.md) reference
-- Understand the [Architecture](./architecture.md) in depth
-- Check out [Advanced Usage](./advanced-usage.md) patterns
+- **[Client Hooks](./client-hooks/)** - Complete React hooks reference
+- **[Server API](./server-api/)** - Server-side API reference
+- **[Architecture](./architecture.md)** - How the SDK works internally
+- **[Advanced Usage](./advanced-usage.md)** - Advanced patterns

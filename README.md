@@ -722,7 +722,7 @@ import { queryKeys } from 'levr-sdk/client'
 
 // Use in custom queries or invalidations
 queryClient.invalidateQueries({
-  queryKey: queryKeys.project(factoryAddress, clankerToken, chainId),
+  queryKey: queryKeys.project(clankerToken, chainId),
 })
 ```
 

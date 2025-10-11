@@ -2,354 +2,158 @@
 
 Understanding the centralized provider pattern and how Levr SDK achieves zero duplication with 100% refetch coverage.
 
-## Overview
+## The Problem
 
-Levr SDK uses a **centralized provider pattern** that fundamentally changes how React applications manage blockchain data. Instead of each component creating its own queries, all queries are created once in a central provider and shared across the application.
-
-## The Problem It Solves
-
-Traditional React + TanStack Query applications often suffer from:
+Traditional React + TanStack Query applications suffer from:
 
 ❌ **Query Duplication** - Multiple components create the same query  
 ❌ **Manual Coordination** - Developers must manually invalidate related queries  
-❌ **Incomplete Refetches** - Easy to forget to update related data after mutations  
-❌ **Performance Issues** - Duplicate network requests and wasted resources
+❌ **Incomplete Refetches** - Easy to forget to update related data  
+❌ **Performance Issues** - Duplicate network requests
 
-## The Solution: Centralized Provider
+## The Solution
+
+Levr SDK uses a centralized provider pattern:
 
 ```
-┌─────────────────────────────────────────────────┐
-│           LevrProvider (Global)                 │
-│                                                 │
-│  ┌───────────────────────────────────────────┐ │
-│  │ Centralized Queries (created once)        │ │
-│  │ • Project data                            │ │
-│  │ • Token balances (token + WETH + ETH)     │ │
-│  │ • Staking (all queries)                   │ │
-│  │ • Governance (global queries)             │ │
-│  │ • Proposals                               │ │
-│  │ • Fee receivers                           │ │
-│  └───────────────────────────────────────────┘ │
-│                                                 │
-│  ┌───────────────────────────────────────────┐ │
-│  │ Smart Refetch Methods                     │ │
-│  │ • afterStake()  → Balances, Staking, etc. │ │
-│  │ • afterSwap()   → Balances, Project       │ │
-│  │ • afterGovernance() → Gov, Proposals, etc.│ │
-│  └───────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-            ↓ Context shared via hooks
-┌─────────────────────────────────────────────────┐
-│  Components consume without duplication         │
-│  • useProject()  → Shared query                 │
-│  • useBalance()  → Shared query                 │
-│  • useStake()    → Shared queries + mutations   │
-└─────────────────────────────────────────────────┘
+LevrProvider
+  ↓
+  Creates all queries once
+  ↓
+  Shares via React Context
+  ↓
+  Components consume without duplication
 ```
 
-## How It Works
+### How It Works
 
-### 1. Single Source of Truth
+**1. Single Source of Truth**
 
-All queries are created in `LevrProvider`:
+All queries created in `LevrProvider`:
 
 ```typescript
-// Inside LevrProvider
 const projectQuery = useQuery({
-  queryKey: queryKeys.project(factoryAddress, clankerToken, chainId),
-  queryFn: () => project({ publicClient, factoryAddress, clankerToken }),
-  enabled: !!clankerToken && !!publicClient,
-})
-
-const balanceQuery = useQuery({
-  queryKey: queryKeys.balance(address, tokens),
-  queryFn: () => balance({ publicClient, address, tokens }),
-  enabled: !!address && !!tokens,
+  queryKey: queryKeys.project(clankerToken, chainId),
+  queryFn: () => project({ publicClient, clankerToken }),
 })
 ```
 
-### 2. Context Distribution
+**2. Context Distribution**
 
-Queries are distributed via React Context:
+Queries shared via context:
 
 ```typescript
 const LevrContext = createContext({
-  queries: {
-    project: projectQuery,
-    balance: balanceQuery,
-    // ... all other queries
-  },
-  refetch: {
-    all: () => Promise.all([...]),
-    staking: () => Promise.all([...]),
-    afterStake: () => Promise.all([...]),
-    // ... smart refetch methods
-  },
+  queries: { project: projectQuery, balance: balanceQuery, ... },
+  refetch: { all, staking, afterStake, ... },
 })
 ```
 
-### 3. Simple Hook Consumption
+**3. Simple Consumption**
 
-Components access shared queries without duplication:
+Components access shared queries:
 
 ```typescript
 export function useProject() {
   const context = useContext(LevrContext)
   return context.queries.project
 }
-
-export function useBalance() {
-  const context = useContext(LevrContext)
-  return context.queries.balance
-}
 ```
 
 ## Benefits
 
-### ✅ Zero Duplication
+### Zero Duplication
 
-Each query is created **exactly once**, no matter how many components use it:
+Each query created exactly once:
 
 ```typescript
-// ❌ Old way: Each component creates its own query
+// ❌ Old way: Duplicate queries
 function ComponentA() {
   const { data } = useQuery(['project'], fetchProject)
 }
-
 function ComponentB() {
   const { data } = useQuery(['project'], fetchProject) // Duplicate!
 }
 
-// ✅ New way: Single shared query
+// ✅ New way: Shared query
 function ComponentA() {
   const { data } = useProject() // Shared
 }
-
 function ComponentB() {
-  const { data } = useProject() // Same query!
+  const { data } = useProject() // Same instance
 }
 ```
 
-### ✅ 100% Refetch Coverage
+### 100% Refetch Coverage
 
-All mutations automatically trigger appropriate refetches:
+Mutations automatically trigger appropriate refetches:
 
-| Action                   | Auto-Refetches                                                    |
-| ------------------------ | ----------------------------------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), Rewards           |
-| **Swap**                 | Balances, Project (pool data)                                     |
-| **Propose/Vote/Execute** | Governance, Proposals, Project (treasury), Staking (voting power) |
-| **Wallet/Chain Change**  | All Queries                                                       |
+| Action                   | Auto-Refetches                           |
+| ------------------------ | ---------------------------------------- |
+| **Stake/Unstake/Claim**  | Balances, Staking Data, Project, Rewards |
+| **Swap**                 | Balances, Project                        |
+| **Propose/Vote/Execute** | Governance, Proposals, Project, Staking  |
+| **Wallet/Chain Change**  | All Queries                              |
 
-### ✅ Smart Cross-Domain Refetches
-
-Mutations in one domain intelligently refetch data in related domains:
+### Smart Cross-Domain Refetches
 
 ```typescript
-// After staking, automatically refetch:
-// - Balances (spent tokens)
-// - Staking data (new staked amount)
-// - Project (treasury balance may have changed from fees)
-// - WETH rewards (reward rate may have changed)
+// After staking:
 await refetch.afterStake()
+// Refetches: balances, staking data, project (treasury), rewards
+
+// After swap:
+await refetch.afterSwap()
+// Refetches: balances, project (pool data)
 ```
 
-### ✅ Better Performance
+### Better Performance
 
 - Fewer network requests (no duplication)
 - Better caching (single query instance)
 - Optimized refetches (only what's needed)
 
-### ✅ Type Safety
+## Query Keys
 
-Full TypeScript support throughout:
-
-```typescript
-const { data: project } = useProject()
-//    ^? Project | undefined
-
-const { data: balances } = useBalance()
-//    ^? BalanceResult | undefined
-```
-
-## Implementation Details
-
-### Query Keys
-
-All query keys are centralized and exported:
+Centralized and exported:
 
 ```typescript
 export const queryKeys = {
   project: (factoryAddress: `0x${string}`, clankerToken: `0x${string}`, chainId: number) =>
     ['levr', 'project', factoryAddress, clankerToken, chainId] as const,
 
-  balance: (address: `0x${string}`, tokens: readonly TokenConfig[]) =>
-    ['levr', 'balance', address, tokens] as const,
+  balance: (address: `0x${string}`, tokens: readonly TokenConfig[]) => ['levr', 'balance', address, tokens] as const,
 
   // ... all other keys
 }
 ```
 
-### Refetch Methods
-
-Smart refetch methods coordinate cross-domain updates:
+## Refetch Methods
 
 ```typescript
 const refetch = {
-  // Refetch everything
   all: async () => {
-    await Promise.all([
-      queries.project.refetch(),
-      queries.balance.refetch(),
-      queries.stakingPool.refetch(),
-      // ... all queries
-    ])
+    // Refetch all queries
   },
 
-  // After staking operations
+  staking: async () => {
+    // Refetch all staking queries
+  },
+
   afterStake: async () => {
-    await Promise.all([
-      queries.balance.refetch(), // Spent tokens
-      queries.stakingPool.refetch(), // New pool state
-      queries.stakingUser.refetch(), // New user state
-      queries.project.refetch(), // Treasury may have changed
-      queries.wethRewardRate.refetch(), // Reward rate may have changed
-    ])
+    // Smart refetch after stake operations
+    // Includes: balances, staking, project, rewards
   },
 
-  // After swap operations
   afterSwap: async () => {
-    await Promise.all([
-      queries.balance.refetch(), // Swapped tokens
-      queries.project.refetch(), // Pool data changed
-    ])
+    // Smart refetch after swap operations
+    // Includes: balances, project
   },
 
-  // After governance operations
   afterGovernance: async () => {
-    await Promise.all([
-      queries.proposals.refetch(), // New/updated proposals
-      queries.governanceAddresses.refetch(), // Treasury balance
-      queries.project.refetch(), // Treasury stats
-      queries.stakingUser.refetch(), // Voting power may have changed
-    ])
+    // Smart refetch after governance operations
+    // Includes: governance, proposals, project, staking
   },
-}
-```
-
-### Automatic Invalidation
-
-Mutations automatically trigger refetches:
-
-```typescript
-const stakeMutation = useMutation({
-  mutationFn: async (amount: bigint) => {
-    // Execute stake transaction
-    return await stakeInstance.stake(amount)
-  },
-  onSuccess: async (receipt) => {
-    // Automatically refetch all related data
-    await refetch.afterStake()
-
-    // Call user's callback
-    onStakeSuccess?.(receipt)
-  },
-})
-```
-
-## Advanced Patterns
-
-### Dynamic Token Switching
-
-Update the global token context and all queries automatically update:
-
-```typescript
-const setClankerToken = useSetClankerToken()
-
-// Switch to new token
-setClankerToken('0xNEW_TOKEN')
-// All queries automatically refetch with new token!
-```
-
-### Manual Refetch Control
-
-Access granular refetch methods when needed:
-
-```typescript
-const refetch = useLevrRefetch()
-
-// Refetch specific domains
-await refetch.staking()
-await refetch.governance()
-
-// Refetch everything
-await refetch.all()
-
-// Smart refetch after custom operations
-await refetch.afterStake()
-```
-
-### Custom Query Invalidation
-
-Use query keys for custom invalidations:
-
-```typescript
-import { queryKeys } from 'levr-sdk/client'
-import { useQueryClient } from '@tanstack/react-query'
-
-const queryClient = useQueryClient()
-
-// Invalidate specific query
-queryClient.invalidateQueries({
-  queryKey: queryKeys.project(factoryAddress, clankerToken, chainId),
-})
-```
-
-## Comparison with Traditional Approach
-
-### Traditional Approach ❌
-
-```typescript
-// Each component creates its own queries
-function StakeComponent() {
-  const { data: project } = useQuery(['project'], fetchProject)
-  const { data: balance } = useQuery(['balance'], fetchBalance)
-  const { data: staking } = useQuery(['staking'], fetchStaking)
-
-  const stake = useMutation({
-    onSuccess: () => {
-      // Manual invalidation - easy to miss something!
-      queryClient.invalidateQueries(['balance'])
-      queryClient.invalidateQueries(['staking'])
-      // Forgot to invalidate ['project']!
-    },
-  })
-}
-
-function SwapComponent() {
-  // Duplicates the same queries!
-  const { data: project } = useQuery(['project'], fetchProject) // Duplicate
-  const { data: balance } = useQuery(['balance'], fetchBalance) // Duplicate
-}
-```
-
-### Levr SDK Approach ✅
-
-```typescript
-// Queries created once in provider
-function StakeComponent() {
-  const { data: project } = useProject() // Shared
-  const { data: balance } = useBalance() // Shared
-  const { stake } = useStake({
-    onStakeSuccess: () => {
-      // Automatic refetch - nothing to forget!
-    },
-  })
-}
-
-function SwapComponent() {
-  const { data: project } = useProject() // Same instance
-  const { data: balance } = useBalance() // Same instance
 }
 ```
 
@@ -357,49 +161,23 @@ function SwapComponent() {
 
 ### 1. Always Use LevrProvider
 
-Wrap your app with `LevrProvider` at the root:
-
 ```typescript
-<QueryClientProvider client={queryClient}>
-  <WagmiProvider config={wagmiConfig}>
-    <LevrProvider>
-      <App />
-    </LevrProvider>
-  </WagmiProvider>
-</QueryClientProvider>
+<LevrProvider>
+  <App />
+</LevrProvider>
 ```
 
-### 2. Set Token Early
-
-Set the Clanker token as early as possible:
-
-```typescript
-function ProjectPage({ address }: { address: `0x${string}` }) {
-  const setClankerToken = useSetClankerToken()
-
-  useEffect(() => {
-    setClankerToken(address)
-  }, [address, setClankerToken])
-
-  // Rest of component
-}
-```
-
-### 3. Use Provided Hooks
-
-Always use the provided hooks instead of creating custom queries:
+### 2. Use Provided Hooks
 
 ```typescript
 // ✅ Good
 const { data: project } = useProject()
 
-// ❌ Bad - creates duplicate query
+// ❌ Bad - creates duplicate
 const { data: project } = useQuery(['project'], fetchProject)
 ```
 
-### 4. Trust Automatic Refetches
-
-Don't manually refetch after mutations - it's automatic:
+### 3. Trust Automatic Refetches
 
 ```typescript
 // ✅ Good
@@ -410,21 +188,14 @@ const { stake } = useStake({
   },
 })
 
-// ❌ Bad - unnecessary manual refetch
-const { stake } = useStake()
-const refetch = useLevrRefetch()
-
+// ❌ Bad - unnecessary
 stake.mutate(amount)
 await refetch.all() // Not needed!
 ```
 
-### 5. Use Smart Refetch Methods
-
-For custom operations, use smart refetch methods:
+### 4. Use Smart Refetch Methods
 
 ```typescript
-const refetch = useLevrRefetch()
-
 // ✅ Good - refetches related data
 await refetch.afterStake()
 
@@ -432,7 +203,7 @@ await refetch.afterStake()
 await refetch.all()
 ```
 
-## Conclusion
+## Summary
 
 The centralized provider pattern provides:
 
@@ -441,5 +212,3 @@ The centralized provider pattern provides:
 - **Better Performance** - Fewer requests, better caching
 - **Type Safety** - Full TypeScript support
 - **Easy to Use** - Simple hook API
-
-This architecture makes it impossible to have stale data or incomplete refetches, while providing the best possible performance.
