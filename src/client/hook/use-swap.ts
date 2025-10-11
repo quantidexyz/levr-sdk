@@ -25,8 +25,8 @@ export type UseSwapParams = {
   tokenDecimals?: number
 
   // Quote params (optional - for reactive quotes)
+  // Pool key comes from context automatically
   quoteParams?: {
-    poolKey: PoolKey
     zeroForOne: boolean
     amountIn: string
     amountInDecimals: number
@@ -62,27 +62,32 @@ export function useSwap({
   onSwapSuccess,
   onSwapError,
 }: UseSwapParams = {}) {
-  const { balances, refetch } = useLevrContext()
+  const { balances, refetch, project } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
+
+  // Get pool key from project context
+  const poolKey = project.data?.pool?.poolKey
 
   // Query: Get swap quote
   const quote = useQuery({
     queryKey: queryKeys.swap.quote(
       chainId,
-      quoteParams?.poolKey,
+      poolKey,
       quoteParams?.zeroForOne,
       quoteParams?.amountIn,
       quoteParams?.amountInDecimals
     ),
     queryFn: async () => {
+      if (!poolKey) throw new Error('Pool key not available')
+
       const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
       const result = await quoteV4({
         publicClient: publicClient!,
         chainId: chainId!,
-        poolKey: quoteParams!.poolKey,
+        poolKey,
         zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,
         hookData: quoteParams!.hookData,
@@ -97,6 +102,7 @@ export function useSwap({
       enabled &&
       !!publicClient &&
       !!chainId &&
+      !!poolKey &&
       !!quoteParams &&
       !!quoteParams.amountIn &&
       parseFloat(quoteParams.amountIn) > 0,
@@ -136,36 +142,22 @@ export function useSwap({
   })
 
   // Helper: Build swap config from simple params
+  // Uses pool key from context automatically
   const buildSwapConfig = ({
-    tokenIn,
-    tokenOut,
+    zeroForOne,
     amountIn,
     amountInDecimals = 18,
     minAmountOut,
-    fee = 500,
-    tickSpacing = 10,
-    hooks = '0x0000000000000000000000000000000000000000',
   }: {
-    tokenIn: `0x${string}`
-    tokenOut: `0x${string}`
+    zeroForOne: boolean
     amountIn: number
     amountInDecimals?: number
     minAmountOut: string
-    fee?: number
-    tickSpacing?: number
-    hooks?: `0x${string}`
-  }): SwapConfig => {
-    // Use case-insensitive comparison to determine token ordering
-    const zeroForOne = tokenIn.toLowerCase() < tokenOut.toLowerCase()
+  }): SwapConfig | null => {
+    if (!poolKey) return null
 
     return {
-      poolKey: {
-        currency0: zeroForOne ? tokenIn : tokenOut,
-        currency1: zeroForOne ? tokenOut : tokenIn,
-        fee,
-        tickSpacing,
-        hooks,
-      },
+      poolKey,
       zeroForOne,
       amountIn: parseUnits(amountIn.toString(), amountInDecimals).toString(),
       amountOutMinimum: minAmountOut,
@@ -180,6 +172,9 @@ export function useSwap({
     // Queries
     balances,
     quote,
+
+    // Pool info from context
+    poolKey,
 
     // Convenience accessors for balances
     tokenBalance: balances.data?.token,

@@ -43,13 +43,13 @@ import { LevrProvider } from 'levr-sdk/client'
 
 export function App() {
   return (
-    <WagmiConfig config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <WagmiConfig config={wagmiConfig}>
         <LevrProvider>
           <YourApp />
         </LevrProvider>
-      </QueryClientProvider>
-    </WagmiConfig>
+      </WagmiConfig>
+    </QueryClientProvider>
   )
 }
 
@@ -257,6 +257,7 @@ const {
   // Queries
   quote,
   balances,
+  poolKey,
 
   // Convenience
   tokenBalance,
@@ -264,13 +265,20 @@ const {
   buildSwapConfig,
 } = useSwap({
   quoteParams: {
-    poolKey: project.pool.poolKey,
-    zeroForOne: true,
+    zeroForOne: true, // true = token -> WETH, false = WETH -> token
     amountIn: '100',
     amountInDecimals: 18,
     amountOutDecimals: 18,
   },
   onSwapSuccess: (receipt) => console.log('Swapped!', receipt),
+})
+
+// Build swap config (poolKey from context)
+const config = buildSwapConfig({
+  zeroForOne: true,
+  amountIn: 100,
+  amountInDecimals: 18,
+  minAmountOut: '95',
 })
 ```
 
