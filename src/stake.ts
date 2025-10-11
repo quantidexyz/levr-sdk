@@ -3,14 +3,7 @@ import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from 'viem'
 
 import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
 import { WETH } from './constants'
-import { quoteV4 } from './quote-v4'
-import type {
-  BalanceResult,
-  PoolKey,
-  PopPublicClient,
-  PopWalletClient,
-  PricingResult,
-} from './types'
+import type { BalanceResult, PopPublicClient, PopWalletClient, PricingResult } from './types'
 
 export type StakeConfig = {
   wallet: PopWalletClient
@@ -509,19 +502,24 @@ export class Stake {
   }
 
   /**
-   * Calculate WETH APR using pool price and reward rates
-   * Formula: (wethRewardRatePerSecond * secondsPerYear * wethPriceInUnderlying / totalStaked) * 10000
+   * Calculate WETH APR using USD pricing data
+   * No on-chain quotes needed - uses existing pricing data
+   * Formula: (wethRewardRatePerSecond * secondsPerYear * wethPriceInTokens / totalStaked) * 10000
    *
-   * @param poolKey - The Uniswap V4 pool key for price discovery
    * @returns WETH APR in basis points and percentage
    */
-  async calculateWethApr(poolKey: PoolKey): Promise<{
+  async calculateWethApr(): Promise<{
     raw: bigint
     percentage: number
   }> {
     const wethAddress = WETH(this.chainId)?.address
     if (!wethAddress) {
       throw new Error('WETH address not found for this chain')
+    }
+
+    // Require pricing data to calculate APR
+    if (!this.pricing) {
+      return { raw: 0n, percentage: 0 }
     }
 
     // Get pool data and WETH reward rate
@@ -537,43 +535,37 @@ export class Stake {
       return { raw: 0n, percentage: 0 }
     }
 
-    // Quote 1 WETH to determine price in underlying tokens
-    // Determine swap direction: WETH -> underlying
-    const wethIsCurrency0 = wethAddress.toLowerCase() < this.tokenAddress.toLowerCase()
-    const zeroForOne = wethIsCurrency0 // Swap WETH for underlying
+    // Calculate WETH price in underlying tokens using USD pricing
+    // wethPriceInTokens = wethUsd / tokenUsd
+    const wethUsd = parseFloat(this.pricing.wethUsd)
+    const tokenUsd = parseFloat(this.pricing.tokenUsd)
 
-    // Quote 1 WETH (18 decimals)
-    const oneWeth = parseUnits('1', 18)
-
-    let wethPriceInUnderlying: bigint
-    try {
-      const quote = await quoteV4({
-        publicClient: this.publicClient,
-        poolKey,
-        zeroForOne,
-        amountIn: oneWeth,
-      })
-
-      // amountOut is how many underlying tokens we get for 1 WETH
-      wethPriceInUnderlying = quote.amountOut
-    } catch (error) {
-      // If quote fails, return 0 APR
-      console.error('Failed to quote WETH price:', error)
+    if (tokenUsd === 0) {
       return { raw: 0n, percentage: 0 }
     }
+
+    const wethPriceInTokens = wethUsd / tokenUsd
 
     // Calculate annual WETH rewards (rewards per second * seconds per year)
     const secondsPerYear = BigInt(365 * 24 * 60 * 60)
     const annualWethRewards = wethRewardRate.raw * secondsPerYear
 
-    // Convert WETH rewards to underlying token equivalent
-    // wethPriceInUnderlying is already in underlying token decimals from the quote
-    // annualWethRewards is in WETH (18 decimals)
-    // Both need to be normalized to underlying token decimals
-    const annualRewardsInUnderlying = (annualWethRewards * wethPriceInUnderlying) / BigInt(1e18)
+    // Convert WETH rewards to underlying token equivalent using bigint math
+    // annualWethRewards is in WETH wei (18 decimals)
+    // wethPriceInTokens is tokens per WETH (e.g., 3.75 billion for $3751 WETH / $0.000001 token)
+
+    // Scale the price ratio to bigint with high precision (use 1e18 for precision)
+    const priceScaleFactor = BigInt(1e18)
+    const wethPriceScaled = BigInt(Math.floor(wethPriceInTokens * Number(priceScaleFactor)))
+
+    // Formula: (annualWethRewards_wei * wethPrice_tokens/WETH) / 1e18
+    // Since both are already in wei and we have token decimals:
+    // Result = (annualWethRewards * wethPriceScaled) / priceScaleFactor
+    // This gives us token wei (same decimals as token)
+    const annualRewardsInUnderlying = (annualWethRewards * wethPriceScaled) / priceScaleFactor
 
     // Calculate APR: (annualRewardsInUnderlying / totalStaked) * 10000
-    const aprBps = (annualRewardsInUnderlying * 10000n) / totalStaked
+    const aprBps = totalStaked > 0n ? (annualRewardsInUnderlying * 10000n) / totalStaked : 0n
 
     return {
       raw: aprBps,

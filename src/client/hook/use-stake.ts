@@ -152,14 +152,14 @@ export function useStakingQueries({
       wethAddress,
     ],
     queryFn: async () => {
-      if (!wethAddress || !projectData?.pool?.poolKey || !stakeService) return null
-      return stakeService.calculateWethApr(projectData.pool.poolKey)
+      if (!wethAddress || !stakeService) return null
+      return stakeService.calculateWethApr()
     },
     enabled:
       e &&
       !!publicClient &&
       !!projectData &&
-      !!projectData.pool?.poolKey &&
+      !!projectData.pricing &&
       !!stakeService &&
       !!wethAddress,
     refetchInterval: 30000, // Refetch every 30 seconds

@@ -188,6 +188,7 @@ const getHookFees = async (
  */
 /**
  * Calculate price impact using USD pricing
+ * Compares the execution price to the market spot price
  * @param amountIn Input amount in token decimals
  * @param amountOut Output amount in token decimals
  * @param currency0 Currency0 address
@@ -213,21 +214,6 @@ const calculatePriceImpact = (
   try {
     // Determine which currency is the token and which is WETH
     const currency0IsToken = currency0.toLowerCase() === tokenAddress.toLowerCase()
-    const currency1IsToken = currency1.toLowerCase() === tokenAddress.toLowerCase()
-
-    // Determine prices for input and output based on swap direction
-    let priceIn: number
-    let priceOut: number
-
-    if (zeroForOne) {
-      // Swapping currency0 → currency1
-      priceIn = parseFloat(currency0IsToken ? pricing.tokenUsd : pricing.wethUsd)
-      priceOut = parseFloat(currency1IsToken ? pricing.tokenUsd : pricing.wethUsd)
-    } else {
-      // Swapping currency1 → currency0
-      priceIn = parseFloat(currency1IsToken ? pricing.tokenUsd : pricing.wethUsd)
-      priceOut = parseFloat(currency0IsToken ? pricing.tokenUsd : pricing.wethUsd)
-    }
 
     // Format amounts to decimal strings
     const amountInFormatted = parseFloat(
@@ -239,17 +225,41 @@ const calculatePriceImpact = (
 
     if (amountInFormatted === 0 || amountOutFormatted === 0) return undefined
 
-    const usdIn = amountInFormatted * priceIn
-    const usdOut = amountOutFormatted * priceOut
+    // Get market spot prices
+    const wethPrice = parseFloat(pricing.wethUsd)
+    const tokenPrice = parseFloat(pricing.tokenUsd)
 
-    if (usdIn === 0) return undefined
+    if (tokenPrice === 0 || wethPrice === 0) return undefined
 
-    // Price impact = (usdIn - usdOut) / usdIn * 100
-    // Positive impact means you're losing value (slippage)
-    const impact = ((usdIn - usdOut) / usdIn) * 100
+    // Calculate execution rate (how many output per input)
+    const executionRate = amountOutFormatted / amountInFormatted
 
-    // Return absolute value (impact is always shown as positive)
-    return Math.abs(impact)
+    // Determine swap direction and calculate market rate
+    // For zeroForOne: swapping currency0 → currency1
+    // For !zeroForOne: swapping currency1 → currency0
+    const inputIsToken = zeroForOne ? currency0IsToken : !currency0IsToken
+
+    // Calculate market spot rate (output per input at market prices)
+    const marketRate = inputIsToken
+      ? tokenPrice / wethPrice // Token → WETH: ($/token) / ($/WETH) = WETH per token
+      : wethPrice / tokenPrice // WETH → Token: ($/WETH) / ($/token) = tokens per WETH
+
+    // Price impact = difference between execution and market rate
+    // Only show impact when execution rate is WORSE than market rate
+    // (getting less output than expected = actual price impact/slippage)
+
+    // If executionRate > marketRate, you're getting a better deal than market (show small impact)
+    // If executionRate < marketRate, you're getting worse (show actual impact)
+
+    if (executionRate >= marketRate) {
+      // Getting better or equal rate than market - minimal impact
+      return 0.1
+    }
+
+    // Getting worse rate than market - calculate actual slippage
+    const impact = (1 - executionRate / marketRate) * 100
+
+    return impact
   } catch (error) {
     console.warn('Price impact calculation failed:', error)
     return undefined
