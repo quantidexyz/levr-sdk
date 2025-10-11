@@ -69,18 +69,8 @@ export const queryKeys = {
     tokenDecimals: number,
     fromBlock?: string,
     toBlock?: string,
-    pageSize?: number,
-    blockRangeLimit?: number
-  ) =>
-    [
-      'proposals',
-      governorAddress,
-      tokenDecimals,
-      fromBlock,
-      toBlock,
-      pageSize,
-      blockRangeLimit,
-    ] as const,
+    pageSize?: number
+  ) => ['proposals', governorAddress, tokenDecimals, fromBlock, toBlock, pageSize] as const,
 
   /**
    * Projects query keys

@@ -12,7 +12,6 @@ export type ProposalsParams = {
   fromBlock?: bigint
   toBlock?: bigint | 'latest'
   pageSize?: number
-  blockRangeLimit?: number
 }
 
 export type ProposalsResult = {
@@ -43,7 +42,6 @@ export async function proposals({
   fromBlock,
   toBlock = 'latest',
   pageSize = 50,
-  blockRangeLimit = 10000,
 }: ProposalsParams): Promise<ProposalsResult> {
   if (Object.values({ publicClient, governorAddress }).some((value) => !value)) {
     throw new Error('Invalid proposals params')
@@ -51,56 +49,16 @@ export async function proposals({
 
   // Determine block range
   const latestBlock = await publicClient.getBlockNumber()
-  const from = fromBlock ?? 0n
+  const from = fromBlock ?? latestBlock - latestBlock / 10n // Default to last 10% of blocks
   const to = toBlock === 'latest' ? latestBlock : toBlock
 
-  // Fetch ProposalCreated events in chunks to avoid RPC limits
-  // Start from recent blocks and work backwards for faster results
-  const limit = BigInt(blockRangeLimit)
-  const chunks: Array<{ from: bigint; to: bigint }> = []
-
-  // Create chunk ranges working backwards from latest block
-  let currentTo = to
-  while (currentTo >= from) {
-    const currentFrom = currentTo - limit + 1n < from ? from : currentTo - limit + 1n
-    chunks.push({ from: currentFrom, to: currentTo })
-
-    // Stop creating chunks if we have enough for reasonable pagination
-    if (chunks.length >= 10) break
-
-    currentTo = currentFrom - 1n
-  }
-
-  // Fetch all chunks in parallel
-  const allLogs: ProposalCreatedEvent[] = []
-
-  // Process chunks in batches to avoid overwhelming the RPC
-  const batchSize = 5
-  for (let i = 0; i < chunks.length; i += batchSize) {
-    const batch = chunks.slice(i, i + batchSize)
-
-    const batchResults = await Promise.all(
-      batch.map(
-        (chunk) =>
-          publicClient.getLogs({
-            address: governorAddress,
-            event: proposalCreatedEvent,
-            fromBlock: chunk.from,
-            toBlock: chunk.to,
-          }) as Promise<ProposalCreatedEvent[]>
-      )
-    )
-
-    // Flatten and add to all logs
-    for (const chunkLogs of batchResults) {
-      allLogs.push(...chunkLogs)
-    }
-
-    // Stop if we have enough logs for pagination
-    if (allLogs.length >= pageSize) {
-      break
-    }
-  }
+  // Fetch ProposalCreated events - indexed events are efficient even across large ranges
+  const allLogs = (await publicClient.getLogs({
+    address: governorAddress,
+    event: proposalCreatedEvent,
+    fromBlock: from,
+    toBlock: to,
+  })) as ProposalCreatedEvent[]
 
   // Sort by block number descending (most recent first)
   const logs = allLogs.sort((a, b) => {

@@ -13,7 +13,6 @@ export type ProjectsParams = {
   fromBlock?: bigint
   toBlock?: bigint | 'latest'
   pageSize?: number
-  blockRangeLimit?: number
 }
 
 export type ProjectsResult = {
@@ -44,7 +43,6 @@ export async function projects({
   fromBlock,
   toBlock = 'latest',
   pageSize = 100,
-  blockRangeLimit = 10000,
 }: ProjectsParams): Promise<ProjectsResult> {
   if (Object.values({ publicClient, factoryAddress, chainId }).some((value) => !value)) {
     throw new Error('Invalid projects params')
@@ -52,56 +50,16 @@ export async function projects({
 
   // Determine block range
   const latestBlock = await publicClient.getBlockNumber()
-  const from = fromBlock ?? 0n
+  const from = fromBlock ?? latestBlock - latestBlock / 10n // Default to last 10% of blocks
   const to = toBlock === 'latest' ? latestBlock : toBlock
 
-  // Fetch Registered events in chunks to avoid RPC limits
-  // Start from recent blocks and work backwards for faster results
-  const limit = BigInt(blockRangeLimit)
-  const chunks: Array<{ from: bigint; to: bigint }> = []
-
-  // Create chunk ranges working backwards from latest block
-  let currentTo = to
-  while (currentTo >= from) {
-    const currentFrom = currentTo - limit + 1n < from ? from : currentTo - limit + 1n
-    chunks.push({ from: currentFrom, to: currentTo })
-
-    // Stop creating chunks if we have enough for reasonable pagination
-    if (chunks.length >= 10) break
-
-    currentTo = currentFrom - 1n
-  }
-
-  // Fetch all chunks in parallel
-  const allLogs: RegisteredEvent[] = []
-
-  // Process chunks in batches to avoid overwhelming the RPC
-  const batchSize = 5
-  for (let i = 0; i < chunks.length; i += batchSize) {
-    const batch = chunks.slice(i, i + batchSize)
-
-    const batchResults = await Promise.all(
-      batch.map(
-        (chunk) =>
-          publicClient.getLogs({
-            address: factoryAddress,
-            event: registeredEvent,
-            fromBlock: chunk.from,
-            toBlock: chunk.to,
-          }) as Promise<RegisteredEvent[]>
-      )
-    )
-
-    // Flatten and add to all logs
-    for (const chunkLogs of batchResults) {
-      allLogs.push(...chunkLogs)
-    }
-
-    // Stop if we have enough logs for pagination
-    if (allLogs.length >= pageSize) {
-      break
-    }
-  }
+  // Fetch Registered events - indexed events are efficient even across large ranges
+  const allLogs = (await publicClient.getLogs({
+    address: factoryAddress,
+    event: registeredEvent,
+    fromBlock: from,
+    toBlock: to,
+  })) as RegisteredEvent[]
 
   // Sort by block number descending (most recent first)
   const logs = allLogs.sort((a, b) => {

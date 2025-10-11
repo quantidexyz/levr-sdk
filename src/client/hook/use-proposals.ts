@@ -30,7 +30,7 @@ export function useProposalsQuery({
   const publicClient = usePublicClient()
 
   return useQuery({
-    queryKey: queryKeys.proposals(governorAddress!, tokenDecimals, undefined, 'latest', 50, 10000),
+    queryKey: queryKeys.proposals(governorAddress!, tokenDecimals, undefined, 'latest', 50),
     queryFn: async () => {
       if (!publicClient || !governorAddress) return null
       return proposalsListQuery({
@@ -40,7 +40,6 @@ export function useProposalsQuery({
         fromBlock: undefined,
         toBlock: 'latest',
         pageSize: 50,
-        blockRangeLimit: 10000,
       })
     },
     enabled: e && !!publicClient && !!governorAddress,
