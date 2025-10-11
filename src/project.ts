@@ -9,7 +9,6 @@ import { getWethUsdPrice } from './weth-usd'
 export type ProjectParams = {
   publicClient: PopPublicClient
   factoryAddress: `0x${string}`
-  chainId: number
   clankerToken: `0x${string}`
   oraclePublicClient?: PopPublicClient
 }
@@ -58,15 +57,15 @@ export type Project = {
 export async function project({
   publicClient,
   factoryAddress,
-  chainId,
   clankerToken,
   oraclePublicClient,
 }: ProjectParams): Promise<Project | null> {
-  if (
-    Object.values({ publicClient, factoryAddress, chainId, clankerToken }).some((value) => !value)
-  ) {
+  if (Object.values({ publicClient, factoryAddress, clankerToken }).some((value) => !value)) {
     throw new Error('Invalid project params')
   }
+
+  const chainId = publicClient.chain?.id
+  if (!chainId) throw new Error('Chain ID not found on public client')
 
   const { treasury, governor, staking, stakedToken } = await publicClient.readContract({
     address: factoryAddress,

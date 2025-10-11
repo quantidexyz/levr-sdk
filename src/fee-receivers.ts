@@ -5,7 +5,6 @@ import type { PopPublicClient, PopWalletClient } from './types'
 export type FeeReceiversParams = {
   publicClient: PopPublicClient
   clankerToken: `0x${string}`
-  chainId: number
   userAddress?: `0x${string}`
 }
 
@@ -30,12 +29,14 @@ export type UpdateFeeReceiverParams = {
 export async function feeReceivers({
   publicClient,
   clankerToken,
-  chainId,
   userAddress,
 }: FeeReceiversParams): Promise<FeeReceiverAdmin[] | undefined> {
-  if (Object.values({ publicClient, clankerToken, chainId }).some((value) => !value)) {
+  if (Object.values({ publicClient, clankerToken }).some((value) => !value)) {
     throw new Error('Invalid fee receivers params')
   }
+
+  const chainId = publicClient.chain?.id
+  if (!chainId) throw new Error('Chain ID not found on public client')
 
   const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
   if (!lpLockerAddress) {

@@ -183,29 +183,14 @@ export const discoverPool = async ({
       // even if pool has liquidity in other ticks. Check if pool is initialized by sqrtPrice
       const poolInitialized = sqrtPriceX96 > 0n
 
-      if (poolInitialized) {
-        poolCandidates.push({ fee, liquidity })
-
-        // For WETH/USDC, prefer pools with actual liquidity in current tick
-        // Only use 0.3% preference if it has liquidity, otherwise select by liquidity
-        const hasCurrentTickLiquidity = liquidity > 0n
-
-        if (hasCurrentTickLiquidity && liquidity > maxLiquidity) {
-          maxLiquidity = liquidity
-          bestPool = {
-            poolKey,
-            sqrtPriceX96,
-            liquidity,
-            tick: Number(tick),
-          }
-        } else if (!hasCurrentTickLiquidity && !bestPool) {
-          // Fallback: if no pools with liquidity yet, take any initialized pool
-          bestPool = {
-            poolKey,
-            sqrtPriceX96,
-            liquidity,
-            tick: Number(tick),
-          }
+      // Select pool with most liquidity
+      if (poolInitialized && liquidity > maxLiquidity) {
+        maxLiquidity = liquidity
+        bestPool = {
+          poolKey,
+          sqrtPriceX96,
+          liquidity,
+          tick: Number(tick),
         }
       }
     } catch (error) {

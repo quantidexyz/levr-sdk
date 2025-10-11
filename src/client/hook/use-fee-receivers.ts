@@ -32,7 +32,6 @@ export function useFeeReceiversQuery({
       feeReceivers({
         publicClient: publicClient!,
         clankerToken: clankerToken!,
-        chainId: chainId!,
         userAddress,
       }),
     enabled: e && !!publicClient && !!chainId && !!clankerToken,

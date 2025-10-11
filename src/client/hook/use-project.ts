@@ -37,7 +37,6 @@ export function useProjectQuery({
       return project({
         publicClient: publicClient!,
         factoryAddress: factoryAddress!,
-        chainId: chainId!,
         clankerToken: clankerToken!,
         oraclePublicClient: oraclePublicClient as PopPublicClient,
       })

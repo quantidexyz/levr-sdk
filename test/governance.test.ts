@@ -119,7 +119,6 @@ describe('#GOVERNANCE_TEST', () => {
       const projectData = await fullProject({
         publicClient,
         factoryAddress,
-        chainId: publicClient.chain?.id || 8453,
         clankerToken: deployedTokenAddress,
       })
 
@@ -747,7 +746,6 @@ describe('#GOVERNANCE_TEST', () => {
       const finalProjectData = await fullProject({
         publicClient,
         factoryAddress,
-        chainId: publicClient.chain?.id || 8453,
         clankerToken: deployedTokenAddress,
       })
 

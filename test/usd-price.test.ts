@@ -74,7 +74,6 @@ describe('#USD_PRICE_TEST', () => {
       const projectData = await project({
         publicClient,
         factoryAddress,
-        chainId,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         oraclePublicClient, // Providing oracle client enables pricing
       })
@@ -144,7 +143,6 @@ describe('#USD_PRICE_TEST', () => {
       const projectData = await project({
         publicClient,
         factoryAddress,
-        chainId: chainId!,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         // No oraclePublicClient provided
       })
