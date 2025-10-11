@@ -47,9 +47,6 @@
       "prettier --write"
     ]
   },
-  "optionalDependencies": {
-    "clanker-sdk": "workspace:*"
-  },
   "resolutions": {
     "eslint": "^9.17.0",
     "typescript": "^5.8.0"
