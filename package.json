@@ -47,10 +47,12 @@
       "prettier --write"
     ]
   },
+  "optionalDependencies": {
+    "clanker-sdk": "workspace:*"
+  },
   "resolutions": {
     "eslint": "^9.17.0",
-    "typescript": "^5.8.0",
-    "clanker-sdk": "workspace:*"
+    "typescript": "^5.8.0"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.90.2",
