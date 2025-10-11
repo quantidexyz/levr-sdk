@@ -4,7 +4,7 @@ import { decodeEventLog, erc20Abi, formatUnits, parseUnits } from 'viem'
 import { LevrGovernor_v1 } from './abis'
 import IClankerAirdrop from './abis/IClankerAirdrop'
 import { GET_CLANKER_AIRDROP_ADDRESS, TREASURY_AIRDROP_AMOUNTS } from './constants'
-import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
+import type { BalanceResult, PopPublicClient, PopWalletClient, PricingResult } from './types'
 
 export type GovernanceConfig = {
   wallet: PopWalletClient
@@ -13,6 +13,7 @@ export type GovernanceConfig = {
   tokenDecimals: number
   clankerToken: `0x${string}`
   trustedForwarder?: `0x${string}`
+  pricing?: PricingResult
 }
 
 export type ProposalDetails = {
@@ -72,6 +73,7 @@ export class Governance {
   private tokenDecimals: number
   private clankerToken: `0x${string}`
   private userAddress: `0x${string}`
+  private pricing?: PricingResult
 
   constructor(config: GovernanceConfig) {
     if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
@@ -82,6 +84,7 @@ export class Governance {
     this.tokenDecimals = config.tokenDecimals
     this.clankerToken = config.clankerToken
     this.userAddress = config.wallet.account.address
+    this.pricing = config.pricing
     // trustedForwarder reserved for future meta-transaction support
   }
 
@@ -251,13 +254,21 @@ export class Governance {
       args: [parsedProposalId],
     })) as ProposalDetails
 
+    const amountFormatted = formatUnits(result.amount, this.tokenDecimals)
+    const yesVotesFormatted = formatUnits(result.yesVotes, this.tokenDecimals)
+    const noVotesFormatted = formatUnits(result.noVotes, this.tokenDecimals)
+
+    // Calculate USD values if pricing is available
+    const tokenPrice = this.pricing ? parseFloat(this.pricing.tokenUsd) : null
+
     return {
       id: result.id,
       proposalType: result.proposalType,
       proposer: result.proposer,
       amount: {
         raw: result.amount,
-        formatted: formatUnits(result.amount, this.tokenDecimals),
+        formatted: amountFormatted,
+        usd: tokenPrice ? (parseFloat(amountFormatted) * tokenPrice).toString() : undefined,
       },
       recipient: result.recipient,
       description: result.description,
@@ -275,11 +286,13 @@ export class Governance {
       },
       yesVotes: {
         raw: result.yesVotes,
-        formatted: formatUnits(result.yesVotes, this.tokenDecimals),
+        formatted: yesVotesFormatted,
+        usd: tokenPrice ? (parseFloat(yesVotesFormatted) * tokenPrice).toString() : undefined,
       },
       noVotes: {
         raw: result.noVotes,
-        formatted: formatUnits(result.noVotes, this.tokenDecimals),
+        formatted: noVotesFormatted,
+        usd: tokenPrice ? (parseFloat(noVotesFormatted) * tokenPrice).toString() : undefined,
       },
       totalBalanceVoted: result.totalBalanceVoted,
       executed: result.executed,
@@ -689,14 +702,20 @@ export class Governance {
         break
     }
 
+    const availableFormatted = formatUnits(allocation.available, this.tokenDecimals)
+    const allocatedFormatted = formatUnits(allocation.amount, this.tokenDecimals)
+    const tokenPrice = this.pricing ? parseFloat(this.pricing.tokenUsd) : null
+
     return {
       availableAmount: {
         raw: allocation.available,
-        formatted: formatUnits(allocation.available, this.tokenDecimals),
+        formatted: availableFormatted,
+        usd: tokenPrice ? (parseFloat(availableFormatted) * tokenPrice).toString() : undefined,
       },
       allocatedAmount: {
         raw: allocation.amount,
-        formatted: formatUnits(allocation.amount, this.tokenDecimals),
+        formatted: allocatedFormatted,
+        usd: tokenPrice ? (parseFloat(allocatedFormatted) * tokenPrice).toString() : undefined,
       },
       isAvailable: allocation.status === 'available' && allocation.available > 0n,
       error,

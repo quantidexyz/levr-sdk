@@ -21,7 +21,7 @@ export type BalanceParams = {
 const calculateUsd = (formatted: string, usdPrice: string): string => {
   const amount = parseFloat(formatted)
   const price = parseFloat(usdPrice)
-  return (amount * price).toFixed(2)
+  return (amount * price).toString()
 }
 
 /**

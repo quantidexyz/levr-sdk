@@ -46,6 +46,7 @@ export function useGovernanceQueries({
       governorAddress: projectData.governor,
       tokenDecimals: projectData.token.decimals,
       clankerToken,
+      pricing: projectData.pricing,
     })
   }, [wallet.data, publicClient, projectData, clankerToken])
 
@@ -149,7 +150,7 @@ export function useGovernance({
   onClaimAirdropSuccess,
   onClaimAirdropError,
 }: UseGovernanceParams) {
-  const { governance: governanceQueries, refetch, clankerToken } = useLevrContext()
+  const { governance: governanceQueries, refetch, clankerToken, project } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
 
@@ -162,6 +163,7 @@ export function useGovernance({
           governorAddress,
           tokenDecimals,
           clankerToken,
+          pricing: project.data?.pricing,
         })
       : null
 

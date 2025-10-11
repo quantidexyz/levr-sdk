@@ -247,14 +247,23 @@ export class Stake {
     const [totalStaked, escrowBalance, windowSeconds, streamStart, streamEnd, rewardRate] =
       results.map((r) => r.result!) as [bigint, bigint, number, bigint, bigint, bigint]
 
+    const totalStakedFormatted = formatUnits(totalStaked, this.tokenDecimals)
+    const escrowBalanceFormatted = formatUnits(escrowBalance, this.tokenDecimals)
+    const rewardRateFormatted = formatUnits(rewardRate, this.tokenDecimals)
+
+    // Calculate USD values if pricing is available
+    const tokenPrice = this.pricing ? parseFloat(this.pricing.tokenUsd) : null
+
     return {
       totalStaked: {
         raw: totalStaked,
-        formatted: formatUnits(totalStaked, this.tokenDecimals),
+        formatted: totalStakedFormatted,
+        usd: tokenPrice ? (parseFloat(totalStakedFormatted) * tokenPrice).toString() : undefined,
       },
       escrowBalance: {
         raw: escrowBalance,
-        formatted: formatUnits(escrowBalance, this.tokenDecimals),
+        formatted: escrowBalanceFormatted,
+        usd: tokenPrice ? (parseFloat(escrowBalanceFormatted) * tokenPrice).toString() : undefined,
       },
       streamParams: {
         windowSeconds: windowSeconds,
@@ -264,7 +273,8 @@ export class Stake {
       },
       rewardRatePerSecond: {
         raw: rewardRate as bigint,
-        formatted: formatUnits(rewardRate, this.tokenDecimals),
+        formatted: rewardRateFormatted,
+        usd: tokenPrice ? (parseFloat(rewardRateFormatted) * tokenPrice).toString() : undefined,
       },
     }
   }
@@ -293,10 +303,14 @@ export class Stake {
     const stakedBalance = results[0].result as bigint
     const aprBps = results[1].result as bigint
 
+    const stakedBalanceFormatted = formatUnits(stakedBalance, this.tokenDecimals)
+    const tokenPrice = this.pricing ? parseFloat(this.pricing.tokenUsd) : null
+
     return {
       stakedBalance: {
         raw: stakedBalance,
-        formatted: formatUnits(stakedBalance, this.tokenDecimals),
+        formatted: stakedBalanceFormatted,
+        usd: tokenPrice ? (parseFloat(stakedBalanceFormatted) * tokenPrice).toString() : undefined,
       },
       aprBps: {
         raw: aprBps,
@@ -333,12 +347,12 @@ export class Stake {
 
       if (isTokenReward) {
         const price = parseFloat(this.pricing.tokenUsd)
-        availableUsd = (parseFloat(availableFormatted) * price).toFixed(2)
-        pendingUsd = (parseFloat(pendingFormatted) * price).toFixed(2)
+        availableUsd = (parseFloat(availableFormatted) * price).toString()
+        pendingUsd = (parseFloat(pendingFormatted) * price).toString()
       } else if (isWethReward) {
         const price = parseFloat(this.pricing.wethUsd)
-        availableUsd = (parseFloat(availableFormatted) * price).toFixed(2)
-        pendingUsd = (parseFloat(pendingFormatted) * price).toFixed(2)
+        availableUsd = (parseFloat(availableFormatted) * price).toString()
+        pendingUsd = (parseFloat(pendingFormatted) * price).toString()
       }
     }
 
@@ -382,10 +396,10 @@ export class Stake {
 
       if (isTokenReward) {
         const price = parseFloat(this.pricing.tokenUsd)
-        usd = (parseFloat(formatted) * price).toFixed(2)
+        usd = (parseFloat(formatted) * price).toString()
       } else if (isWethReward) {
         const price = parseFloat(this.pricing.wethUsd)
-        usd = (parseFloat(formatted) * price).toFixed(2)
+        usd = (parseFloat(formatted) * price).toString()
       }
     }
 
@@ -412,9 +426,27 @@ export class Stake {
       args: [token],
     })
 
+    const formatted = formatUnits(result, decimals)
+
+    // Calculate USD value if pricing is available
+    let usd: string | undefined
+    if (this.pricing) {
+      const isTokenReward = token.toLowerCase() === this.tokenAddress.toLowerCase()
+      const isWethReward = !isTokenReward
+
+      if (isTokenReward) {
+        const price = parseFloat(this.pricing.tokenUsd)
+        usd = (parseFloat(formatted) * price).toString()
+      } else if (isWethReward) {
+        const price = parseFloat(this.pricing.wethUsd)
+        usd = (parseFloat(formatted) * price).toString()
+      }
+    }
+
     return {
       raw: result,
-      formatted: formatUnits(result, decimals),
+      formatted,
+      usd,
     }
   }
 

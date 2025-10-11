@@ -189,18 +189,6 @@ export async function project({
       ? Number((totalAllocatedRaw * 10000n) / totalSupplyRaw) / 100 // Convert to percentage
       : 0
 
-  const treasuryStats: TreasuryStats = {
-    balance: {
-      raw: treasuryBalanceRaw,
-      formatted: formatUnits(treasuryBalanceRaw, tokenDecimals),
-    },
-    totalAllocated: {
-      raw: totalAllocatedRaw,
-      formatted: formatUnits(totalAllocatedRaw, tokenDecimals),
-    },
-    utilization,
-  }
-
   // Fetch pricing data if oracle client is provided and pool exists
   let pricing: PricingResult | undefined
 
@@ -226,6 +214,28 @@ export async function project({
       // If pricing fails, continue without it (graceful degradation)
       console.warn('Failed to fetch USD pricing:', error)
     }
+  }
+
+  // Calculate USD values for treasury stats if pricing is available
+  const treasuryBalanceFormatted = formatUnits(treasuryBalanceRaw, tokenDecimals)
+  const totalAllocatedFormatted = formatUnits(totalAllocatedRaw, tokenDecimals)
+
+  const treasuryStats: TreasuryStats = {
+    balance: {
+      raw: treasuryBalanceRaw,
+      formatted: treasuryBalanceFormatted,
+      usd: pricing
+        ? (parseFloat(treasuryBalanceFormatted) * parseFloat(pricing.tokenUsd)).toString()
+        : undefined,
+    },
+    totalAllocated: {
+      raw: totalAllocatedRaw,
+      formatted: totalAllocatedFormatted,
+      usd: pricing
+        ? (parseFloat(totalAllocatedFormatted) * parseFloat(pricing.tokenUsd)).toString()
+        : undefined,
+    },
+    utilization,
   }
 
   return {
