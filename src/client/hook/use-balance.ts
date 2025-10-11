@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 
 import type { TokenConfig } from '../../balance'
@@ -54,6 +55,13 @@ export function useBalanceQuery({
         key: 'weth',
       })
     }
+
+    // Add native ETH balance
+    addresses.push({
+      address: zeroAddress,
+      decimals: 18,
+      key: 'eth',
+    })
 
     return addresses
   }, [clankerToken, projectTokenDecimals, wethAddress])

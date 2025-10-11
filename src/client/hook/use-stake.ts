@@ -129,6 +129,40 @@ export function useStakingQueries({
       e && !!publicClient && !!projectData && !!userAddress && !!stakeService && !!wethAddress,
   })
 
+  // Query: WETH reward rate per second
+  const wethRewardRate = useQuery({
+    queryKey: ['staking', 'wethRewardRate', projectData?.staking, wethAddress],
+    queryFn: async () => {
+      if (!wethAddress || !stakeService) return null
+      return stakeService.getRewardRatePerSecond(wethAddress)
+    },
+    enabled: e && !!publicClient && !!projectData && !!stakeService && !!wethAddress,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  })
+
+  // Query: WETH APR (calculated off-chain using pool price)
+  const aprBpsWeth = useQuery({
+    queryKey: [
+      'staking',
+      'aprBpsWeth',
+      projectData?.staking,
+      projectData?.pool?.poolKey,
+      wethAddress,
+    ],
+    queryFn: async () => {
+      if (!wethAddress || !projectData?.pool?.poolKey || !stakeService) return null
+      return stakeService.calculateWethApr(projectData.pool.poolKey)
+    },
+    enabled:
+      e &&
+      !!publicClient &&
+      !!projectData &&
+      !!projectData.pool?.poolKey &&
+      !!stakeService &&
+      !!wethAddress,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  })
+
   return {
     stakeService,
     allowance,
@@ -138,6 +172,8 @@ export function useStakingQueries({
     outstandingRewardsWeth,
     claimableRewardsStaking,
     claimableRewardsWeth,
+    wethRewardRate,
+    aprBpsWeth,
   }
 }
 
@@ -300,6 +336,7 @@ export function useStake({
         staking.outstandingRewardsWeth.refetch(),
         staking.claimableRewardsStaking.refetch(),
         staking.claimableRewardsWeth.refetch(),
+        staking.wethRewardRate.refetch(),
         staking.poolData.refetch(),
         staking.userData.refetch(),
       ])
@@ -357,6 +394,8 @@ export function useStake({
     outstandingRewardsWeth: staking.outstandingRewardsWeth,
     claimableRewardsStaking: staking.claimableRewardsStaking,
     claimableRewardsWeth: staking.claimableRewardsWeth,
+    wethRewardRate: staking.wethRewardRate,
+    aprBpsWeth: staking.aprBpsWeth,
     balances,
 
     // Helpers
@@ -370,8 +409,6 @@ export function useStake({
     streamParams: staking.poolData.data?.streamParams,
     rewardRatePerSecond: staking.poolData.data?.rewardRatePerSecond,
     aprBps: staking.userData.data?.aprBps,
-    wethRewardRate: null, // TODO: Add to provider if needed
-    aprBpsWeth: null, // TODO: Add to provider if needed
     rewardsData: outstandingRewards, // For accrual display
     claimableData: claimableRewards, // For user claimable amounts
 

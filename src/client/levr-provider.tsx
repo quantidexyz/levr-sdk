@@ -53,6 +53,8 @@ export type LevrContextValue = {
     } | null>
     claimableRewardsStaking: UseQueryResult<any>
     claimableRewardsWeth: UseQueryResult<any>
+    wethRewardRate: UseQueryResult<{ raw: bigint; formatted: string } | null>
+    aprBpsWeth: UseQueryResult<{ raw: bigint; percentage: number } | null>
   }
 
   governance: {
@@ -173,6 +175,8 @@ export function LevrProvider({ children, enabled = true }: LevrProviderProps) {
           staking.outstandingRewardsWeth.refetch(),
           staking.claimableRewardsStaking.refetch(),
           staking.claimableRewardsWeth.refetch(),
+          staking.wethRewardRate.refetch(),
+          staking.aprBpsWeth.refetch(),
         ])
       },
       proposals: async () => {
@@ -192,6 +196,8 @@ export function LevrProvider({ children, enabled = true }: LevrProviderProps) {
           staking.outstandingRewardsWeth.refetch(),
           staking.claimableRewardsStaking.refetch(),
           staking.claimableRewardsWeth.refetch(),
+          staking.wethRewardRate.refetch(),
+          staking.aprBpsWeth.refetch(),
           project.refetch(), // Treasury might have changed
         ])
       },
@@ -247,6 +253,8 @@ export function LevrProvider({ children, enabled = true }: LevrProviderProps) {
         outstandingRewardsWeth: staking.outstandingRewardsWeth,
         claimableRewardsStaking: staking.claimableRewardsStaking,
         claimableRewardsWeth: staking.claimableRewardsWeth,
+        wethRewardRate: staking.wethRewardRate,
+        aprBpsWeth: staking.aprBpsWeth,
       },
       governance: {
         currentCycleId: governance.currentCycleId,
