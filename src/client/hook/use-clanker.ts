@@ -6,7 +6,6 @@ import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
 import { IClankerToken } from '../../abis'
-import { useLevrContext } from '../levr-provider'
 import { queryKeys } from '../query-keys'
 
 export type UseClankerTokenQueryParams = {
