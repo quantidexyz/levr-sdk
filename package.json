@@ -1,7 +1,7 @@
 {
   "name": "levr-sdk",
   "description": "Leverage your Clanker launch with DAO capabilities",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "Apache-2.0",
   "sideEffects": false,
   "exports": {

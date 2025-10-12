@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.2](https://github.com/quantidexyz/levr-sdk/compare/v0.0.1...v0.0.2) (2025-10-12)
+
+
+### Features
+
+* add GET_USDC_ADDRESS function and refactor quoteV4 to derive chainId from publicClient ([f537ac2](https://github.com/quantidexyz/levr-sdk/commit/f537ac248d7b8a037b481fc8a27885199d3ebd5c))
+* add price impact calculation to quoteV4 and enhance use-swap with pricing data integration ([67fbdcc](https://github.com/quantidexyz/levr-sdk/commit/67fbdccfc827e51f0f26d5546bb137bc4b02b28b))
+* add quoteV3 functionality for Uniswap V3 swaps and integrate it into WETH/USD price retrieval, removing deprecated weth-usd module ([1f3c20c](https://github.com/quantidexyz/levr-sdk/commit/1f3c20c1b99489d731dba1931c6910ad73175fc6))
+* add Uniswap V3 Quoter V2 integration and enhance WETH/USD price retrieval with improved liquidity checks ([e46903f](https://github.com/quantidexyz/levr-sdk/commit/e46903fc37a9cc78ee3614c0dc65f0f2a4e56884))
+* enhance balance and staking modules with optional USD value calculations and integrate pricing data across various components ([012fa48](https://github.com/quantidexyz/levr-sdk/commit/012fa480c5f81f79a4d316cb7426be2d5b31c2c8))
+* enhance governance and staking modules with optional USD value calculations and integrate pricing data for treasury stats ([fbbfca8](https://github.com/quantidexyz/levr-sdk/commit/fbbfca8c8346fd795f0b4893c7ee07634f33d3f6))
+* enhance README with new USD pricing features, including real-time price impact calculations and integration of pricing data in various SDK functions ([e359961](https://github.com/quantidexyz/levr-sdk/commit/e359961a49299b2b9f00b22811222390fbb751a2))
+* implement Uniswap V4 StateView integration and add USD price calculation for tokens paired with WETH ([5fb5280](https://github.com/quantidexyz/levr-sdk/commit/5fb5280cac44d733fe28cd273a3545c2f422c6f0))
+* introduce comprehensive documentation for Levr SDK, covering advanced usage patterns, architecture, client hooks, getting started guide, and server API reference ([7c7fdbf](https://github.com/quantidexyz/levr-sdk/commit/7c7fdbfb762a54dfc8330259e7ba169d5001496e))
+* refine price impact calculation in quoteV4 and update WETH APR calculation to utilize USD pricing data ([41d8281](https://github.com/quantidexyz/levr-sdk/commit/41d828123e9de2247701964c0ebbec15a0ad3624))
+* restructure server API documentation by consolidating query, class, and utility functions into organized sections, enhancing clarity and accessibility for developers ([011a5f0](https://github.com/quantidexyz/levr-sdk/commit/011a5f019f8e70530facbc93866b1436a4583d3e))
+
 ### 0.0.1 (2025-10-11)
 
 ### Features
