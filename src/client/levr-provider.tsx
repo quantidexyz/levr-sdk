@@ -13,7 +13,6 @@ import type { Stake } from '../stake'
 import type { UserData } from '../user'
 import { getPublicClient } from '../util'
 import { useClankerTokenQuery } from './hook/use-clanker'
-import { useGovernanceQueries } from './hook/use-governance'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposals'
@@ -38,14 +37,6 @@ export type LevrContextValue = {
   project: UseQueryResult<Project | null>
   pool: UseQueryResult<PoolData | null>
   proposals: UseQueryResult<ProposalsResult | null>
-  governance: {
-    currentCycleId: UseQueryResult<bigint>
-    addresses: UseQueryResult<{
-      treasury: Address
-      factory: Address
-      stakedToken: Address
-    }>
-  }
   tokenData: UseQueryResult<{
     originalAdmin: Address
     admin: Address
@@ -80,7 +71,6 @@ export type LevrContextValue = {
     project: () => Promise<void>
     pool: () => Promise<void>
     proposals: () => Promise<void>
-    governance: () => Promise<void>
 
     // Action-based refetches
     afterTrade: () => Promise<void>
@@ -153,13 +143,6 @@ export function LevrProvider({
     enabled,
   })
 
-  // Global governance queries (not user-specific)
-  const governance = useGovernanceQueries({
-    clankerToken,
-    projectData: project.data,
-    enabled,
-  })
-
   // Keep staking service for backward compatibility in public hooks
   const staking = useStakingQueries({
     clankerToken,
@@ -188,9 +171,6 @@ export function LevrProvider({
       },
       proposals: async () => {
         await proposalsQueryResult.refetch()
-      },
-      governance: async () => {
-        await Promise.all([governance.currentCycleId.refetch(), governance.addresses.refetch()])
       },
 
       // Action-based refetches
@@ -231,15 +211,14 @@ export function LevrProvider({
       afterProposal: async () => {
         await Promise.all([
           proposalsQueryResult.refetch(), // New proposal added
-          governance.currentCycleId.refetch(), // Cycle might have changed
+          project.refetch(), // currentCycleId might have changed
         ])
       },
       afterExecute: async () => {
         await Promise.all([
-          project.refetch(), // Treasury changed (transfer) or staking (boost)
+          project.refetch(), // Treasury changed + currentCycleId (new cycle starts)
           proposalsQueryResult.refetch(), // Proposal executed
           userQuery.refetch(), // Staking rewards might have changed (if boost)
-          governance.currentCycleId.refetch(), // New cycle might start
         ])
       },
       afterAirdrop: async () => {
@@ -248,7 +227,7 @@ export function LevrProvider({
         ])
       },
     }),
-    [queryClient, project, userQuery, poolQuery, proposalsQueryResult, governance]
+    [queryClient, project, userQuery, poolQuery, proposalsQueryResult]
   )
 
   // Auto-refetch on wallet/chain change
@@ -270,10 +249,6 @@ export function LevrProvider({
       project,
       pool: poolQuery,
       proposals: proposalsQueryResult,
-      governance: {
-        currentCycleId: governance.currentCycleId,
-        addresses: governance.addresses,
-      },
       tokenData,
 
       // Flat access (backward compatibility + convenience)
@@ -305,7 +280,6 @@ export function LevrProvider({
       project,
       poolQuery,
       proposalsQueryResult,
-      governance,
       tokenData,
       refetchMethods,
       staking.stakeService,

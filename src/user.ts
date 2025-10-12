@@ -1,8 +1,6 @@
-import { erc20Abi, formatUnits, zeroAddress } from 'viem'
+import { erc20Abi, formatUnits } from 'viem'
 
 import { IClankerAirdrop, LevrStaking_v1 } from './abis'
-import type { TokenConfig } from './balance'
-import { balance } from './balance'
 import { GET_CLANKER_AIRDROP_ADDRESS, WETH } from './constants'
 import type { Project } from './project'
 import type { BalanceResult, PopPublicClient } from './types'
@@ -196,51 +194,62 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
     pricing: project.pricing,
   }
 
-  // Fetch balances using existing balance function
-  const tokens: TokenConfig[] = [
-    { address: clankerToken, decimals: tokenDecimals, key: 'token' },
-    { address: zeroAddress, decimals: 18, key: 'eth' },
+  // Build single comprehensive multicall for ALL user data
+  const contracts: any[] = [
+    // Balances
+    {
+      address: clankerToken,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [userAddress],
+    },
   ]
 
   if (wethAddress) {
-    tokens.push({ address: wethAddress, decimals: 18, key: 'weth' })
+    contracts.push({
+      address: wethAddress,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [userAddress],
+    })
   }
 
-  const balances = await balance({
-    publicClient,
-    address: userAddress,
-    tokens,
-    pricing,
-  })
+  // Add staking contracts
+  contracts.push(...stakingContracts({ userAddress, stakingAddress, clankerToken, wethAddress }))
 
-  // Build comprehensive multicall using helper utils
-  const stakingContractsData = stakingContracts({
-    userAddress,
-    stakingAddress,
-    clankerToken,
-    wethAddress,
-  })
+  // Execute single multicall + native balance
+  const [nativeBalance, ...multicallResults] = await Promise.all([
+    publicClient.getBalance({ address: userAddress }),
+    publicClient.multicall({ contracts }),
+  ])
 
-  const results = await publicClient.multicall({ contracts: stakingContractsData })
+  const results = multicallResults[0]
 
-  // Parse staking results
-  const stakedBalance = results[0].result as bigint
-  const allowance = results[1].result as bigint
-  const outstandingRewardsToken = results[2].result as [bigint, bigint]
-  const claimableRewardsToken = results[3].result as bigint
-  const aprBps = results[4].result as bigint
-  const votingPower = results[5].result as bigint
-  const totalStaked = results[6].result as bigint
+  // Parse balance results
+  const stakingDataStartIndex = wethAddress ? 2 : 1
 
-  // Parse WETH rewards if available
+  const tokenBalanceRaw = results[0].result as bigint
+  const wethBalanceRaw = wethAddress ? (results[1].result as bigint) : 0n
+
+  // Parse staking results (offset by balance contracts)
+  const stakedBalance = results[stakingDataStartIndex + 0].result as bigint
+  const allowance = results[stakingDataStartIndex + 1].result as bigint
+  const outstandingRewardsToken = results[stakingDataStartIndex + 2].result as [bigint, bigint]
+  const claimableRewardsToken = results[stakingDataStartIndex + 3].result as bigint
+  const aprBps = results[stakingDataStartIndex + 4].result as bigint
+  const votingPower = results[stakingDataStartIndex + 5].result as bigint
+  const totalStaked = results[stakingDataStartIndex + 6].result as bigint
+
+  // Parse WETH rewards if available (after base staking contracts)
   let outstandingRewardsWeth: [bigint, bigint] | null = null
   let claimableRewardsWeth: bigint | null = null
   let wethRewardRate: bigint | null = null
 
   if (wethAddress) {
-    outstandingRewardsWeth = results[7].result as [bigint, bigint]
-    claimableRewardsWeth = results[8].result as bigint
-    wethRewardRate = results[9].result as bigint
+    const wethRewardsStartIndex = stakingDataStartIndex + 7
+    outstandingRewardsWeth = results[wethRewardsStartIndex + 0].result as [bigint, bigint]
+    claimableRewardsWeth = results[wethRewardsStartIndex + 1].result as bigint
+    wethRewardRate = results[wethRewardsStartIndex + 2].result as bigint
   }
 
   // Calculate USD values
@@ -308,9 +317,9 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
 
   return {
     balances: {
-      token: balances.token,
-      weth: balances.weth || { raw: 0n, formatted: '0' },
-      eth: balances.eth,
+      token: formatWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
+      weth: formatWithUsd(wethBalanceRaw, 18, wethPrice),
+      eth: formatWithUsd(nativeBalance, 18, wethPrice),
     },
     staking: {
       stakedBalance: formatWithUsd(stakedBalance, tokenDecimals, tokenPrice),

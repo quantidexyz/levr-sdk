@@ -60,6 +60,7 @@ export const queryKeys = {
       ['governance', 'proposal', governorAddress, proposalId] as const,
     currentCycleId: (governorAddress: Address) =>
       ['governance', 'currentCycleId', governorAddress] as const,
+    factory: (governorAddress: Address) => ['governance', 'factory', governorAddress] as const,
     addresses: (governorAddress: Address) => ['governance', 'addresses', governorAddress] as const,
     airdropStatus: (governorAddress: Address, clankerToken: Address) =>
       ['governance', 'airdropStatus', governorAddress, clankerToken] as const,

@@ -1,7 +1,7 @@
 import type { ExtractAbiItem, Log } from 'viem'
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
-import { IClankerToken, LevrFactory_v1 } from './abis'
+import { IClankerToken, LevrFactory_v1, LevrGovernor_v1 } from './abis'
 import type { Project, ProjectMetadata, TreasuryStats } from './project'
 import type { PopPublicClient } from './types'
 
@@ -132,7 +132,7 @@ export async function projects({
     }
   }
 
-  // Batch fetch all token metadata and treasury stats
+  // Batch fetch all token metadata, treasury stats, and governance data
   const contracts = validTokensWithContracts.flatMap(({ token, contracts }) => [
     // Token metadata
     {
@@ -178,13 +178,19 @@ export async function projects({
       functionName: 'balanceOf' as const,
       args: [contracts.staking],
     },
+    // Governance data
+    {
+      address: contracts.governor,
+      abi: LevrGovernor_v1,
+      functionName: 'currentCycleId' as const,
+    },
   ])
 
   const results = await publicClient.multicall({ contracts })
 
   // Parse results into Project objects
   const projects: Omit<Project, 'forwarder' | 'pool' | 'pricing'>[] = []
-  const callsPerProject = 8 // decimals, name, symbol, totalSupply, metadata, imageUrl, treasuryBalance, stakingBalance
+  const callsPerProject = 9 // decimals, name, symbol, totalSupply, metadata, imageUrl, treasuryBalance, stakingBalance, currentCycleId
 
   for (let i = 0; i < validTokensWithContracts.length; i++) {
     const { token, contracts: projectContracts } = validTokensWithContracts[i]
@@ -198,6 +204,7 @@ export async function projects({
     const imageUrl = results[offset + 5].result as string | undefined
     const treasuryBalance = results[offset + 6].result as bigint
     const stakingBalance = results[offset + 7].result as bigint
+    const currentCycleId = results[offset + 8].result as bigint
 
     // Parse metadata JSON
     let parsedMetadata: ProjectMetadata | null = null
@@ -234,6 +241,8 @@ export async function projects({
       governor: projectContracts.governor,
       staking: projectContracts.staking,
       stakedToken: projectContracts.stakedToken,
+      factory: factoryAddress,
+      currentCycleId,
       token: {
         address: token,
         decimals,

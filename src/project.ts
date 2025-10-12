@@ -1,6 +1,6 @@
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
-import { IClankerLpLockerMultiple, IClankerToken, LevrFactory_v1 } from './abis'
+import { IClankerLpLockerMultiple, IClankerToken, LevrFactory_v1, LevrGovernor_v1 } from './abis'
 import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS } from './constants'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
@@ -42,6 +42,8 @@ export type Project = {
   staking: `0x${string}`
   stakedToken: `0x${string}`
   forwarder: `0x${string}`
+  factory: `0x${string}`
+  currentCycleId: bigint
   token: {
     address: `0x${string}`
     decimals: number
@@ -84,18 +86,8 @@ export async function project({
 
   if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
 
-  // Fetch token metadata, forwarder, and treasury stats using multicall
-  const [
-    decimals,
-    name,
-    symbol,
-    totalSupply,
-    metadata,
-    imageUrl,
-    forwarder,
-    treasuryBalance,
-    stakingBalance,
-  ] = await publicClient.multicall({
+  // Fetch token metadata, forwarder, treasury stats, and governance data using multicall
+  const multicallResults = await publicClient.multicall({
     contracts: [
       {
         address: clankerToken,
@@ -145,8 +137,25 @@ export async function project({
         functionName: 'balanceOf',
         args: [staking],
       },
+      // Governance data
+      {
+        address: governor,
+        abi: LevrGovernor_v1,
+        functionName: 'currentCycleId',
+      },
     ],
   })
+
+  const decimals = multicallResults[0]
+  const name = multicallResults[1]
+  const symbol = multicallResults[2]
+  const totalSupply = multicallResults[3]
+  const metadata = multicallResults[4]
+  const imageUrl = multicallResults[5]
+  const forwarder = multicallResults[6]
+  const treasuryBalance = multicallResults[7]
+  const stakingBalance = multicallResults[8]
+  const currentCycleId = multicallResults[9]
 
   // Parse metadata JSON
   let parsedMetadata: ProjectMetadata | null = null
@@ -265,6 +274,8 @@ export async function project({
     staking,
     stakedToken,
     forwarder: forwarder.result as `0x${string}`,
+    factory: factoryAddress,
+    currentCycleId: currentCycleId.result as bigint,
     token: {
       address: clankerToken,
       decimals: tokenDecimals,

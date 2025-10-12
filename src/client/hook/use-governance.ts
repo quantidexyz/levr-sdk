@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { Address, TransactionReceipt } from 'viem'
+import type { TransactionReceipt } from 'viem'
 import { parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
@@ -13,74 +13,8 @@ import type {
   ProposeTransferConfig,
 } from '../../governance'
 import { Governance } from '../../governance'
-import type { Project } from '../../project'
 import { useLevrContext } from '../levr-provider'
 import { queryKeys } from '../query-keys'
-
-export type UseGovernanceQueriesParams = {
-  clankerToken: Address | null
-  projectData: Project | null | undefined
-  enabled?: boolean
-}
-
-/**
- * Internal: Creates global governance queries with all logic
- * Used by LevrProvider
- */
-export function useGovernanceQueries({
-  clankerToken,
-  projectData,
-  enabled: e = true,
-}: UseGovernanceQueriesParams) {
-  const wallet = useWalletClient()
-  const publicClient = usePublicClient()
-
-  // Create Governance instance
-  const governance = useMemo(() => {
-    if (!wallet.data || !publicClient || !projectData || !clankerToken) {
-      return null
-    }
-    return new Governance({
-      wallet: wallet.data,
-      publicClient,
-      governorAddress: projectData.governor,
-      tokenDecimals: projectData.token.decimals,
-      clankerToken,
-      pricing: projectData.pricing,
-    })
-  }, [wallet.data, publicClient, projectData, clankerToken])
-
-  const currentCycleId = useQuery({
-    queryKey: queryKeys.governance.currentCycleId(projectData?.governor!),
-    queryFn: async (): Promise<bigint> => {
-      return await governance!.getCurrentCycleId()
-    },
-    enabled: e && !!governance && !!projectData,
-    retry: 1,
-  })
-
-  const addresses = useQuery({
-    queryKey: queryKeys.governance.addresses(projectData?.governor!),
-    queryFn: async () => {
-      const [treasury, factory, stakedToken] = await Promise.all([
-        governance!.getTreasury(),
-        governance!.getFactory(),
-        governance!.getStakedToken(),
-      ])
-
-      return { treasury, factory, stakedToken }
-    },
-    enabled: e && !!governance && !!projectData,
-    retry: 1,
-  })
-
-  // Note: airdropStatus moved to user.governance.airdrop
-
-  return {
-    currentCycleId,
-    addresses,
-  }
-}
 
 // ========================================
 // PUBLIC HOOK (exported from index.ts)
@@ -157,9 +91,30 @@ export function useGovernance({
     })
   }, [wallet.data, publicClient, project.data, clankerToken])
 
-  // Global queries from context
-  const currentCycleId = useLevrContext().governance.currentCycleId
-  const addresses = useLevrContext().governance.addresses
+  // All global governance data comes from project (no separate queries)
+  const currentCycleId = useMemo(
+    () => ({
+      data: project.data?.currentCycleId,
+      isLoading: project.isLoading,
+      error: project.error,
+    }),
+    [project]
+  )
+
+  const addresses = useMemo(
+    () => ({
+      data: project.data
+        ? {
+            treasury: project.data.treasury,
+            factory: project.data.factory,
+            stakedToken: project.data.stakedToken,
+          }
+        : undefined,
+      isLoading: project.isLoading,
+      error: project.error,
+    }),
+    [project]
+  )
 
   // Dynamic queries (component-specific)
   const proposal = useQuery({

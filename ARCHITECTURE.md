@@ -23,10 +23,11 @@ The Levr SDK uses a centralized, composable data architecture that minimizes RPC
 **Contains:**
 
 - Token metadata (name, symbol, decimals, supply, image)
-- Contract addresses (treasury, governor, staking, stakedToken, forwarder)
+- Contract addresses (treasury, governor, staking, stakedToken, forwarder, factory)
 - Pool info (poolKey, feeDisplay, numPositions)
 - Treasury stats (balance, utilization) with USD values
 - Fee receivers (admin, recipient, percentage)
+- Governance data (currentCycleId)
 - Pricing data (wethUsd, tokenUsd)
 
 **Access:**
@@ -36,6 +37,8 @@ const { project } = useLevrContext()
 project.data?.token.name
 project.data?.pool?.poolKey
 project.data?.feeReceivers
+project.data?.factory
+project.data?.currentCycleId
 project.data?.pricing
 ```
 
@@ -104,17 +107,7 @@ pool.data?.feeDisplay
 - Array of formatted proposal details
 - Block range metadata
 
-### 5. Governance Group (Global)
-
-**Hook:** `useLevrContext().governance`  
-**Refetch:** `refetch.governance()`
-
-**Contains (non-user-specific):**
-
-- currentCycleId
-- addresses (treasury, factory, stakedToken)
-
-**Note:** User-specific governance data (voting power, airdrop) moved to `user.governance`
+**Note:** Global governance data (currentCycleId, factory) is now in `project`. User-specific governance data (voting power, airdrop) is in `user.governance`.
 
 ## Helper Utils (for Composition)
 
@@ -372,22 +365,24 @@ await refetch.afterStake() // Refetches user + project (2 multicalls)
 
 ```
 LevrProvider
-  ├── project()   → Token, contracts, pool, treasury, feeReceivers, pricing
+  ├── project()   → Token, contracts, pool, treasury, feeReceivers, factory, currentCycleId, pricing
   ├── user()      → Balances, staking, governance (1 multicall)
-  ├── pool()      → Liquidity, fees, ticks
-  ├── proposals() → Proposal list
-  └── governance  → currentCycleId, addresses
+  ├── pool()      → Liquidity, fees, ticks (optional)
+  └── proposals() → Proposal list
 
 Context (Dual Access)
-  ├── Hierarchical: user.data.balances.token
+  ├── Hierarchical: user.data.balances.token, project.data.currentCycleId
   └── Flat: balances.data.token
 
 Action-Based Refetches
   ├── afterTrade    → [user, pool]
   ├── afterStake    → [user, project]
   ├── afterVote     → [user, proposals]
-  └── afterExecute  → [project, proposals, user, governance]
+  ├── afterProposal → [proposals, project]
+  └── afterExecute  → [project, proposals, user]
 ```
+
+**Note:** No separate governance query - all data comes from project!
 
 ## Future Enhancements
 
