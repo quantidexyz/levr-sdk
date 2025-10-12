@@ -23,11 +23,10 @@ Class-based APIs for operations:
 
 ### Swap Functions
 
-Uniswap V4 swap functionality:
+Uniswap V3/V4 swap functionality:
 
-- [quoteV4()](./swaps/quote-v4.md) - Get V4 quote with price impact
+- [quote](./swaps/quote.md) - Unified quote API for V3 and V4 (read & bytecode methods)
 - [swapV4()](./swaps/swap-v4.md) - Execute V4 swap
-- [quoteV3()](./swaps/quote-v3.md) - Get V3 quote
 
 ### Utilities
 

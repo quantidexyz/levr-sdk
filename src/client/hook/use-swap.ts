@@ -5,7 +5,7 @@ import type { TransactionReceipt } from 'viem'
 import { formatUnits, parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { quoteV4 } from '../../quote-v4'
+import { quote as quoteApi } from '../../quote'
 import { swapV4 } from '../../swap-v4'
 import type { PoolKey } from '../../types'
 import { useLevrContext } from '../levr-provider'
@@ -92,7 +92,7 @@ export function useSwap({
           ? project.data.token.decimals
           : 18 // WETH decimals
 
-      const result = await quoteV4({
+      const result = await quoteApi.v4.read({
         publicClient: publicClient!,
         poolKey: poolKey!,
         zeroForOne: quoteParams!.zeroForOne,

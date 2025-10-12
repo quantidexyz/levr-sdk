@@ -3,8 +3,7 @@ import { formatUnits, parseUnits } from 'viem'
 
 import { GET_USDC_ADDRESS, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
 import { createPoolKey } from './pool-key'
-import { quoteV3 } from './quote-v3'
-import { quoteV4 } from './quote-v4'
+import { quote } from './quote'
 
 /**
  * @description Parameters for getting WETH/USD price
@@ -96,7 +95,7 @@ export const getWethUsdPrice = async ({
     try {
       const oneWeth = parseUnits('1', wethData.decimals)
 
-      const quote = await quoteV3({
+      const quoteResult = await quote.v3.read({
         publicClient,
         quoterAddress,
         tokenIn: wethData.address,
@@ -105,12 +104,12 @@ export const getWethUsdPrice = async ({
         fee,
       })
 
-      if (quote.amountOut > 0n) {
-        const priceUsd = formatUnits(quote.amountOut, 6)
+      if (quoteResult.amountOut > 0n) {
+        const priceUsd = formatUnits(quoteResult.amountOut, 6)
 
         return {
           priceUsd,
-          wethPerUsdc: quote.amountOut,
+          wethPerUsdc: quoteResult.amountOut,
           fee,
         }
       }
@@ -251,7 +250,7 @@ export const getUsdPrice = async ({
   // Quote 1 token unit -> WETH to get token price in WETH (on quote chain)
   // Using token decimals (assume 18 if not available)
   const oneToken = parseUnits('1', 18)
-  const tokenWethQuote = await quoteV4({
+  const tokenWethQuote = await quote.v4.read({
     publicClient: quotePublicClient,
     poolKey: tokenWethPoolKey,
     zeroForOne: tokenIsToken0InTokenWethPool,

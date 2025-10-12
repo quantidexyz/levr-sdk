@@ -3,7 +3,7 @@ import { erc20Abi, formatEther, parseEther } from 'viem'
 
 import { LevrFactory_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
-import { quoteV4 } from '../src/quote-v4'
+import { quote } from '../src/quote'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
 import { swapV4 } from '../src/swap-v4'
@@ -234,14 +234,14 @@ describe('#STAKE_TEST', () => {
       console.log('  Amount in:', `${formatEther(amountIn)} ETH`)
 
       // Execute swap
-      const quote = await quoteV4({
+      const quoteResult = await quote.v4.read({
         publicClient,
         poolKey,
         zeroForOne,
         amountIn,
       })
 
-      const amountOutMinimum = quote.amountOut === 0n ? 0n : (quote.amountOut * 9900n) / 10000n
+      const amountOutMinimum = quoteResult.amountOut === 0n ? 0n : (quoteResult.amountOut * 9900n) / 10000n
 
       const swapReceipt = await swapV4({
         publicClient,

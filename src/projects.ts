@@ -2,8 +2,7 @@ import type { ExtractAbiItem, Log } from 'viem'
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
 import { IClankerToken, LevrFactory_v1 } from './abis'
-import { WETH } from './constants'
-import type { PoolInfo, Project, ProjectMetadata, TreasuryStats } from './project'
+import type { Project, ProjectMetadata, TreasuryStats } from './project'
 import type { PopPublicClient } from './types'
 
 export type ProjectsParams = {
@@ -16,7 +15,7 @@ export type ProjectsParams = {
 }
 
 export type ProjectsResult = {
-  projects: Omit<Project, 'forwarder'>[]
+  projects: Omit<Project, 'forwarder' | 'pool' | 'pricing'>[]
   fromBlock: bigint
   toBlock: bigint
 }
@@ -184,8 +183,8 @@ export async function projects({
   const results = await publicClient.multicall({ contracts })
 
   // Parse results into Project objects
-  const projects: Omit<Project, 'forwarder'>[] = []
-  const callsPerProject = 8 // Updated to include treasury and staking balance
+  const projects: Omit<Project, 'forwarder' | 'pool' | 'pricing'>[] = []
+  const callsPerProject = 8 // decimals, name, symbol, totalSupply, metadata, imageUrl, treasuryBalance, stakingBalance
 
   for (let i = 0; i < validTokensWithContracts.length; i++) {
     const { token, contracts: projectContracts } = validTokensWithContracts[i]
@@ -229,36 +228,8 @@ export async function projects({
       utilization,
     }
 
-    // Extract pool information
-    // Clanker V4 tokens are always paired with WETH and use the token as the hook
-    let poolInfo: PoolInfo | undefined
-    try {
-      const wethAddress = WETH(chainId)?.address
-      if (wethAddress) {
-        // Determine currency ordering (currency0 < currency1)
-        const isTokenCurrency0 = token.toLowerCase() < wethAddress.toLowerCase()
-
-        // Standard Clanker V4 pool configuration
-        const fee = 3000 // 0.3% fee
-        const tickSpacing = 60
-
-        poolInfo = {
-          poolKey: {
-            currency0: isTokenCurrency0 ? token : wethAddress,
-            currency1: isTokenCurrency0 ? wethAddress : token,
-            fee,
-            tickSpacing,
-            hooks: token, // Token acts as the hook in Clanker V4
-          },
-          feeDisplay: `${(fee / 10000).toFixed(2)}%`,
-          numPositions: 0n, // Would need separate query for actual count
-        }
-      }
-    } catch {
-      // If construction fails, poolInfo remains undefined
-    }
-
     projects.push({
+      chainId,
       treasury: projectContracts.treasury,
       governor: projectContracts.governor,
       staking: projectContracts.staking,
@@ -272,7 +243,6 @@ export async function projects({
         metadata: parsedMetadata,
         imageUrl,
       },
-      pool: poolInfo,
       treasuryStats,
     })
   }

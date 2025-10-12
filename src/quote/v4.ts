@@ -1,24 +1,61 @@
 import type { PublicClient } from 'viem'
-import { encodeAbiParameters, formatUnits, keccak256 } from 'viem'
+import { encodeAbiParameters, encodeFunctionData, formatUnits, keccak256 } from 'viem'
 
-import { IClankerHookDynamicFee, IClankerHookStaticFee, V4Quoter } from './abis'
-import { UNISWAP_V4_QUOTER } from './constants'
-import type { PoolKey, PricingResult } from './types'
+import { IClankerHookDynamicFee, IClankerHookStaticFee, V4Quoter } from '../abis'
+import { UNISWAP_V4_QUOTER } from '../constants'
+import type { PoolKey, PricingResult } from '../types'
+
+// ============================================================================
+// V4 Quote Types
+// ============================================================================
 
 export type QuoteV4Params = {
-  publicClient: PublicClient
+  /**
+   * Public client for V4 quoter queries (only required for read method)
+   */
+  publicClient?: PublicClient
+  /**
+   * Pool key containing currency pair and fee info
+   */
   poolKey: PoolKey
+  /**
+   * Swap direction (true = currency0 to currency1, false = currency1 to currency0)
+   */
   zeroForOne: boolean
+  /**
+   * Amount of input token (in wei)
+   */
   amountIn: bigint
+  /**
+   * Optional hook data
+   */
   hookData?: `0x${string}`
+  /**
+   * Optional pricing data for price impact calculation
+   */
   pricing?: PricingResult
+  /**
+   * Decimals for currency0 (default: 18)
+   */
   currency0Decimals?: number
+  /**
+   * Decimals for currency1 (default: 18)
+   */
   currency1Decimals?: number
-  tokenAddress?: `0x${string}` // Project token address to determine which currency is token vs WETH
+  /**
+   * Project token address to determine which currency is token vs WETH
+   */
+  tokenAddress?: `0x${string}`
 }
 
-export type QuoteV4ReturnType = {
+export type QuoteV4ReadReturnType = {
+  /**
+   * Amount of output token (in wei)
+   */
   amountOut: bigint
+  /**
+   * Estimated gas for the swap
+   */
   gasEstimate: bigint
   /**
    * Price impact percentage (e.g., 0.5 for 0.5%)
@@ -39,12 +76,23 @@ export type QuoteV4ReturnType = {
   }
 }
 
+export type QuoteV4BytecodeReturnType = {
+  /**
+   * Target contract address
+   */
+  address: `0x${string}`
+  /**
+   * Encoded function call data
+   */
+  data: `0x${string}`
+}
+
+// ============================================================================
+// V4 Helper Functions
+// ============================================================================
+
 /**
  * @description Try to get static fees from a Clanker hook using multicall
- * @param publicClient Public client
- * @param hookAddress Hook address
- * @param poolId Pool ID
- * @returns Static fees or undefined
  */
 const tryGetStaticFees = async (
   publicClient: PublicClient,
@@ -83,10 +131,6 @@ const tryGetStaticFees = async (
 
 /**
  * @description Try to get dynamic fee configuration from a Clanker hook
- * @param publicClient Public client
- * @param hookAddress Hook address
- * @param poolId Pool ID
- * @returns Dynamic fee config or undefined
  */
 const tryGetDynamicFees = async (
   publicClient: PublicClient,
@@ -111,14 +155,11 @@ const tryGetDynamicFees = async (
 
 /**
  * @description Get hook fee information from Clanker hooks
- * @param publicClient Public client
- * @param poolKey Pool key containing hook address
- * @returns Hook fee information or undefined
  */
 const getHookFees = async (
   publicClient: PublicClient,
   poolKey: PoolKey
-): Promise<QuoteV4ReturnType['hookFees']> => {
+): Promise<QuoteV4ReadReturnType['hookFees']> => {
   // Generate pool ID for hook queries (keccak256 of abi.encode(PoolKey))
   const poolId = keccak256(
     encodeAbiParameters(
@@ -162,43 +203,8 @@ const getHookFees = async (
 }
 
 /**
- * @description Get a swap quote from Uniswap V4 Quoter
- * @param params Quote parameters including pool key and amount
- * @returns Quote result with output amount, gas estimate, and hook fees
- *
- * @remarks
- * The V4Quoter uses state-changing calls that are simulated via static call.
- * The quoter returns the expected output amount for the given input.
- *
- * This function works for both native ETH and ERC20 swaps:
- * - Native ETH → Token: Quote uses WETH address, swap router handles wrapping
- * - Token → Native ETH: Quote uses WETH address, swap router handles unwrapping
- *
- * @example
- * ```typescript
- * const quote = await quoteV4({
- *   publicClient,
- *   poolKey,
- *   zeroForOne: true,
- *   amountIn: parseEther('1'),
- * })
- * console.log(`Output: ${formatEther(quote.amountOut)}`)
- * console.log(`Fees:`, quote.hookFees)
- * ```
- */
-/**
- * Calculate price impact using USD pricing
+ * @description Calculate price impact using USD pricing
  * Compares the execution price to the market spot price
- * @param amountIn Input amount in token decimals
- * @param amountOut Output amount in token decimals
- * @param currency0 Currency0 address
- * @param currency1 Currency1 address
- * @param currency0Decimals Decimals for currency0
- * @param currency1Decimals Decimals for currency1
- * @param tokenAddress Project token address
- * @param pricing USD pricing for WETH and token
- * @param zeroForOne Swap direction
- * @returns Price impact as a percentage (e.g., 0.5 for 0.5%) or undefined if calculation fails
  */
 const calculatePriceImpact = (
   amountIn: bigint,
@@ -235,24 +241,15 @@ const calculatePriceImpact = (
     const executionRate = amountOutFormatted / amountInFormatted
 
     // Determine swap direction and calculate market rate
-    // For zeroForOne: swapping currency0 → currency1
-    // For !zeroForOne: swapping currency1 → currency0
     const inputIsToken = zeroForOne ? currency0IsToken : !currency0IsToken
 
     // Calculate market spot rate (output per input at market prices)
     const marketRate = inputIsToken
-      ? tokenPrice / wethPrice // Token → WETH: ($/token) / ($/WETH) = WETH per token
-      : wethPrice / tokenPrice // WETH → Token: ($/WETH) / ($/token) = tokens per WETH
+      ? tokenPrice / wethPrice // Token → WETH
+      : wethPrice / tokenPrice // WETH → Token
 
-    // Price impact = difference between execution and market rate
-    // Only show impact when execution rate is WORSE than market rate
-    // (getting less output than expected = actual price impact/slippage)
-
-    // If executionRate > marketRate, you're getting a better deal than market (show small impact)
-    // If executionRate < marketRate, you're getting worse (show actual impact)
-
+    // Getting better or equal rate than market - minimal impact
     if (executionRate >= marketRate) {
-      // Getting better or equal rate than market - minimal impact
       return 0.1
     }
 
@@ -266,17 +263,32 @@ const calculatePriceImpact = (
   }
 }
 
-export const quoteV4 = async ({
-  publicClient,
-  poolKey,
-  zeroForOne,
-  amountIn,
-  hookData = '0x',
-  pricing,
-  currency0Decimals = 18,
-  currency1Decimals = 18,
-  tokenAddress,
-}: QuoteV4Params): Promise<QuoteV4ReturnType> => {
+// ============================================================================
+// V4 Implementation
+// ============================================================================
+
+/**
+ * @description Quote a swap on Uniswap V4 by reading from the quoter contract
+ * @param params Quote parameters including pool key and amount
+ * @returns Quote result with output amount, gas estimate, price impact, and hook fees
+ */
+export const quoteV4Read = async (params: QuoteV4Params): Promise<QuoteV4ReadReturnType> => {
+  if (!params.publicClient) {
+    throw new Error('publicClient is required for read method')
+  }
+
+  const {
+    publicClient,
+    poolKey,
+    zeroForOne,
+    amountIn,
+    hookData = '0x',
+    pricing,
+    currency0Decimals = 18,
+    currency1Decimals = 18,
+    tokenAddress,
+  } = params
+
   const chainId = publicClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found on public client')
 
@@ -331,5 +343,44 @@ export const quoteV4 = async ({
     gasEstimate,
     priceImpactBps,
     hookFees,
+  }
+}
+
+/**
+ * @description Get bytecode for a V4 quote that can be used in multicalls
+ * @param params Quote parameters including pool key and amount
+ * @returns Contract address and encoded call data
+ */
+export const quoteV4Bytecode = (params: QuoteV4Params): QuoteV4BytecodeReturnType => {
+  const { poolKey, zeroForOne, amountIn, hookData = '0x', publicClient } = params
+
+  const chainId = publicClient?.chain?.id
+  if (!chainId) throw new Error('Chain ID required for bytecode generation')
+
+  const quoterAddress = UNISWAP_V4_QUOTER(chainId)
+  if (!quoterAddress) throw new Error(`V4 Quoter address not found for chain ID ${chainId}`)
+
+  const data = encodeFunctionData({
+    abi: V4Quoter,
+    functionName: 'quoteExactInputSingle',
+    args: [
+      {
+        poolKey: {
+          currency0: poolKey.currency0,
+          currency1: poolKey.currency1,
+          fee: poolKey.fee,
+          tickSpacing: poolKey.tickSpacing,
+          hooks: poolKey.hooks,
+        },
+        zeroForOne,
+        exactAmount: amountIn,
+        hookData,
+      },
+    ],
+  })
+
+  return {
+    address: quoterAddress,
+    data,
   }
 }

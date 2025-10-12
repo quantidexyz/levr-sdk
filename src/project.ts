@@ -30,6 +30,7 @@ export type TreasuryStats = {
 }
 
 export type Project = {
+  chainId: number
   treasury: `0x${string}`
   governor: `0x${string}`
   staking: `0x${string}`
@@ -239,6 +240,7 @@ export async function project({
   }
 
   return {
+    chainId,
     treasury,
     governor,
     staking,

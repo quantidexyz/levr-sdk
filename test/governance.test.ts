@@ -118,7 +118,6 @@ describe('#GOVERNANCE_TEST', () => {
       const { project: fullProject } = await import('../src/project')
       const projectData = await fullProject({
         publicClient,
-        factoryAddress,
         clankerToken: deployedTokenAddress,
       })
 
@@ -745,7 +744,6 @@ describe('#GOVERNANCE_TEST', () => {
       const { project: fullProject } = await import('../src/project')
       const finalProjectData = await fullProject({
         publicClient,
-        factoryAddress,
         clankerToken: deployedTokenAddress,
       })
 

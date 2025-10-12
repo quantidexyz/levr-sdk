@@ -3,7 +3,7 @@ import { erc20Abi, formatEther, parseEther } from 'viem'
 
 import { UNISWAP_V4_POOL_MANAGER, UNISWAP_V4_UNIVERSAL_ROUTER } from '../src/constants'
 import { deployV4 } from '../src/deploy-v4'
-import { quoteV4 } from '../src/quote-v4'
+import { quote } from '../src/quote'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { swapV4 } from '../src/swap-v4'
 import { getTokenRewards, setupTest, type SetupTestReturnType } from './helper'
@@ -170,7 +170,7 @@ describe('#QUOTE_SWAP_TEST', () => {
 
       // STEP 1: Get quote
       console.log('\n📊 Step 1: Getting quote...')
-      const quote = await quoteV4({
+      const quoteResult = await quote.v4.read({
         publicClient,
         poolKey,
         zeroForOne,
@@ -179,37 +179,37 @@ describe('#QUOTE_SWAP_TEST', () => {
 
       console.log('✅ Quote calculated:')
       console.log(`  Amount in: ${formatEther(amountIn)} ETH`)
-      console.log(`  Amount out: ${quote.amountOut.toString()} tokens (raw)`)
-      console.log(`  Gas estimate: ${quote.gasEstimate.toString()}`)
+      console.log(`  Amount out: ${quoteResult.amountOut.toString()} tokens (raw)`)
+      console.log(`  Gas estimate: ${quoteResult.gasEstimate.toString()}`)
 
       // Verify fee data is returned
-      if (quote.hookFees) {
+      if (quoteResult.hookFees) {
         console.log('\n📊 Hook fees:')
 
-        if (quote.hookFees.type === 'static') {
+        if (quoteResult.hookFees.type === 'static') {
           console.log(
-            `  Clanker fee: ${quote.hookFees.clankerFee! / 10000}% (${quote.hookFees.clankerFee} bps)`
+            `  Clanker fee: ${quoteResult.hookFees.clankerFee! / 10000}% (${quoteResult.hookFees.clankerFee} bps)`
           )
           console.log(
-            `  Paired fee: ${quote.hookFees.pairedFee! / 10000}% (${quote.hookFees.pairedFee} bps)`
+            `  Paired fee: ${quoteResult.hookFees.pairedFee! / 10000}% (${quoteResult.hookFees.pairedFee} bps)`
           )
-          expect(quote.hookFees.clankerFee).toBeGreaterThan(0)
-          expect(quote.hookFees.pairedFee).toBeGreaterThan(0)
-        } else if (quote.hookFees.type === 'dynamic') {
+          expect(quoteResult.hookFees.clankerFee).toBeGreaterThan(0)
+          expect(quoteResult.hookFees.pairedFee).toBeGreaterThan(0)
+        } else if (quoteResult.hookFees.type === 'dynamic') {
           console.log(
-            `  Base fee: ${quote.hookFees.baseFee! / 10000}% (${quote.hookFees.baseFee} bps)`
+            `  Base fee: ${quoteResult.hookFees.baseFee! / 10000}% (${quoteResult.hookFees.baseFee} bps)`
           )
           console.log(
-            `  Max LP fee: ${quote.hookFees.maxLpFee! / 10000}% (${quote.hookFees.maxLpFee} bps)`
+            `  Max LP fee: ${quoteResult.hookFees.maxLpFee! / 10000}% (${quoteResult.hookFees.maxLpFee} bps)`
           )
-          expect(quote.hookFees.baseFee).toBeGreaterThanOrEqual(0)
-          expect(quote.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
+          expect(quoteResult.hookFees.baseFee).toBeGreaterThanOrEqual(0)
+          expect(quoteResult.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
         }
       }
 
       // Note: Clanker tokens with custom hooks may return 0 from quoter
       // The actual swap will determine the real output amount
-      expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
+      expect(quoteResult.amountOut).toBeGreaterThanOrEqual(0n)
 
       // STEP 2: Execute swap
       console.log('\n💱 Step 2: Executing swap...')
@@ -237,7 +237,9 @@ describe('#QUOTE_SWAP_TEST', () => {
       // Calculate amountOutMinimum with slippage protection
       const SLIPPAGE_BPS = 100n // 1% = 100 basis points
       const amountOutMinimum =
-        quote.amountOut === 0n ? 0n : (quote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
+        quoteResult.amountOut === 0n
+          ? 0n
+          : (quoteResult.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
 
       console.log(`Min out (1% slippage): ${amountOutMinimum.toString()} tokens (raw)`)
 
@@ -285,7 +287,7 @@ describe('#QUOTE_SWAP_TEST', () => {
       // Verify swap results
       expect(tokensReceived).toBeGreaterThan(0n)
       expect(ethSpent).toBeGreaterThan(amountIn)
-      if (quote.amountOut > 0n) {
+      if (quoteResult.amountOut > 0n) {
         expect(tokensReceived).toBeGreaterThanOrEqual(amountOutMinimum)
       }
 
@@ -354,7 +356,7 @@ describe('#QUOTE_SWAP_TEST', () => {
 
       // STEP 1: Get quote
       console.log('\n📊 Step 1: Getting quote...')
-      const quote = await quoteV4({
+      const quoteResult = await quote.v4.read({
         publicClient,
         poolKey,
         zeroForOne,
@@ -363,36 +365,36 @@ describe('#QUOTE_SWAP_TEST', () => {
 
       console.log('✅ Quote calculated:')
       console.log(`  Amount in: ${amountIn.toString()} tokens (raw)`)
-      console.log(`  Amount out: ${formatEther(quote.amountOut)} ETH`)
-      console.log(`  Gas estimate: ${quote.gasEstimate.toString()}`)
+      console.log(`  Amount out: ${formatEther(quoteResult.amountOut)} ETH`)
+      console.log(`  Gas estimate: ${quoteResult.gasEstimate.toString()}`)
 
       // Verify fee data is returned
-      if (quote.hookFees) {
+      if (quoteResult.hookFees) {
         console.log('\n📊 Hook fees:')
 
-        if (quote.hookFees.type === 'static') {
+        if (quoteResult.hookFees.type === 'static') {
           console.log(
-            `  Clanker fee: ${quote.hookFees.clankerFee! / 10000}% (${quote.hookFees.clankerFee} bps)`
+            `  Clanker fee: ${quoteResult.hookFees.clankerFee! / 10000}% (${quoteResult.hookFees.clankerFee} bps)`
           )
           console.log(
-            `  Paired fee: ${quote.hookFees.pairedFee! / 10000}% (${quote.hookFees.pairedFee} bps)`
+            `  Paired fee: ${quoteResult.hookFees.pairedFee! / 10000}% (${quoteResult.hookFees.pairedFee} bps)`
           )
-          expect(quote.hookFees.clankerFee).toBeGreaterThan(0)
-          expect(quote.hookFees.pairedFee).toBeGreaterThan(0)
-        } else if (quote.hookFees.type === 'dynamic') {
+          expect(quoteResult.hookFees.clankerFee).toBeGreaterThan(0)
+          expect(quoteResult.hookFees.pairedFee).toBeGreaterThan(0)
+        } else if (quoteResult.hookFees.type === 'dynamic') {
           console.log(
-            `  Base fee: ${quote.hookFees.baseFee! / 10000}% (${quote.hookFees.baseFee} bps)`
+            `  Base fee: ${quoteResult.hookFees.baseFee! / 10000}% (${quoteResult.hookFees.baseFee} bps)`
           )
           console.log(
-            `  Max LP fee: ${quote.hookFees.maxLpFee! / 10000}% (${quote.hookFees.maxLpFee} bps)`
+            `  Max LP fee: ${quoteResult.hookFees.maxLpFee! / 10000}% (${quoteResult.hookFees.maxLpFee} bps)`
           )
-          expect(quote.hookFees.baseFee).toBeGreaterThanOrEqual(0)
-          expect(quote.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
+          expect(quoteResult.hookFees.baseFee).toBeGreaterThanOrEqual(0)
+          expect(quoteResult.hookFees.maxLpFee).toBeGreaterThanOrEqual(0)
         }
       }
 
       // Note: Clanker tokens with custom hooks may return 0 from quoter
-      expect(quote.amountOut).toBeGreaterThanOrEqual(0n)
+      expect(quoteResult.amountOut).toBeGreaterThanOrEqual(0n)
 
       // STEP 2: Execute swap
       console.log('\n💱 Step 2: Executing swap...')
@@ -400,7 +402,9 @@ describe('#QUOTE_SWAP_TEST', () => {
       // Calculate amountOutMinimum with slippage protection
       const SLIPPAGE_BPS = 100n // 1% = 100 basis points
       const amountOutMinimum =
-        quote.amountOut === 0n ? 0n : (quote.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
+        quoteResult.amountOut === 0n
+          ? 0n
+          : (quoteResult.amountOut * (10000n - SLIPPAGE_BPS)) / 10000n
 
       console.log(`Min out (1% slippage): ${formatEther(amountOutMinimum)} ETH`)
 
