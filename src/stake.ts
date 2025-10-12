@@ -51,6 +51,11 @@ export type StakeClaimableRewards = {
   claimable: BalanceResult
 }
 
+export type VotingPowerResult = {
+  tokenDays: bigint
+  formatted: string
+}
+
 export class Stake {
   private wallet: PopWalletClient
   private publicClient: PopPublicClient
@@ -125,8 +130,12 @@ export class Stake {
 
   /**
    * Unstake tokens from the staking contract
+   * @returns Transaction receipt with the new voting power after unstake
    */
-  async unstake({ amount, to }: UnstakeParams): Promise<TransactionReceipt> {
+  async unstake({ amount, to }: UnstakeParams): Promise<{
+    receipt: TransactionReceipt
+    newVotingPower: bigint
+  }> {
     const parsedAmount =
       typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
 
@@ -144,7 +153,15 @@ export class Stake {
       throw new Error('Unstake transaction reverted')
     }
 
-    return receipt
+    // Extract newVotingPower from return value (contract returns it)
+    // We need to decode the return data from the logs/receipt
+    // For now, fetch it with a separate call
+    const newVotingPower = await this.getVotingPower()
+
+    return {
+      receipt,
+      newVotingPower: newVotingPower.tokenDays,
+    }
   }
 
   /**
@@ -570,6 +587,56 @@ export class Stake {
     return {
       raw: aprBps,
       percentage: Number(aprBps) / 100, // Convert bps to percentage
+    }
+  }
+
+  /**
+   * Get current voting power for the user
+   * @returns Voting power in token-days
+   */
+  async getVotingPower(userAddress?: `0x${string}`): Promise<VotingPowerResult> {
+    const user = userAddress ?? this.userAddress
+
+    const result = await this.publicClient.readContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'getVotingPower',
+      args: [user],
+    })
+
+    return {
+      tokenDays: result,
+      formatted: result.toLocaleString(),
+    }
+  }
+
+  /**
+   * Simulate voting power after an unstake (without executing the transaction)
+   * @param amount Amount to unstake
+   * @returns Predicted voting power in token-days after the unstake
+   */
+  async votingPowerOnUnstake(
+    amount: number | string | bigint,
+    userAddress?: `0x${string}`
+  ): Promise<VotingPowerResult> {
+    const user = userAddress ?? this.userAddress
+    const parsedAmount =
+      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+
+    // Use simulateContract to get the return value without executing
+    const simulation = await this.publicClient.simulateContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'unstake',
+      args: [parsedAmount, user],
+      account: user,
+    })
+
+    const tokenDays = simulation.result as unknown as bigint
+
+    return {
+      tokenDays,
+      formatted: tokenDays.toLocaleString(),
     }
   }
 }
