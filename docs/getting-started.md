@@ -181,7 +181,13 @@ Staking and unstaking incur a variable protocol fee (set by Levr team) deducted 
 
 ### Time-Weighted Voting
 
-Voting power = Staked amount × Time staked. Unstaking resets the timer.
+Voting power = Staked amount × Time staked.
+
+**Partial unstakes** reduce your voting power proportionally - if you unstake 30% of your tokens, your time accumulation is reduced by 30%. **Full unstakes** reset the timer to 0.
+
+**Example:** 1000 tokens staked for 100 days → Unstake 300 (30%) → 700 tokens with 70 days of time accumulation
+
+This system prevents gaming while being fair to users who need to withdraw portions of their stake.
 
 ## Next Steps
 

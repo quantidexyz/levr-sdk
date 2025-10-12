@@ -120,20 +120,28 @@ console.log('Staked:', receipt.transactionHash)
 
 ### `unstake(params)`
 
-Unstake tokens. Protocol fee is deducted from the amount.
+Unstake tokens. Protocol fee is deducted from the amount. Returns the user's new voting power after the unstake for UI simulation.
 
 ```typescript
-const receipt = await stake.unstake({
+const { receipt, newVotingPower } = await stake.unstake({
   amount: parseUnits('50', 18),
   to: '0x...', // Optional recipient
 })
 console.log('Unstaked:', receipt.transactionHash)
+console.log('New voting power:', newVotingPower.toString())
 ```
 
 **Parameters:**
 
 - `amount` (required): Amount to unstake
 - `to` (optional): Recipient address (defaults to sender)
+
+**Returns:**
+
+- `receipt`: Transaction receipt
+- `newVotingPower`: User's voting power after the unstake (useful for showing impact in UI)
+
+**Note:** Partial unstakes reduce your voting power proportionally. If you unstake 30% of your tokens, your time accumulation is reduced by 30%.
 
 ### `claimRewards()`
 

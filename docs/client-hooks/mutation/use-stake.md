@@ -92,11 +92,15 @@ function StakingInterface() {
 
 - `approve.mutate(amount)`: Approve tokens for staking
 - `stake.mutate(amount)`: Stake tokens (protocol fee applies)
-- `unstake.mutate({ amount, to? })`: Unstake tokens (protocol fee applies)
+- `unstake.mutate({ amount, to? })`: Unstake tokens (protocol fee applies, returns newVotingPower)
 - `claim.mutate()`: Claim all rewards
 - `accrueRewards.mutate(tokenAddress)`: Manually accrue rewards for a token
 - `accrueAllRewards.mutate()`: Manually accrue all rewards
 
 ::: tip Protocol Fees
 Levr charges a variable protocol fee (set by Levr team) on stake and unstake operations. The fee is deducted from the amount you stake/unstake.
+:::
+
+::: info Voting Power Impact
+Unstaking reduces your voting power proportionally. The `unstake` mutation returns your new voting power, which you can use to show the impact in your UI before users confirm. Partial unstakes reduce time accumulation by the same percentage as tokens unstaked.
 :::
