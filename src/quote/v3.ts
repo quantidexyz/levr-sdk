@@ -67,6 +67,10 @@ export type QuoteV3BytecodeReturnType = {
    * Encoded function call data
    */
   data: `0x${string}`
+  /**
+   * Contract ABI for multicall
+   */
+  abi: typeof V3QuoterV2
 }
 
 // ============================================================================
@@ -119,7 +123,7 @@ export const quoteV3Read = async (params: QuoteV3Params): Promise<QuoteV3ReadRet
 /**
  * @description Get bytecode for a V3 quote that can be used in multicalls
  * @param params Parameters for V3 quote
- * @returns Contract address and encoded call data
+ * @returns Contract address, encoded call data, and ABI
  */
 export const quoteV3Bytecode = (params: QuoteV3Params): QuoteV3BytecodeReturnType => {
   const { quoterAddress, tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96 = 0n } = params
@@ -141,5 +145,6 @@ export const quoteV3Bytecode = (params: QuoteV3Params): QuoteV3BytecodeReturnTyp
   return {
     address: quoterAddress,
     data,
+    abi: V3QuoterV2,
   }
 }

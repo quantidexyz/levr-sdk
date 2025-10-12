@@ -85,6 +85,10 @@ export type QuoteV4BytecodeReturnType = {
    * Encoded function call data
    */
   data: `0x${string}`
+  /**
+   * Contract ABI for multicall
+   */
+  abi: typeof V4Quoter
 }
 
 // ============================================================================
@@ -349,7 +353,7 @@ export const quoteV4Read = async (params: QuoteV4Params): Promise<QuoteV4ReadRet
 /**
  * @description Get bytecode for a V4 quote that can be used in multicalls
  * @param params Quote parameters including pool key and amount
- * @returns Contract address and encoded call data
+ * @returns Contract address, encoded call data, and ABI
  */
 export const quoteV4Bytecode = (params: QuoteV4Params): QuoteV4BytecodeReturnType => {
   const { poolKey, zeroForOne, amountIn, hookData = '0x', publicClient } = params
@@ -382,5 +386,6 @@ export const quoteV4Bytecode = (params: QuoteV4Params): QuoteV4BytecodeReturnTyp
   return {
     address: quoterAddress,
     data,
+    abi: V4Quoter,
   }
 }
