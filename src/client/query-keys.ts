@@ -13,7 +13,18 @@ export const queryKeys = {
   project: (token: Address, chainId: number) => ['project', token, chainId] as const,
 
   /**
-   * Balance query keys
+   * User query keys (composable data group)
+   */
+  user: (userAddress: Address, token: Address, staking: Address, treasury: Address) =>
+    ['user', userAddress, token, staking, treasury] as const,
+
+  /**
+   * Pool query keys
+   */
+  pool: (poolKey?: unknown) => ['pool', poolKey] as const,
+
+  /**
+   * Balance query keys (legacy - kept for backward compatibility)
    */
   balance: (tokens: string, userAddress: Address) => ['balance', tokens, userAddress] as const,
 

@@ -50,9 +50,17 @@ export type UseFeeReceiversParams = {
   onError?: (error: unknown) => void
 }
 
+export type FeeReceiverAdmin = {
+  areYouAnAdmin: boolean
+  admin: `0x${string}`
+  recipient: `0x${string}`
+  percentage: number
+}
+
 /**
  * Hook to access fee receivers query and mutations
  * Returns both query data and mutation function
+ * Fee receivers come from project.feeReceivers
  */
 export function useFeeReceivers({
   clankerToken: _clankerToken,
@@ -60,10 +68,20 @@ export function useFeeReceivers({
   onSuccess,
   onError,
 }: UseFeeReceiversParams = {}) {
-  const { feeReceivers: query, refetch } = useLevrContext()
+  const { project, refetch, userAddress } = useLevrContext()
   const publicClient = usePublicClient()
   const wallet = useWalletClient()
   const chainId = publicClient?.chain?.id
+
+  // Add user-specific admin check to fee receivers from project
+  const feeReceiversWithAdmin: FeeReceiverAdmin[] | undefined = project.data?.feeReceivers?.map(
+    (receiver) => ({
+      ...receiver,
+      areYouAnAdmin: userAddress
+        ? receiver.admin.toLowerCase() === userAddress.toLowerCase()
+        : false,
+    })
+  )
 
   const mutate = useMutation({
     mutationFn: (params: Omit<UpdateFeeReceiverParams, 'walletClient' | 'chainId'>) =>
@@ -75,14 +93,16 @@ export function useFeeReceivers({
         newRecipient: params.newRecipient,
       }),
     onSuccess: async (hash) => {
-      await refetch.feeReceivers()
+      await refetch.project() // Refetch project to update fee receivers
       onSuccess?.(hash)
     },
     onError: onError,
   })
 
   return {
-    query,
+    data: feeReceiversWithAdmin,
+    isLoading: project.isLoading,
+    error: project.error,
     mutate,
   }
 }

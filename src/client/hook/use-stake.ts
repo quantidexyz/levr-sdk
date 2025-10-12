@@ -213,7 +213,7 @@ export function useStake({
   onAccrueSuccess,
   onAccrueError,
 }: UseStakeParams = {}) {
-  const { stakeService, project, staking, balances, refetch, clankerToken } = useLevrContext()
+  const { stakeService, project, user, refetch } = useLevrContext()
   const chainId = useChainId()
   const wethAddress = WETH(chainId)?.address
 
@@ -225,7 +225,7 @@ export function useStake({
       return stakeService.approve(amount)
     },
     onSuccess: async (receipt) => {
-      await staking.allowance.refetch()
+      await user.refetch() // Refetch allowance in user.staking
       onApproveSuccess?.(receipt)
     },
     onError: onApproveError,
@@ -261,9 +261,9 @@ export function useStake({
         to,
       })
     },
-    onSuccess: async (receipt) => {
-      await refetch.afterStake()
-      onUnstakeSuccess?.(receipt)
+    onSuccess: async (result) => {
+      await refetch.afterUnstake()
+      onUnstakeSuccess?.(result.receipt)
     },
     onError: onUnstakeError,
   })
@@ -276,7 +276,7 @@ export function useStake({
       return stakeService.claimRewards(params)
     },
     onSuccess: async (receipt) => {
-      await refetch.afterStake()
+      await refetch.afterClaim()
       onClaimSuccess?.(receipt)
     },
     onError: onClaimError,
@@ -289,20 +289,8 @@ export function useStake({
 
       return stakeService.accrueRewards(tokenAddress)
     },
-    onSuccess: async (receipt, tokenAddress) => {
-      // Refetch specific reward queries based on token
-      if (tokenAddress === wethAddress) {
-        await Promise.all([
-          staking.outstandingRewardsWeth.refetch(),
-          staking.claimableRewardsWeth.refetch(),
-        ])
-      } else {
-        await Promise.all([
-          staking.outstandingRewardsStaking.refetch(),
-          staking.claimableRewardsStaking.refetch(),
-        ])
-      }
-      await Promise.all([staking.poolData.refetch(), staking.userData.refetch()])
+    onSuccess: async (receipt) => {
+      await refetch.afterAccrue()
       onAccrueSuccess?.(receipt)
     },
     onError: onAccrueError,
@@ -314,56 +302,22 @@ export function useStake({
       if (!stakeService) throw new Error('Stake service is not connected')
 
       const tokenAddresses: `0x${string}`[] = []
-      if (clankerToken) tokenAddresses.push(clankerToken)
+      if (project.data?.token.address) tokenAddresses.push(project.data.token.address)
       if (wethAddress) tokenAddresses.push(wethAddress)
 
       return stakeService.accrueAllRewards(tokenAddresses)
     },
     onSuccess: async (receipt) => {
-      await Promise.all([
-        staking.outstandingRewardsStaking.refetch(),
-        staking.outstandingRewardsWeth.refetch(),
-        staking.claimableRewardsStaking.refetch(),
-        staking.claimableRewardsWeth.refetch(),
-        staking.wethRewardRate.refetch(),
-        staking.poolData.refetch(),
-        staking.userData.refetch(),
-      ])
+      await refetch.afterAccrue()
       onAccrueSuccess?.(receipt)
     },
     onError: onAccrueError,
   })
 
-  // Combine outstanding rewards (for accrual display)
-  const outstandingRewards = useMemo(() => {
-    const stakingRewards = staking.outstandingRewardsStaking.data
-    const wethRewards = staking.outstandingRewardsWeth.data
-
-    if (!stakingRewards) return null
-
-    return {
-      staking: stakingRewards,
-      weth: wethRewards,
-    }
-  }, [staking.outstandingRewardsStaking.data, staking.outstandingRewardsWeth.data])
-
-  // Combine claimable rewards (for user display)
-  const claimableRewards = useMemo(() => {
-    const stakingRewards = staking.claimableRewardsStaking.data
-    const wethRewards = staking.claimableRewardsWeth.data
-
-    if (!stakingRewards) return null
-
-    return {
-      staking: stakingRewards,
-      weth: wethRewards,
-    }
-  }, [staking.claimableRewardsStaking.data, staking.claimableRewardsWeth.data])
-
   // Helper to check if approval is needed for an amount
   const nA = (amount: string | number): boolean => {
-    if (!project.data || staking.allowance.data === undefined) return false
-    return needsApproval(staking.allowance.data.formatted, amount, project.data.token.decimals)
+    if (!project.data || !user.data?.staking.allowance) return false
+    return needsApproval(user.data.staking.allowance.formatted, amount, project.data.token.decimals)
   }
 
   return {
@@ -375,39 +329,26 @@ export function useStake({
     accrueRewards,
     accrueAllRewards,
 
-    // Queries from context (grouped by multicall)
-    allowance: staking.allowance,
-    poolData: staking.poolData,
-    userData: staking.userData,
-    outstandingRewardsStaking: staking.outstandingRewardsStaking,
-    outstandingRewardsWeth: staking.outstandingRewardsWeth,
-    claimableRewardsStaking: staking.claimableRewardsStaking,
-    claimableRewardsWeth: staking.claimableRewardsWeth,
-    wethRewardRate: staking.wethRewardRate,
-    aprBpsWeth: staking.aprBpsWeth,
-    balances,
+    // Queries from context (new structure)
+    user,
+    project,
 
     // Helpers
     needsApproval: nA,
 
     // Convenience accessors for individual values
-    tokenBalance: balances.data?.token,
-    stakedBalance: staking.userData.data?.stakedBalance,
-    totalStaked: staking.poolData.data?.totalStaked,
-    escrowBalance: staking.poolData.data?.escrowBalance,
-    streamParams: staking.poolData.data?.streamParams,
-    rewardRatePerSecond: staking.poolData.data?.rewardRatePerSecond,
-    aprBps: staking.userData.data?.aprBps,
-    rewardsData: outstandingRewards, // For accrual display
-    claimableData: claimableRewards, // For user claimable amounts
+    tokenBalance: user.data?.balances.token,
+    stakedBalance: user.data?.staking.stakedBalance,
+    allowance: user.data?.staking.allowance,
+    rewards: user.data?.staking.rewards,
+    apr: user.data?.staking.apr,
 
     // Loading states
-    isLoadingPoolData: staking.poolData.isLoading,
-    isLoadingUserData: staking.userData.isLoading,
-    isLoadingOutstandingRewards:
-      staking.outstandingRewardsStaking.isLoading || staking.outstandingRewardsWeth.isLoading,
-    isLoadingClaimableRewards:
-      staking.claimableRewardsStaking.isLoading || staking.claimableRewardsWeth.isLoading,
-    isLoadingBalances: balances.isLoading,
+    isLoading: user.isLoading || project.isLoading,
+    isApproving: approve.isPending,
+    isStaking: stake.isPending,
+    isUnstaking: unstake.isPending,
+    isClaiming: claim.isPending,
+    isAccruing: accrueRewards.isPending || accrueAllRewards.isPending,
   }
 }

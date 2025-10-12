@@ -1,6 +1,6 @@
 import { erc20Abi, formatUnits, zeroAddress } from 'viem'
 
-import { IClankerLPLocker, IClankerToken, LevrFactory_v1 } from './abis'
+import { IClankerLpLockerMultiple, IClankerToken, LevrFactory_v1 } from './abis'
 import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS } from './constants'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
@@ -29,6 +29,12 @@ export type TreasuryStats = {
   utilization: number // percentage (0-100)
 }
 
+export type FeeReceiver = {
+  admin: `0x${string}`
+  recipient: `0x${string}`
+  percentage: number
+}
+
 export type Project = {
   chainId: number
   treasury: `0x${string}`
@@ -47,6 +53,7 @@ export type Project = {
   }
   pool?: PoolInfo
   treasuryStats?: TreasuryStats
+  feeReceivers?: FeeReceiver[]
   pricing?: PricingResult
 }
 
@@ -151,15 +158,16 @@ export async function project({
     }
   }
 
-  // Extract pool information from LP locker
+  // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
+  let feeReceivers: FeeReceiver[] | undefined
   try {
     const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
     if (lpLockerAddress) {
       // Get actual pool key from token rewards in LP locker
       const tokenRewards = await publicClient.readContract({
         address: lpLockerAddress,
-        abi: IClankerLPLocker,
+        abi: IClankerLpLockerMultiple,
         functionName: 'tokenRewards',
         args: [clankerToken],
       })
@@ -170,6 +178,17 @@ export async function project({
         feeDisplay: poolKey.fee === 0x800000 ? 'Dynamic' : `${(poolKey.fee / 10000).toFixed(2)}%`,
         numPositions: tokenRewards.numPositions,
       }
+
+      // Extract fee receivers
+      const admins = tokenRewards.rewardAdmins || []
+      const recipients = tokenRewards.rewardRecipients || []
+      const bps = tokenRewards.rewardBps || []
+
+      feeReceivers = admins.map((admin, index) => ({
+        admin,
+        recipient: recipients[index],
+        percentage: bps[index] / 100, // Convert bps to percentage
+      }))
     }
   } catch {
     // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
@@ -257,6 +276,7 @@ export async function project({
     },
     pool: poolInfo,
     treasuryStats,
+    feeReceivers,
     pricing,
   }
 }

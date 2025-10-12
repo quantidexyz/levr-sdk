@@ -7,29 +7,24 @@ import type { Address } from 'viem'
 import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
-import type { FeeReceiverAdmin } from '../fee-receivers'
+import type { PoolData } from '../pool'
 import type { ProposalsResult } from '../proposals'
-import type {
-  Stake,
-  StakeClaimableRewards,
-  StakeOutstandingRewards,
-  StakePoolData,
-  StakeUserData,
-} from '../stake'
-import type { BalanceResult } from '../types'
+import type { Stake } from '../stake'
+import type { UserData } from '../user'
 import { getPublicClient } from '../util'
-import { useBalanceQuery } from './hook/use-balance'
 import { useClankerTokenQuery } from './hook/use-clanker'
-import { useFeeReceiversQuery } from './hook/use-fee-receivers'
 import { useGovernanceQueries } from './hook/use-governance'
+import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposals'
 import { useStakingQueries } from './hook/use-stake'
+import { useUserQuery } from './hook/use-user'
 
 type Project = NonNullable<ReturnType<typeof useProjectQuery>['data']>
 
 /**
  * Context value provided by LevrProvider
+ * Provides dual access: hierarchical (user.balances) + flat (balances)
  */
 export type LevrContextValue = {
   // Core data
@@ -38,9 +33,19 @@ export type LevrContextValue = {
   chainId: number | undefined
   userAddress: Address | undefined
 
-  // Query results
+  // Hierarchical access (new structure)
+  user: UseQueryResult<UserData | null>
   project: UseQueryResult<Project | null>
-  balances: UseQueryResult<Record<string, BalanceResult>>
+  pool: UseQueryResult<PoolData | null>
+  proposals: UseQueryResult<ProposalsResult | null>
+  governance: {
+    currentCycleId: UseQueryResult<bigint>
+    addresses: UseQueryResult<{
+      treasury: Address
+      factory: Address
+      stakedToken: Address
+    }>
+  }
   tokenData: UseQueryResult<{
     originalAdmin: Address
     admin: Address
@@ -49,48 +54,44 @@ export type LevrContextValue = {
     context: string
   } | null>
 
-  staking: {
-    allowance: UseQueryResult<BalanceResult>
-    poolData: UseQueryResult<StakePoolData | null>
-    userData: UseQueryResult<StakeUserData | null>
-    outstandingRewardsStaking: UseQueryResult<StakeOutstandingRewards>
-    outstandingRewardsWeth: UseQueryResult<StakeOutstandingRewards | null>
-    claimableRewardsStaking: UseQueryResult<StakeClaimableRewards | null>
-    claimableRewardsWeth: UseQueryResult<StakeClaimableRewards | null>
-    wethRewardRate: UseQueryResult<BalanceResult | null>
-    aprBpsWeth: UseQueryResult<{ raw: bigint; percentage: number } | null>
+  // Flat access (backward compatibility + convenience)
+  // Note: These are derived from user query, so refetch user to update them
+  balances: {
+    data: UserData['balances'] | null
+    isLoading: boolean
+    error: Error | null
+  }
+  stakingData: {
+    data: UserData['staking'] | null
+    isLoading: boolean
+    error: Error | null
+  }
+  governanceData: {
+    data: UserData['governance'] | null
+    isLoading: boolean
+    error: Error | null
   }
 
-  governance: {
-    currentCycleId: UseQueryResult<bigint>
-    addresses: UseQueryResult<{
-      treasury: Address
-      factory: Address
-      stakedToken: Address
-    }>
-    airdropStatus: UseQueryResult<{
-      availableAmount: BalanceResult
-      allocatedAmount: BalanceResult
-      isAvailable: boolean
-      error?: string
-    } | null>
-  }
-
-  proposals: UseQueryResult<ProposalsResult | null>
-  feeReceivers: UseQueryResult<FeeReceiverAdmin[] | undefined>
-
-  // Refetch methods
+  // Action-based refetch methods
   refetch: {
+    // Core refetches
     all: () => Promise<void>
+    user: () => Promise<void>
     project: () => Promise<void>
-    balances: () => Promise<void>
-    governance: () => Promise<void>
-    staking: () => Promise<void>
+    pool: () => Promise<void>
     proposals: () => Promise<void>
-    feeReceivers: () => Promise<void>
+    governance: () => Promise<void>
+
+    // Action-based refetches
+    afterTrade: () => Promise<void>
     afterStake: () => Promise<void>
-    afterSwap: () => Promise<void>
-    afterGovernance: () => Promise<void>
+    afterUnstake: () => Promise<void>
+    afterClaim: () => Promise<void>
+    afterAccrue: () => Promise<void>
+    afterVote: () => Promise<void>
+    afterProposal: () => Promise<void>
+    afterExecute: () => Promise<void>
+    afterAirdrop: () => Promise<void>
   }
 
   // Helper instances
@@ -144,33 +145,25 @@ export function LevrProvider({
 
   const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
   const tokenData = useClankerTokenQuery({ clankerToken, enabled })
-  const balancesQuery = useBalanceQuery({
-    clankerToken,
-    projectTokenDecimals: project.data?.token.decimals,
-    pricing: project.data?.pricing,
-    enabled,
-  })
-
-  const staking = useStakingQueries({
-    clankerToken,
-    projectData: project.data,
-    enabled,
-  })
-
-  const governance = useGovernanceQueries({
-    clankerToken,
-    projectData: project.data,
-    enabled,
-  })
-
+  const userQuery = useUserQuery({ project: project.data, enabled })
+  const poolQuery = usePoolQuery({ project: project.data, enabled })
   const proposalsQueryResult = useProposalsQuery({
     governorAddress: project.data?.governor,
     tokenDecimals: project.data?.token.decimals,
     enabled,
   })
 
-  const feeReceiversQuery = useFeeReceiversQuery({
+  // Global governance queries (not user-specific)
+  const governance = useGovernanceQueries({
     clankerToken,
+    projectData: project.data,
+    enabled,
+  })
+
+  // Keep staking service for backward compatibility in public hooks
+  const staking = useStakingQueries({
+    clankerToken,
+    projectData: project.data,
     enabled,
   })
 
@@ -180,83 +173,82 @@ export function LevrProvider({
 
   const refetchMethods = useMemo(
     () => ({
+      // Core refetches
       all: async () => {
         await queryClient.invalidateQueries({ refetchType: 'active' })
+      },
+      user: async () => {
+        await userQuery.refetch()
       },
       project: async () => {
         await project.refetch()
       },
-      balances: async () => {
-        await balancesQuery.refetch()
-      },
-      governance: async () => {
-        await Promise.all([
-          governance.currentCycleId.refetch(),
-          governance.addresses.refetch(),
-          governance.airdropStatus.refetch(),
-        ])
-      },
-      staking: async () => {
-        await Promise.all([
-          staking.allowance.refetch(),
-          staking.poolData.refetch(),
-          staking.userData.refetch(),
-          staking.outstandingRewardsStaking.refetch(),
-          staking.outstandingRewardsWeth.refetch(),
-          staking.claimableRewardsStaking.refetch(),
-          staking.claimableRewardsWeth.refetch(),
-          staking.wethRewardRate.refetch(),
-          staking.aprBpsWeth.refetch(),
-        ])
+      pool: async () => {
+        await poolQuery.refetch()
       },
       proposals: async () => {
         await proposalsQueryResult.refetch()
       },
-      feeReceivers: async () => {
-        await feeReceiversQuery.refetch()
+      governance: async () => {
+        await Promise.all([governance.currentCycleId.refetch(), governance.addresses.refetch()])
       },
-      // Smart cross-domain refetches
+
+      // Action-based refetches
+      afterTrade: async () => {
+        await Promise.all([
+          userQuery.refetch(), // Balances changed
+          poolQuery.refetch(), // Pool state changed (price impact)
+        ])
+      },
       afterStake: async () => {
         await Promise.all([
-          balancesQuery.refetch(),
-          staking.poolData.refetch(),
-          staking.userData.refetch(),
-          staking.allowance.refetch(),
-          staking.outstandingRewardsStaking.refetch(),
-          staking.outstandingRewardsWeth.refetch(),
-          staking.claimableRewardsStaking.refetch(),
-          staking.claimableRewardsWeth.refetch(),
-          staking.wethRewardRate.refetch(),
-          staking.aprBpsWeth.refetch(),
+          userQuery.refetch(), // Balances, staking, voting power changed
           project.refetch(), // Treasury might have changed
         ])
       },
-      afterSwap: async () => {
+      afterUnstake: async () => {
         await Promise.all([
-          balancesQuery.refetch(),
-          project.refetch(), // Pool data might have changed
+          userQuery.refetch(), // Balances, staking, voting power changed
+          project.refetch(), // Treasury might have changed
         ])
       },
-      afterGovernance: async () => {
+      afterClaim: async () => {
         await Promise.all([
-          governance.currentCycleId.refetch(),
-          governance.addresses.refetch(),
-          governance.airdropStatus.refetch(),
-          proposalsQueryResult.refetch(),
-          project.refetch(), // Treasury might have changed
-          staking.userData.refetch(), // Voting power might have changed
+          userQuery.refetch(), // Balances, claimable rewards changed
+        ])
+      },
+      afterAccrue: async () => {
+        await Promise.all([
+          userQuery.refetch(), // Outstanding/claimable rewards changed
+        ])
+      },
+      afterVote: async () => {
+        await Promise.all([
+          userQuery.refetch(), // User governance data (vote receipt)
+          proposalsQueryResult.refetch(), // Proposal votes updated
+        ])
+      },
+      afterProposal: async () => {
+        await Promise.all([
+          proposalsQueryResult.refetch(), // New proposal added
+          governance.currentCycleId.refetch(), // Cycle might have changed
+        ])
+      },
+      afterExecute: async () => {
+        await Promise.all([
+          project.refetch(), // Treasury changed (transfer) or staking (boost)
+          proposalsQueryResult.refetch(), // Proposal executed
+          userQuery.refetch(), // Staking rewards might have changed (if boost)
+          governance.currentCycleId.refetch(), // New cycle might start
+        ])
+      },
+      afterAirdrop: async () => {
+        await Promise.all([
+          userQuery.refetch(), // Balances, airdrop status changed
         ])
       },
     }),
-    [
-      queryClient,
-      project,
-      balancesQuery,
-      governance,
-      staking,
-      proposalsQueryResult,
-      feeReceiversQuery,
-    ]
+    [queryClient, project, userQuery, poolQuery, proposalsQueryResult, governance]
   )
 
   // Auto-refetch on wallet/chain change
@@ -272,27 +264,35 @@ export function LevrProvider({
       setClankerToken,
       chainId,
       userAddress,
+
+      // Hierarchical access
+      user: userQuery,
       project,
-      balances: balancesQuery,
-      tokenData,
-      staking: {
-        allowance: staking.allowance,
-        poolData: staking.poolData,
-        userData: staking.userData,
-        outstandingRewardsStaking: staking.outstandingRewardsStaking,
-        outstandingRewardsWeth: staking.outstandingRewardsWeth,
-        claimableRewardsStaking: staking.claimableRewardsStaking,
-        claimableRewardsWeth: staking.claimableRewardsWeth,
-        wethRewardRate: staking.wethRewardRate,
-        aprBpsWeth: staking.aprBpsWeth,
-      },
+      pool: poolQuery,
+      proposals: proposalsQueryResult,
       governance: {
         currentCycleId: governance.currentCycleId,
         addresses: governance.addresses,
-        airdropStatus: governance.airdropStatus,
       },
-      proposals: proposalsQueryResult,
-      feeReceivers: feeReceiversQuery,
+      tokenData,
+
+      // Flat access (backward compatibility + convenience)
+      balances: {
+        data: userQuery.data?.balances || null,
+        isLoading: userQuery.isLoading,
+        error: userQuery.error,
+      },
+      stakingData: {
+        data: userQuery.data?.staking || null,
+        isLoading: userQuery.isLoading,
+        error: userQuery.error,
+      },
+      governanceData: {
+        data: userQuery.data?.governance || null,
+        isLoading: userQuery.isLoading,
+        error: userQuery.error,
+      },
+
       refetch: refetchMethods,
       stakeService: staking.stakeService,
     }),
@@ -301,14 +301,14 @@ export function LevrProvider({
       setClankerToken,
       chainId,
       userAddress,
+      userQuery,
       project,
-      balancesQuery,
-      tokenData,
-      staking,
-      governance,
+      poolQuery,
       proposalsQueryResult,
-      feeReceiversQuery,
+      governance,
+      tokenData,
       refetchMethods,
+      staking.stakeService,
     ]
   )
 

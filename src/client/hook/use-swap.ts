@@ -62,7 +62,7 @@ export function useSwap({
   onSwapSuccess,
   onSwapError,
 }: UseSwapParams = {}) {
-  const { balances, refetch, project } = useLevrContext()
+  const { user, project, pool, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
@@ -145,8 +145,7 @@ export function useSwap({
       return receipt
     },
     onSuccess: async (receipt) => {
-      // Use centralized cross-domain refetch
-      await refetch.afterSwap()
+      await refetch.afterTrade()
       onSwapSuccess?.(receipt)
     },
     onError: onSwapError,
@@ -181,17 +180,22 @@ export function useSwap({
     swap,
 
     // Queries
-    balances,
+    user,
+    project,
+    pool,
     quote,
 
-    // Pool info from context
+    // Convenience accessors
+    balances: user.data?.balances,
+    tokenBalance: user.data?.balances.token,
+    wethBalance: user.data?.balances.weth,
     poolKey,
-
-    // Convenience accessors for balances
-    tokenBalance: balances.data?.token,
-    wethBalance: balances.data?.weth,
 
     // Helpers
     buildSwapConfig,
+
+    // Loading states
+    isLoading: user.isLoading || project.isLoading || pool.isLoading,
+    isSwapping: swap.isPending,
   }
 }

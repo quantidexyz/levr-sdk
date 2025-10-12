@@ -73,7 +73,6 @@ describe('#USD_PRICE_TEST', () => {
       console.log('\n💵 Fetching project with USD pricing...')
       const projectData = await project({
         publicClient,
-        factoryAddress,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         oraclePublicClient, // Providing oracle client enables pricing
       })
@@ -142,7 +141,6 @@ describe('#USD_PRICE_TEST', () => {
       console.log('Fetching project without oracle client...')
       const projectData = await project({
         publicClient,
-        factoryAddress,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         // No oraclePublicClient provided
       })

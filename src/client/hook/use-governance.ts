@@ -74,20 +74,11 @@ export function useGovernanceQueries({
     retry: 1,
   })
 
-  const airdropStatus = useQuery({
-    queryKey: queryKeys.governance.airdropStatus(projectData?.governor!, clankerToken!),
-    queryFn: async () => {
-      return await governance!.getAirdropStatus()
-    },
-    enabled: e && !!governance && !!projectData && !!clankerToken,
-    retry: 1,
-    refetchInterval: 30000,
-  })
+  // Note: airdropStatus moved to user.governance.airdrop
 
   return {
     currentCycleId,
     addresses,
-    airdropStatus,
   }
 }
 
@@ -146,9 +137,10 @@ export function useGovernance({
   onClaimAirdropSuccess,
   onClaimAirdropError,
 }: UseGovernanceParams) {
-  const { governance: governanceQueries, refetch, clankerToken, project } = useLevrContext()
+  const { user, project, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
+  const clankerToken = project.data?.token.address
 
   // Create Governance instance
   const governance = useMemo(() => {
@@ -166,9 +158,8 @@ export function useGovernance({
   }, [wallet.data, publicClient, project.data, clankerToken])
 
   // Global queries from context
-  const currentCycleId = governanceQueries.currentCycleId
-  const addresses = governanceQueries.addresses
-  const airdropStatus = governanceQueries.airdropStatus
+  const currentCycleId = useLevrContext().governance.currentCycleId
+  const addresses = useLevrContext().governance.addresses
 
   // Dynamic queries (component-specific)
   const proposal = useQuery({
@@ -282,7 +273,7 @@ export function useGovernance({
       return await governance.vote(proposalId, support)
     },
     onSuccess: async (receipt) => {
-      await refetch.afterGovernance()
+      await refetch.afterVote()
       onVoteSuccess?.(receipt)
     },
     onError: onVoteError,
@@ -304,7 +295,7 @@ export function useGovernance({
       return result
     },
     onSuccess: async (result) => {
-      await refetch.afterGovernance()
+      await refetch.afterProposal()
       onProposeTransferSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeTransferError,
@@ -322,7 +313,7 @@ export function useGovernance({
       return result
     },
     onSuccess: async (result) => {
-      await refetch.afterGovernance()
+      await refetch.afterProposal()
       onProposeBoostSuccess?.(result.receipt, result.proposalId)
     },
     onError: onProposeBoostError,
@@ -338,7 +329,7 @@ export function useGovernance({
       return receipt
     },
     onSuccess: async (receipt) => {
-      await refetch.afterGovernance()
+      await refetch.afterExecute()
       onExecuteProposalSuccess?.(receipt)
     },
     onError: onExecuteProposalError,
@@ -352,7 +343,7 @@ export function useGovernance({
       return await governance.claimAirdrop()
     },
     onSuccess: async (receipt) => {
-      await refetch.afterGovernance()
+      await refetch.afterAirdrop()
       onClaimAirdropSuccess?.(receipt)
     },
     onError: onClaimAirdropError,
@@ -373,7 +364,7 @@ export function useGovernance({
       return result
     },
     onSuccess: async () => {
-      await refetch.afterGovernance()
+      await refetch.afterExecute()
     },
   })
 
@@ -388,7 +379,7 @@ export function useGovernance({
       return result
     },
     onSuccess: async () => {
-      await refetch.afterGovernance()
+      await refetch.afterExecute()
     },
   })
 
@@ -441,11 +432,14 @@ export function useGovernance({
     proposeAndExecuteTransfer,
     proposeAndExecuteBoost,
 
-    // Queries
-    proposal,
+    // Queries from context
+    user,
+    project,
     currentCycleId,
     addresses,
-    airdropStatus,
+
+    // Dynamic queries
+    proposal,
     proposalsForCycle,
     winner,
     voteReceipt,
@@ -468,7 +462,7 @@ export function useGovernance({
     hasVoted: voteReceipt.data?.hasVoted ?? false,
     voteSupport: voteReceipt.data?.support,
     votesUsed: voteReceipt.data?.votes,
-    userVotingPower: votingPowerSnapshot.data,
+    userVotingPower: user.data?.governance.votingPower,
 
     // Convenience accessors - proposal status
     proposalMeetsQuorum: meetsQuorum.data ?? false,
@@ -484,12 +478,12 @@ export function useGovernance({
     factoryAddress: addresses.data?.factory,
     stakedTokenAddress: addresses.data?.stakedToken,
 
-    // Convenience accessors - airdrop
-    airdropStatusData: airdropStatus.data,
-    availableAirdropAmount: airdropStatus.data?.availableAmount,
-    airdropAllocatedAmount: airdropStatus.data?.allocatedAmount,
-    isAirdropAvailable: airdropStatus.data?.isAvailable ?? false,
-    airdropError: airdropStatus.data?.error,
+    // Convenience accessors - airdrop (now from user.governance)
+    airdropStatusData: user.data?.governance.airdrop,
+    availableAirdropAmount: user.data?.governance.airdrop?.availableAmount,
+    airdropAllocatedAmount: user.data?.governance.airdrop?.allocatedAmount,
+    isAirdropAvailable: user.data?.governance.airdrop?.isAvailable ?? false,
+    airdropError: user.data?.governance.airdrop?.error,
 
     // Helpers
     buildProposeTransferConfig,
@@ -502,7 +496,7 @@ export function useGovernance({
       proposal.isLoading ||
       currentCycleId.isLoading ||
       addresses.isLoading ||
-      airdropStatus.isLoading ||
+      user.isLoading ||
       proposalsForCycle.isLoading ||
       winner.isLoading ||
       voteReceipt.isLoading ||

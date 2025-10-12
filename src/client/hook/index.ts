@@ -5,14 +5,19 @@ import { useLevrContext } from '../levr-provider'
 // ========================================
 
 /**
+ * Hook to access user data from LevrProvider (hierarchical)
+ */
+export const useUser = () => useLevrContext().user
+
+/**
  * Hook to access project data from LevrProvider
  */
 export const useProject = () => useLevrContext().project
 
 /**
- * Hook to access balance data from LevrProvider
+ * Hook to access pool data from LevrProvider
  */
-export const useBalance = () => useLevrContext().balances
+export const usePool = () => useLevrContext().pool
 
 /**
  * Hook to access proposals from LevrProvider
@@ -24,6 +29,21 @@ export const useProposals = () => useLevrContext().proposals
  */
 export const useClankerToken = () => useLevrContext().tokenData
 
+/**
+ * Hook to access balance data from LevrProvider (flat access)
+ */
+export const useBalance = () => useLevrContext().balances
+
+/**
+ * Hook to access staking data from LevrProvider (flat access)
+ */
+export const useStakingData = () => useLevrContext().stakingData
+
+/**
+ * Hook to access governance data from LevrProvider (flat access)
+ */
+export const useGovernanceData = () => useLevrContext().governanceData
+
 // ========================================
 // COMPLEX HOOKS (with mutations/callbacks)
 // ========================================
@@ -33,6 +53,13 @@ export * from './use-fee-receivers'
 export * from './use-governance'
 export * from './use-stake'
 export * from './use-swap'
+
+// ========================================
+// INTERNAL HOOKS (used by LevrProvider)
+// ========================================
+
+export { usePoolQuery } from './use-pool'
+export { useUserQuery } from './use-user'
 
 // ========================================
 // OTHER HOOKS (not part of Levr context)
