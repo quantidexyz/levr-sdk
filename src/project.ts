@@ -524,7 +524,10 @@ export async function getProjects({
 
   // Determine block range
   const latestBlock = await publicClient.getBlockNumber()
-  const from = fromBlock ?? latestBlock - latestBlock / 10n // Default to last 10% of blocks
+  // Default to last 10,000 blocks (reasonable for most chains)
+  // This covers ~2 hours on Base (2s blocks) or ~33 hours on Ethereum (12s blocks)
+  const defaultBlockRange = 10_000n
+  const from = fromBlock ?? (latestBlock > defaultBlockRange ? latestBlock - defaultBlockRange : 0n)
   const to = toBlock === 'latest' ? latestBlock : toBlock
 
   // Get the Registered event
