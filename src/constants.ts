@@ -30,7 +30,7 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: '0xa6ee403ee39a378308793d9f4c9a24fc97d34046',
+    [baseSepolia.id]: '0x25cC1c7d534c0Cb2091DaD75E99C6e3358D331Fd',
   }[chainId] as `0x${string}` | undefined
 }
 

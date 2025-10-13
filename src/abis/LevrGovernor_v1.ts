@@ -246,30 +246,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'getVotingPowerSnapshot',
-    inputs: [
-      {
-        name: 'proposalId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'getWinner',
     inputs: [
       {

@@ -425,7 +425,13 @@ export default [
         internalType: 'address',
       },
     ],
-    outputs: [],
+    outputs: [
+      {
+        name: 'newVotingPower',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
     stateMutability: 'nonpayable',
   },
   {
