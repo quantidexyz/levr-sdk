@@ -122,7 +122,8 @@ export const queryKeys = {
   project: (factoryAddress: `0x${string}`, clankerToken: `0x${string}`, chainId: number) =>
     ['levr', 'project', factoryAddress, clankerToken, chainId] as const,
 
-  balance: (address: `0x${string}`, tokens: readonly TokenConfig[]) => ['levr', 'balance', address, tokens] as const,
+  balance: (address: `0x${string}`, tokens: readonly TokenConfig[]) =>
+    ['levr', 'balance', address, tokens] as const,
 
   // ... all other keys
 }

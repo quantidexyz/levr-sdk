@@ -358,21 +358,6 @@ export class Governance {
   }
 
   /**
-   * Get voting power snapshot for a user at proposal creation
-   */
-  async getVotingPowerSnapshot(proposalId: number | bigint, user?: `0x${string}`): Promise<bigint> {
-    const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
-    const userAddress = user ?? this.userAddress
-
-    return await this.publicClient.readContract({
-      address: this.governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'getVotingPowerSnapshot',
-      args: [parsedProposalId, userAddress],
-    })
-  }
-
-  /**
    * Check if proposal meets quorum
    */
   async meetsQuorum(proposalId: number | bigint): Promise<boolean> {

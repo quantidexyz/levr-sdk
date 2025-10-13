@@ -55,21 +55,12 @@
  */
 
 // Export types
-export type {
-  QuoteV3Params,
-  QuoteV3ReadReturnType,
-  QuoteV3BytecodeReturnType,
-} from './v3'
-
-export type {
-  QuoteV4Params,
-  QuoteV4ReadReturnType,
-  QuoteV4BytecodeReturnType,
-} from './v4'
+export type { QuoteV3BytecodeReturnType, QuoteV3Params, QuoteV3ReadReturnType } from './v3'
+export type { QuoteV4BytecodeReturnType, QuoteV4Params, QuoteV4ReadReturnType } from './v4'
 
 // Import implementations
-import { quoteV3Read, quoteV3Bytecode } from './v3'
-import { quoteV4Read, quoteV4Bytecode } from './v4'
+import { quoteV3Bytecode, quoteV3Read } from './v3'
+import { quoteV4Bytecode, quoteV4Read } from './v4'
 
 /**
  * @description Unified quote API for Uniswap V3 and V4
@@ -110,4 +101,3 @@ export const quote = {
     bytecode: quoteV4Bytecode,
   },
 }
-

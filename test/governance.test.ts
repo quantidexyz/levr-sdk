@@ -29,7 +29,6 @@ import { getBlockTimestamp, warpAnvil } from './util'
  * - New proposals after execution → Go into the fresh auto-started cycle
  *
  * Anti-Gaming Features Tested:
- * - VP snapshot at proposal creation (prevents last-minute staking)
  * - Quorum threshold (balance participation)
  * - Approval threshold (VP-weighted voting)
  * - Winner selection (only one proposal per cycle)
@@ -837,21 +836,13 @@ describe('#GOVERNANCE_TEST', () => {
       expect(cycleProposals).toContain(transferId1)
       console.log('  ✅ All created proposals found in cycle')
 
-      // 5. Test getVotingPowerSnapshot (before and after voting window)
-      console.log('\n🗳️  Testing getVotingPowerSnapshot()...')
-
-      // Check VP snapshot during proposal window (before voting starts)
-      const vpSnapshotBefore = await governance.getVotingPowerSnapshot(boostId)
-      console.log(`  VP snapshot before voting: ${vpSnapshotBefore.toString()}`)
-      expect(vpSnapshotBefore).toBeGreaterThan(0n)
-      console.log('  ✅ User has voting power in snapshot')
-
-      // Warp to voting window
+      // 5. Warp to voting window and vote
+      console.log('\n⏰ Warping to voting window...')
       const proposal = await governance.getProposal(boostId)
       const currentTime = await getBlockTimestamp()
       const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
       if (timeUntilVoting > 0) {
-        console.log(`\n⏰ Warping ${timeUntilVoting + 1} seconds to voting window...`)
+        console.log(`  Warping ${timeUntilVoting + 1} seconds to voting window...`)
         await warpAnvil(timeUntilVoting + 1)
       }
 
@@ -859,12 +850,7 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('\n🗳️  Voting on all proposals...')
       await governance.vote(boostId, true)
       await governance.vote(transferId1, true)
-
-      // Check VP snapshot during voting (should be same as before)
-      const vpSnapshotDuring = await governance.getVotingPowerSnapshot(boostId)
-      console.log(`  VP snapshot during voting: ${vpSnapshotDuring.toString()}`)
-      expect(vpSnapshotDuring).toBe(vpSnapshotBefore)
-      console.log('  ✅ VP snapshot remains consistent')
+      console.log('  ✅ Votes cast successfully')
 
       // 6. Verify vote receipts for multiple proposals
       console.log('\n📝 Testing getVoteReceipt() for multiple proposals...')

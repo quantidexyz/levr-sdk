@@ -241,7 +241,8 @@ describe('#STAKE_TEST', () => {
         amountIn,
       })
 
-      const amountOutMinimum = quoteResult.amountOut === 0n ? 0n : (quoteResult.amountOut * 9900n) / 10000n
+      const amountOutMinimum =
+        quoteResult.amountOut === 0n ? 0n : (quoteResult.amountOut * 9900n) / 10000n
 
       const swapReceipt = await swapV4({
         publicClient,

@@ -159,21 +159,6 @@ export function useGovernance({
     retry: 1,
   })
 
-  const votingPowerSnapshot = useQuery({
-    queryKey: [
-      'governance',
-      'votingPowerSnapshot',
-      governorAddress,
-      proposalId?.toString(),
-      userAddress || wallet.data?.account.address,
-    ],
-    queryFn: async (): Promise<bigint> => {
-      return await governance!.getVotingPowerSnapshot(proposalId!, userAddress!)
-    },
-    enabled: enabled && !!governance && proposalId !== undefined,
-    retry: 1,
-  })
-
   const meetsQuorum = useQuery({
     queryKey: ['governance', 'meetsQuorum', governorAddress, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
@@ -398,7 +383,6 @@ export function useGovernance({
     proposalsForCycle,
     winner,
     voteReceipt,
-    votingPowerSnapshot,
     meetsQuorum,
     meetsApproval,
     proposalState,
@@ -455,7 +439,6 @@ export function useGovernance({
       proposalsForCycle.isLoading ||
       winner.isLoading ||
       voteReceipt.isLoading ||
-      votingPowerSnapshot.isLoading ||
       meetsQuorum.isLoading ||
       meetsApproval.isLoading ||
       proposalState.isLoading ||
