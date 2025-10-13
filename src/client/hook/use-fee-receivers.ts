@@ -15,8 +15,6 @@ import { useLevrContext } from '../levr-provider'
 // ========================================
 
 export type UseFeeReceiversParams = {
-  clankerToken?: `0x${string}` | undefined
-  enabled?: boolean
   onSuccess?: (hash: `0x${string}`) => void
   onError?: (error: unknown) => void
 }
@@ -25,12 +23,7 @@ export type UseFeeReceiversParams = {
  * Hook to access fee receivers and update mutations
  * Fee receivers come from project.feeReceivers (with areYouAnAdmin already calculated)
  */
-export function useFeeReceivers({
-  clankerToken: _clankerToken,
-  enabled: _e = true,
-  onSuccess,
-  onError,
-}: UseFeeReceiversParams = {}) {
+export function useFeeReceivers({ onSuccess, onError }: UseFeeReceiversParams = {}) {
   const { project, refetch } = useLevrContext()
   const publicClient = usePublicClient()
   const wallet = useWalletClient()

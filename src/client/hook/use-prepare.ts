@@ -4,10 +4,10 @@ import { useMutation } from '@tanstack/react-query'
 import { decodeFunctionResult } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
+import { GET_FACTORY_ADDRESS } from '../..'
 import { LevrFactory_v1 } from '../../abis'
 
 export type UsePrepareParams = {
-  factoryAddress?: `0x${string}`
   onSuccess?: (params: {
     hash: `0x${string}`
     treasury: `0x${string}` | undefined
@@ -22,14 +22,16 @@ export type UsePrepareParams = {
  * @param options - The options for the prepare mutation.
  * @returns The hash of the transaction.
  */
-export function usePrepare({ factoryAddress, onSuccess, onError }: UsePrepareParams) {
+export function usePrepare({ onSuccess, onError }: UsePrepareParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
+  const chainId = publicClient?.chain?.id
 
   return useMutation({
     mutationFn: async () => {
+      const factoryAddress = GET_FACTORY_ADDRESS(chainId)
+      if (!factoryAddress) throw new Error('Factory address is not found')
       if (!wallet.data) throw new Error('Wallet is not connected')
-      if (!factoryAddress) throw new Error('Factory address is required')
 
       const hash = await wallet.data.writeContract({
         address: factoryAddress,

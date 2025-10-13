@@ -21,11 +21,6 @@ import { queryKeys } from '../query-keys'
 // ========================================
 
 export type UseGovernanceParams = {
-  governorAddress: `0x${string}`
-  clankerToken: `0x${string}`
-  tokenDecimals?: number
-  enabled?: boolean
-
   // Query params (optional - for reactive data)
   proposalId?: number | bigint
   cycleId?: number | bigint
@@ -50,13 +45,9 @@ export type UseGovernanceParams = {
 
 /**
  * Hook for managing governance operations
- * Global queries from LevrProvider, dynamic queries created per-component
+ * All data comes from context (user, project)
  */
 export function useGovernance({
-  governorAddress,
-  clankerToken: _clankerToken,
-  tokenDecimals = 18,
-  enabled = true,
   proposalId,
   cycleId,
   userAddress,
@@ -70,15 +61,14 @@ export function useGovernance({
   onExecuteProposalError,
   onClaimAirdropSuccess,
   onClaimAirdropError,
-}: UseGovernanceParams) {
+}: UseGovernanceParams = {}) {
   const { user, project, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
-  const clankerToken = project.data?.token.address
 
-  // Create Governance instance
+  // Create Governance instance (all params from project context)
   const governance = useMemo(() => {
-    if (!wallet.data || !publicClient || !project.data || !clankerToken) {
+    if (!wallet.data || !publicClient || !project.data) {
       return null
     }
     return new Governance({
@@ -86,10 +76,10 @@ export function useGovernance({
       publicClient,
       governorAddress: project.data.governor,
       tokenDecimals: project.data.token.decimals,
-      clankerToken,
+      clankerToken: project.data.token.address,
       pricing: project.data.pricing,
     })
-  }, [wallet.data, publicClient, project.data, clankerToken])
+  }, [wallet.data, publicClient, project.data])
 
   // All global governance data comes from project (no separate queries)
   const currentCycleId = useMemo(
@@ -118,29 +108,29 @@ export function useGovernance({
 
   // Dynamic queries (component-specific)
   const proposal = useQuery({
-    queryKey: queryKeys.governance.proposal(governorAddress, proposalId?.toString()),
+    queryKey: queryKeys.governance.proposal(project.data?.governor, proposalId?.toString()),
     queryFn: async (): Promise<FormattedProposalDetails> => {
       return await governance!.getProposal(proposalId!)
     },
-    enabled: enabled && !!governance && proposalId !== undefined,
+    enabled: !!governance && proposalId !== undefined,
     retry: 1,
   })
 
   const proposalsForCycle = useQuery({
-    queryKey: queryKeys.governance.proposalsForCycle(governorAddress, cycleId?.toString()),
+    queryKey: queryKeys.governance.proposalsForCycle(project.data?.governor, cycleId?.toString()),
     queryFn: async (): Promise<readonly bigint[]> => {
       return await governance!.getProposalsForCycle(cycleId!)
     },
-    enabled: enabled && !!governance && cycleId !== undefined,
+    enabled: !!governance && cycleId !== undefined,
     retry: 1,
   })
 
   const winner = useQuery({
-    queryKey: queryKeys.governance.winner(governorAddress, cycleId?.toString()),
+    queryKey: queryKeys.governance.winner(project.data?.governor, cycleId?.toString()),
     queryFn: async (): Promise<bigint> => {
       return await governance!.getWinner(cycleId!)
     },
-    enabled: enabled && !!governance && cycleId !== undefined,
+    enabled: !!governance && cycleId !== undefined,
     retry: 1,
   })
 
@@ -148,46 +138,46 @@ export function useGovernance({
     queryKey: [
       'governance',
       'voteReceipt',
-      governorAddress,
+      project.data?.governor,
       proposalId?.toString(),
       userAddress || wallet.data?.account.address,
     ],
     queryFn: async () => {
       return await governance!.getVoteReceipt(proposalId!, userAddress!)
     },
-    enabled: enabled && !!governance && proposalId !== undefined,
+    enabled: !!governance && proposalId !== undefined,
     retry: 1,
   })
 
   const meetsQuorum = useQuery({
-    queryKey: ['governance', 'meetsQuorum', governorAddress, proposalId?.toString()],
+    queryKey: ['governance', 'meetsQuorum', project.data?.governor, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
       return await governance!.meetsQuorum(proposalId!)
     },
-    enabled: enabled && !!governance && proposalId !== undefined,
+    enabled: !!governance && proposalId !== undefined,
     retry: 1,
   })
 
   const meetsApproval = useQuery({
-    queryKey: ['governance', 'meetsApproval', governorAddress, proposalId?.toString()],
+    queryKey: ['governance', 'meetsApproval', project.data?.governor, proposalId?.toString()],
     queryFn: async (): Promise<boolean> => {
       return await governance!.meetsApproval(proposalId!)
     },
-    enabled: enabled && !!governance && proposalId !== undefined,
+    enabled: !!governance && proposalId !== undefined,
     retry: 1,
   })
 
   const proposalState = useQuery({
-    queryKey: ['governance', 'proposalState', governorAddress, proposalId?.toString()],
+    queryKey: ['governance', 'proposalState', project.data?.governor, proposalId?.toString()],
     queryFn: async (): Promise<number> => {
       return await governance!.getProposalState(proposalId!)
     },
-    enabled: enabled && !!governance && proposalId !== undefined,
+    enabled: !!governance && proposalId !== undefined,
     retry: 1,
   })
 
   const activeProposalCount = useQuery({
-    queryKey: ['governance', 'activeProposalCount', governorAddress],
+    queryKey: ['governance', 'activeProposalCount', project.data?.governor],
     queryFn: async () => {
       const [boostCount, transferCount] = await Promise.all([
         governance!.getActiveProposalCount(0),
@@ -195,7 +185,7 @@ export function useGovernance({
       ])
       return { boost: boostCount, transfer: transferCount }
     },
-    enabled: enabled && !!governance,
+    enabled: !!governance,
     retry: 1,
   })
 
@@ -327,7 +317,7 @@ export function useGovernance({
   const buildProposeTransferConfig = ({
     recipient,
     amount,
-    amountDecimals = tokenDecimals,
+    amountDecimals,
     description,
   }: {
     recipient: `0x${string}`
@@ -337,19 +327,19 @@ export function useGovernance({
   }): ProposeTransferConfig => ({
     recipient,
     amount: amount.toString(),
-    amountDecimals,
+    amountDecimals: amountDecimals ?? project.data?.token.decimals ?? 18,
     description,
   })
 
   const buildProposeBoostConfig = ({
     amount,
-    amountDecimals = tokenDecimals,
+    amountDecimals,
   }: {
     amount: number | string
     amountDecimals?: number
   }): ProposeBoostConfig => ({
     amount: amount.toString(),
-    amountDecimals,
+    amountDecimals: amountDecimals ?? project.data?.token.decimals ?? 18,
   })
 
   const buildExecuteProposalConfig = ({

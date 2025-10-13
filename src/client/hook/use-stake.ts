@@ -6,55 +6,12 @@ import type { TransactionReceipt } from 'viem'
 import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 
 import { WETH } from '../../constants'
-import type { Project } from '../../project'
 import type { ClaimParams } from '../../stake'
 import { Stake } from '../../stake'
 import { needsApproval } from '../../util'
 import { useLevrContext } from '../levr-provider'
 
-export type UseStakingQueriesParams = {
-  projectData: Project | null | undefined
-}
-
-/**
- * Internal: Creates staking service instance ONLY
- * Used by LevrProvider
- * NOTE: All staking DATA comes from userQuery multicall - NO separate queries!
- */
-export function useStakingQueries({ projectData }: UseStakingQueriesParams) {
-  const wallet = useWalletClient()
-  const publicClient = usePublicClient()
-
-  // Create StakeService instance for mutations only
-  const stakeService = useMemo(() => {
-    if (!wallet.data || !publicClient || !projectData) {
-      return null
-    }
-    return new Stake({
-      wallet: wallet.data,
-      publicClient,
-      stakingAddress: projectData.staking,
-      tokenAddress: projectData.token.address,
-      tokenDecimals: projectData.token.decimals,
-      trustedForwarder: projectData.forwarder,
-      pricing: projectData.pricing,
-    })
-  }, [wallet.data, publicClient, projectData])
-
-  // NO QUERIES - all data comes from user multicall!
-  return {
-    stakeService,
-  }
-}
-
-// ========================================
-// PUBLIC HOOK (exported from index.ts)
-// ========================================
-
 export type UseStakeParams = {
-  clankerToken?: `0x${string}`
-  enabled?: boolean
-
   onApproveSuccess?: (receipt: TransactionReceipt) => void
   onApproveError?: (error: unknown) => void
 
@@ -72,13 +29,11 @@ export type UseStakeParams = {
 }
 
 /**
- * Hook to access staking data and mutations from LevrProvider
+ * Hook to access staking data and mutations
+ * All data comes from context.user, all mutations use context.stakeService
  * @throws Error if used outside LevrProvider
  */
 export function useStake({
-  clankerToken: _clankerToken,
-  enabled: _enabled = true,
-
   onApproveSuccess,
   onApproveError,
 
@@ -94,9 +49,27 @@ export function useStake({
   onAccrueSuccess,
   onAccrueError,
 }: UseStakeParams = {}) {
-  const { stakeService, project, user, refetch } = useLevrContext()
+  const { project, user, refetch } = useLevrContext()
+  const wallet = useWalletClient()
+  const publicClient = usePublicClient()
   const chainId = useChainId()
   const wethAddress = WETH(chainId)?.address
+
+  // Create Stake instance for mutations (like governance does)
+  const stakeService = useMemo(() => {
+    if (!wallet.data || !publicClient || !project.data) {
+      return null
+    }
+    return new Stake({
+      wallet: wallet.data,
+      publicClient,
+      stakingAddress: project.data.staking,
+      tokenAddress: project.data.token.address,
+      tokenDecimals: project.data.token.decimals,
+      trustedForwarder: project.data.forwarder,
+      pricing: project.data.pricing,
+    })
+  }, [wallet.data, publicClient, project.data])
 
   // Approve mutation
   const approve = useMutation({

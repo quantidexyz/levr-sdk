@@ -9,14 +9,12 @@ import { useAccount, useChainId } from 'wagmi'
 
 import type { PoolData } from '../pool'
 import type { ProposalsResult } from '../proposals'
-import type { Stake } from '../stake'
 import type { UserData } from '../user'
 import { getPublicClient } from '../util'
 import { useClankerTokenQuery } from './hook/use-clanker'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposals'
-import { useStakingQueries } from './hook/use-stake'
 import { useUserQuery } from './hook/use-user'
 
 type Project = NonNullable<ReturnType<typeof useProjectQuery>['data']>
@@ -65,9 +63,6 @@ export type LevrContextValue = {
     afterExecute: () => Promise<void>
     afterAirdrop: () => Promise<void>
   }
-
-  // Helper instances
-  stakeService: Stake | null
 }
 
 const LevrContext = createContext<LevrContextValue | null>(null)
@@ -123,11 +118,6 @@ export function LevrProvider({
     governorAddress: project.data?.governor,
     tokenDecimals: project.data?.token.decimals,
     enabled,
-  })
-
-  // Create staking service for mutations (all data comes from userQuery)
-  const staking = useStakingQueries({
-    projectData: project.data,
   })
 
   // ========================================
@@ -231,9 +221,8 @@ export function LevrProvider({
       proposals: proposalsQueryResult,
       tokenData,
 
-      // Refetch methods and services
+      // Refetch methods
       refetch: refetchMethods,
-      stakeService: staking.stakeService,
     }),
     [
       clankerToken,
@@ -246,7 +235,6 @@ export function LevrProvider({
       proposalsQueryResult,
       tokenData,
       refetchMethods,
-      staking.stakeService,
     ]
   )
 

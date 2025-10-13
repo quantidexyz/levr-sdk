@@ -20,12 +20,8 @@ export type SwapConfig = {
 }
 
 export type UseSwapParams = {
-  enabled?: boolean
-  tokenAddress?: `0x${string}`
-  tokenDecimals?: number
-
   // Quote params (optional - for reactive quotes)
-  // Pool key comes from context automatically
+  // Pool key, token address, and decimals come from context automatically
   quoteParams?: {
     zeroForOne: boolean
     amountIn: string
@@ -51,9 +47,6 @@ export type UseSwapParams = {
  * @returns Queries and mutations for swap operations
  */
 export function useSwap({
-  enabled = true,
-  tokenAddress: _tokenAddress,
-  tokenDecimals = 18,
   quoteParams,
   onApproveERC20Success,
   onApproveERC20Error,
@@ -110,7 +103,6 @@ export function useSwap({
       }
     },
     enabled:
-      enabled &&
       !!publicClient &&
       !!chainId &&
       !!poolKey &&
@@ -118,6 +110,7 @@ export function useSwap({
       !!quoteParams.amountIn &&
       parseFloat(quoteParams.amountIn) > 0,
     retry: 1,
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time quotes
   })
 
   // Mutation: Execute swap
