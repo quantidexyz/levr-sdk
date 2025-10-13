@@ -114,11 +114,8 @@ export function LevrProvider({
   const tokenData = useClankerTokenQuery({ clankerToken, enabled })
   const userQuery = useUserQuery({ project: project.data, enabled })
   const poolQuery = usePoolQuery({ project: project.data, enabled })
-  const proposalsQueryResult = useProposalsQuery({
-    governorAddress: project.data?.governor,
-    tokenDecimals: project.data?.token.decimals,
-    pricing: project.data?.pricing,
-    cycleId: project.data?.currentCycleId, // Pass from project to avoid re-fetching!
+  const proposalsQuery = useProposalsQuery({
+    project: project.data,
     enabled,
   })
 
@@ -142,7 +139,7 @@ export function LevrProvider({
         await poolQuery.refetch()
       },
       proposals: async () => {
-        await proposalsQueryResult.refetch()
+        await proposalsQuery.refetch()
       },
 
       // Action-based refetches
@@ -177,19 +174,19 @@ export function LevrProvider({
       afterVote: async () => {
         await Promise.all([
           userQuery.refetch(), // User governance data (vote receipt)
-          proposalsQueryResult.refetch(), // Proposal votes updated
+          proposalsQuery.refetch(), // Proposal votes updated
         ])
       },
       afterProposal: async () => {
         await Promise.all([
-          proposalsQueryResult.refetch(), // New proposal added
+          proposalsQuery.refetch(), // New proposal added
           project.refetch(), // currentCycleId might have changed
         ])
       },
       afterExecute: async () => {
         await Promise.all([
           project.refetch(), // Treasury changed + currentCycleId (new cycle starts)
-          proposalsQueryResult.refetch(), // Proposal executed
+          proposalsQuery.refetch(), // Proposal executed
           userQuery.refetch(), // Staking rewards might have changed (if boost)
         ])
       },
@@ -199,7 +196,7 @@ export function LevrProvider({
         ])
       },
     }),
-    [queryClient, project, userQuery, poolQuery, proposalsQueryResult]
+    [queryClient, project, userQuery, poolQuery, proposalsQuery]
   )
 
   // Auto-refetch on wallet/chain change
@@ -220,7 +217,7 @@ export function LevrProvider({
       user: userQuery,
       project,
       pool: poolQuery,
-      proposals: proposalsQueryResult,
+      proposals: proposalsQuery,
       tokenData,
 
       // Refetch methods
@@ -234,7 +231,7 @@ export function LevrProvider({
       userQuery,
       project,
       poolQuery,
-      proposalsQueryResult,
+      proposalsQuery,
       tokenData,
       refetchMethods,
     ]

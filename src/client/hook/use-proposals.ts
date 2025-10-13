@@ -3,11 +3,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 
-import { proposal, proposals as proposalsListQuery } from '../../proposals'
+import type { Project } from '../..'
+import { proposal, proposals } from '../../proposals'
 import { useLevrContext } from '..'
 import { queryKeys } from '../query-keys'
 
-export type UseProposalsParams = {
+export type UseProposalsQueryParams = {
+  project: Project | null | undefined
   enabled?: boolean
 }
 
@@ -21,23 +23,22 @@ export type UseProposalParams = {
  * Used by LevrProvider
  * Gets all proposals for current cycle with enriched data in single multicall
  */
-export function useProposals({ enabled: e = true }: UseProposalsParams) {
-  const { project } = useLevrContext()
+export function useProposalsQuery({ project, enabled: e = true }: UseProposalsQueryParams) {
   const publicClient = usePublicClient()
 
   return useQuery({
-    queryKey: queryKeys.proposals(project.data?.chainId, project.data?.currentCycleId?.toString()),
+    queryKey: queryKeys.proposals(project?.chainId, project?.currentCycleId?.toString()),
     queryFn: async () => {
-      return proposalsListQuery({
+      return proposals({
         publicClient: publicClient!,
-        governorAddress: project.data!.governor,
-        tokenDecimals: project.data!.token.decimals,
-        pricing: project.data!.pricing,
-        cycleId: project.data!.currentCycleId,
+        governorAddress: project!.governor,
+        tokenDecimals: project!.token.decimals,
+        pricing: project!.pricing,
+        cycleId: project!.currentCycleId,
         pageSize: 50,
       })
     },
-    enabled: e && !!publicClient && !!project.data!,
+    enabled: e && !!publicClient && !!project!,
     retry: 1,
     staleTime: 5000,
     refetchInterval: 30000,
