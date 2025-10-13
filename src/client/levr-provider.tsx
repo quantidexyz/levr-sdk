@@ -32,7 +32,7 @@ export type LevrContextValue = {
   chainId: number | undefined
   userAddress: Address | undefined
 
-  // Hierarchical access (new structure)
+  // Data queries (hierarchical structure)
   user: UseQueryResult<UserData | null>
   project: UseQueryResult<Project | null>
   pool: UseQueryResult<PoolData | null>
@@ -44,24 +44,6 @@ export type LevrContextValue = {
     metadata: string
     context: string
   } | null>
-
-  // Flat access (backward compatibility + convenience)
-  // Note: These are derived from user query, so refetch user to update them
-  balances: {
-    data: UserData['balances'] | null
-    isLoading: boolean
-    error: Error | null
-  }
-  stakingData: {
-    data: UserData['staking'] | null
-    isLoading: boolean
-    error: Error | null
-  }
-  governanceData: {
-    data: UserData['governance'] | null
-    isLoading: boolean
-    error: Error | null
-  }
 
   // Action-based refetch methods
   refetch: {
@@ -143,11 +125,9 @@ export function LevrProvider({
     enabled,
   })
 
-  // Keep staking service for backward compatibility in public hooks
+  // Create staking service for mutations (all data comes from userQuery)
   const staking = useStakingQueries({
-    clankerToken,
     projectData: project.data,
-    enabled,
   })
 
   // ========================================
@@ -244,30 +224,14 @@ export function LevrProvider({
       chainId,
       userAddress,
 
-      // Hierarchical access
+      // Data queries
       user: userQuery,
       project,
       pool: poolQuery,
       proposals: proposalsQueryResult,
       tokenData,
 
-      // Flat access (backward compatibility + convenience)
-      balances: {
-        data: userQuery.data?.balances || null,
-        isLoading: userQuery.isLoading,
-        error: userQuery.error,
-      },
-      stakingData: {
-        data: userQuery.data?.staking || null,
-        isLoading: userQuery.isLoading,
-        error: userQuery.error,
-      },
-      governanceData: {
-        data: userQuery.data?.governance || null,
-        isLoading: userQuery.isLoading,
-        error: userQuery.error,
-      },
-
+      // Refetch methods and services
       refetch: refetchMethods,
       stakeService: staking.stakeService,
     }),

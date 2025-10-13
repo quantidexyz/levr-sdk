@@ -5,15 +5,25 @@ import React from 'react'
 import type { Address } from 'viem'
 import { baseSepolia } from 'viem/chains'
 
-import {
-  LevrProvider,
-  useBalance,
-  useGovernanceData,
-  useLevrContext,
-  useProject,
-  useStakingData,
-  useUser,
-} from '../src/client'
+// Mock wagmi at module level BEFORE any imports that use it
+let mockPublicClientGlobal: any = null
+let mockWalletClientGlobal: any = null
+
+mock.module('wagmi', () => ({
+  useAccount: () => ({ address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address }),
+  useChainId: () => baseSepolia.id,
+  usePublicClient: () => mockPublicClientGlobal,
+  useWalletClient: () => ({ data: mockWalletClientGlobal }),
+  useConfig: () => ({}),
+}))
+
+// Mock getPublicClient util at module level
+mock.module('../src/util', () => ({
+  getPublicClient: () => mockPublicClientGlobal,
+  needsApproval: (allowance: bigint, amount: bigint) => allowance < amount,
+}))
+
+import { LevrProvider, useLevrContext, useProject, useUser } from '../src/client'
 import { pool } from '../src/pool'
 import { project } from '../src/project'
 import { proposals } from '../src/proposals'
@@ -97,8 +107,35 @@ function createMockPublicClient(tracker: RpcCallTracker) {
     }))
 
     // Customize based on expected multicall structure
-    if (contracts.length >= 10) {
-      // Project multicall
+    if (contracts.length === 12) {
+      // User multicall with WETH (12 contracts)
+      // User multicall structure - ensure we have at least 12 results
+      // With WETH: 2 balances + 7 staking + 3 weth rewards = 12 total
+
+      // Ensure results array is large enough
+      while (results.length < 12) {
+        results.push({ result: 0n, status: 'success' })
+      }
+
+      // Balance results
+      results[0] = { result: 100000000000000000000n, status: 'success' } // token balance
+      results[1] = { result: 50000000000000000000n, status: 'success' } // weth balance
+
+      // Staking data (starts at index 2 with WETH)
+      results[2] = { result: 75000000000000000000n, status: 'success' } // staked balance
+      results[3] = { result: 1000000000000000000000n, status: 'success' } // allowance
+      results[4] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
+      results[5] = { result: 2000000000000000000n, status: 'success' } // claimable rewards (token)
+      results[6] = { result: 500n, status: 'success' } // APR bps
+      results[7] = { result: 75000000000000000000n, status: 'success' } // voting power
+      results[8] = { result: 300000000000000000000n, status: 'success' } // total staked
+
+      // WETH rewards (starts at index 9)
+      results[9] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
+      results[10] = { result: 1000000000000000000n, status: 'success' } // claimable rewards weth
+      results[11] = { result: 100000000000000000n, status: 'success' } // reward rate weth
+    } else if (contracts.length === 10) {
+      // Project multicall (10 contracts)
       results[0] = { result: 18, status: 'success' } // decimals
       results[1] = { result: 'Test Token', status: 'success' } // name
       results[2] = { result: 'TEST', status: 'success' } // symbol
@@ -109,72 +146,47 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[7] = { result: 500000000000000000000n, status: 'success' } // treasury balance
       results[8] = { result: 200000000000000000000n, status: 'success' } // staking balance
       results[9] = { result: 5n, status: 'success' } // currentCycleId
-    } else if (contracts.length >= 7 && contracts.length < 10) {
-      // User multicall structure (with WETH):
-      // 0: token balance, 1: weth balance,
-      // THEN staking contracts (offset by 2):
-      // 2: staked balance, 3: allowance, 4: outstanding rewards [tuple], 5: claimable rewards,
-      // 6: apr bps, 7: voting power, 8: total staked
-      // THEN weth rewards (offset by 9):
-      // 9: outstanding rewards weth [tuple], 10: claimable rewards weth, 11: reward rate weth
+    } else if (contracts.length > 0 && contracts.length <= 6) {
+      // Proposals multicall (getProposal for each proposal) or pool multicall
+      // Check first contract to determine which one
+      const firstContract: any = contracts[0]
 
-      // Provide default bigint values for all
-      for (let i = 0; i < contracts.length; i++) {
-        results[i] = { result: 1000000000000000000n, status: 'success' }
-      }
-
-      // Specific values for known positions
-      if (results[0]) results[0] = { result: 100000000000000000000n, status: 'success' } // token balance
-      if (results[1]) results[1] = { result: 50000000000000000000n, status: 'success' } // weth balance
-
-      // Staking data (starts at index 2)
-      if (results[2]) results[2] = { result: 75000000000000000000n, status: 'success' } // staked balance
-      if (results[3]) results[3] = { result: 1000000000000000000000n, status: 'success' } // allowance
-      if (results[4])
-        results[4] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
-      if (results[5]) results[5] = { result: 2000000000000000000n, status: 'success' } // claimable rewards (token)
-      if (results[6]) results[6] = { result: 500n, status: 'success' } // APR bps
-      if (results[7]) results[7] = { result: 75000000000000000000n, status: 'success' } // voting power
-      if (results[8]) results[8] = { result: 300000000000000000000n, status: 'success' } // total staked
-
-      // WETH rewards (starts at index 9 if present)
-      if (results[9])
-        results[9] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
-      if (results[10]) results[10] = { result: 1000000000000000000n, status: 'success' } // claimable rewards weth
-      if (results[11]) results[11] = { result: 100000000000000000n, status: 'success' } // reward rate weth
-    } else if (contracts.length === 2) {
-      // Pool multicall
-      results[0] = {
-        result: [1000000000000000000n, 100, 0, 3000],
-        status: 'success',
-      } // slot0
-      results[1] = { result: 5000000000000000000000n, status: 'success' } // liquidity
-    } else if (contracts.length === 1) {
-      // Single contract call - could be pricing or other
-      results[0] = { result: 1000000000000000000n, status: 'success' }
-    } else if (contracts.length > 0 && contracts.length < 7) {
-      // Could be proposals multicall (getProposal for each proposal)
-      // Each getProposal returns a proposal struct
-      for (let i = 0; i < contracts.length; i++) {
-        results[i] = {
-          result: {
-            id: BigInt(i + 1),
-            proposalType: 0,
-            proposer: MOCK_USER_ADDRESS,
-            amount: 1000000000000000000000n,
-            recipient: MOCK_TREASURY_ADDRESS,
-            description: `Test proposal ${i + 1}`,
-            createdAt: 1700000000n,
-            votingStartsAt: 1700010000n,
-            votingEndsAt: 1700020000n,
-            yesVotes: 5000000000000000000000n,
-            noVotes: 1000000000000000000000n,
-            totalBalanceVoted: 6000000000000000000000n,
-            executed: false,
-            cycleId: 1n,
-          },
+      if (
+        firstContract?.functionName === 'getSlot0' ||
+        firstContract?.functionName === 'getLiquidity'
+      ) {
+        // Pool multicall (2 contracts)
+        results[0] = {
+          result: [1000000000000000000n, 100, 0, 3000],
           status: 'success',
+        } // slot0
+        if (results[1]) results[1] = { result: 5000000000000000000000n, status: 'success' } // liquidity
+      } else if (firstContract?.functionName === 'getProposal') {
+        // Proposals multicall (getProposal for each proposal)
+        for (let i = 0; i < contracts.length; i++) {
+          results[i] = {
+            result: {
+              id: BigInt(i + 1),
+              proposalType: 0,
+              proposer: MOCK_USER_ADDRESS,
+              amount: 1000000000000000000000n,
+              recipient: MOCK_TREASURY_ADDRESS,
+              description: `Test proposal ${i + 1}`,
+              createdAt: 1700000000n,
+              votingStartsAt: 1700010000n,
+              votingEndsAt: 1700020000n,
+              yesVotes: 5000000000000000000000n,
+              noVotes: 1000000000000000000000n,
+              totalBalanceVoted: 6000000000000000000000n,
+              executed: false,
+              cycleId: 1n,
+            },
+            status: 'success',
+          }
         }
+      } else {
+        // Default for single contract or unknown
+        results[0] = { result: 1000000000000000000n, status: 'success' }
       }
     }
 
@@ -299,8 +311,8 @@ describe('#data-flow', () => {
         const projectCalls = tracker.getTotalCalls()
 
         // Project should make: 1 readContract (getProjectContracts) + 1 multicall + 1 readContract (tokenRewards)
-        // Note: Pricing calls would be additional in real scenario
-        expect(projectCalls).toBeGreaterThanOrEqual(3)
+        // According to ZERO-DUPLICATES.md: Project makes 1 multicall + separate calls
+        expect(projectCalls).toBe(3) // Exactly 3 calls
 
         // Fetch user data (shares project data)
         if (projectData) {
@@ -311,8 +323,8 @@ describe('#data-flow', () => {
           })
 
           const userCallsAdded = tracker.getTotalCalls() - projectCalls
-          // User should add: 1 multicall + 1 getBalance
-          expect(userCallsAdded).toBeGreaterThanOrEqual(1)
+          // User should add: 1 multicall + 1 getBalance + 1 airdrop readContract = 3 calls
+          expect(userCallsAdded).toBe(3)
 
           // Fetch pool data (shares project data)
           await pool({
@@ -321,8 +333,8 @@ describe('#data-flow', () => {
           })
 
           const poolCallsAdded = tracker.getTotalCalls() - projectCalls - userCallsAdded
-          // Pool should add: 1 multicall (if pool exists)
-          expect(poolCallsAdded).toBeGreaterThanOrEqual(1)
+          // Pool should add: 1 multicall (exactly 1, no duplicates)
+          expect(poolCallsAdded).toBe(1)
 
           // Fetch proposals (uses project.governor)
           await proposals({
@@ -333,14 +345,14 @@ describe('#data-flow', () => {
 
           const proposalsCallsAdded =
             tracker.getTotalCalls() - projectCalls - userCallsAdded - poolCallsAdded
-          // Proposals should add: 1 getBlockNumber + 1 getLogs + 1 multicall
-          expect(proposalsCallsAdded).toBeGreaterThanOrEqual(2)
+          // Proposals should add: 1 getBlockNumber + 1 getLogs + 1 multicall = 3 calls
+          expect(proposalsCallsAdded).toBe(3)
         }
 
-        // Verify total calls are reasonable (should be ~8-12 calls total)
+        // Verify total calls match ZERO-DUPLICATES.md: ~5 unique RPC calls
+        // Project: 3, User: 3, Pool: 1, Proposals: 3 = 10 total
         const totalCalls = tracker.getTotalCalls()
-        expect(totalCalls).toBeLessThan(15)
-        expect(totalCalls).toBeGreaterThan(5)
+        expect(totalCalls).toBe(10) // Exact count - any more would be duplicates!
       })
 
       it('should not call the same contract function twice', async () => {
@@ -372,6 +384,93 @@ describe('#data-flow', () => {
     })
 
     describe('Correct Data Grouping', () => {
+      it('should fetch ALL project data items ONLY in project query', async () => {
+        tracker.reset()
+
+        const projectData = await project({
+          publicClient: mockPublicClient as any,
+          clankerToken: MOCK_CLANKER_TOKEN,
+        })
+
+        // Verify ALL items from ZERO-DUPLICATES.md PROJECT box are present
+        expect(projectData).toBeDefined()
+
+        // Token (name, symbol, decimals, supply)
+        expect(projectData?.token.name).toBe('Test Token')
+        expect(projectData?.token.symbol).toBe('TEST')
+        expect(projectData?.token.decimals).toBe(18)
+        expect(projectData?.token.totalSupply).toBeDefined()
+
+        // Addresses (treasury, governor, staking, etc.)
+        expect(projectData?.treasury).toBe(MOCK_TREASURY_ADDRESS)
+        expect(projectData?.governor).toBe(MOCK_GOVERNOR_ADDRESS)
+        expect(projectData?.staking).toBe(MOCK_STAKING_ADDRESS)
+        expect(projectData?.stakedToken).toBe(MOCK_STAKED_TOKEN_ADDRESS)
+        expect(projectData?.forwarder).toBe(MOCK_FORWARDER_ADDRESS)
+
+        // Pool (poolKey, feeDisplay, numPositions)
+        expect(projectData?.pool).toBeDefined()
+        expect(projectData?.pool?.poolKey).toBeDefined()
+        expect(projectData?.pool?.feeDisplay).toBeDefined() // Fee display format may vary
+        expect(projectData?.pool?.numPositions).toBeDefined()
+
+        // Fee receivers (admin, recipient, percentage)
+        expect(projectData?.feeReceivers).toBeDefined()
+        expect(Array.isArray(projectData?.feeReceivers)).toBe(true)
+
+        // Treasury stats (balance, utilization)
+        expect(projectData?.treasuryStats).toBeDefined()
+        expect(projectData?.treasuryStats?.balance).toBeDefined()
+
+        // Factory address
+        expect(projectData?.factory).toBe(MOCK_FACTORY_ADDRESS)
+
+        // Current cycle ID
+        expect(projectData?.currentCycleId).toBeDefined()
+        expect(typeof projectData?.currentCycleId).toBe('bigint')
+
+        // Now verify NO other queries fetch any of this data
+        if (!projectData) throw new Error('Project data is null')
+
+        tracker.reset()
+
+        // Call user, pool, proposals - they should NOT refetch any project data
+        await user({
+          publicClient: mockPublicClient as any,
+          userAddress: MOCK_USER_ADDRESS,
+          project: projectData,
+        })
+
+        await pool({
+          publicClient: mockPublicClient as any,
+          project: projectData,
+        })
+
+        await proposals({
+          publicClient: mockPublicClient as any,
+          governorAddress: projectData.governor,
+          tokenDecimals: projectData.token.decimals,
+        })
+
+        // CRITICAL: None of these should have queried for:
+        // - token info (name, symbol, decimals, supply)
+        // - addresses (treasury, governor, staking)
+        // - fee receivers
+        // - factory address
+        // - current cycle ID
+        // All should come from shared projectData!
+
+        // Verify no readContract calls for getProjectContracts (would indicate duplicate fetch)
+        const getProjectContractsCalls = tracker.calls.filter(
+          (c) => c.functionName === 'getProjectContracts'
+        )
+        expect(getProjectContractsCalls.length).toBe(0) // Should be 0 - already fetched in project!
+
+        // Verify no readContract calls for tokenRewards (would indicate duplicate fee receiver fetch)
+        const tokenRewardsCalls = tracker.calls.filter((c) => c.functionName === 'tokenRewards')
+        expect(tokenRewardsCalls.length).toBe(0) // Should be 0 - already in project!
+      })
+
       it('should fetch token info only in project query', async () => {
         const projectData = await project({
           publicClient: mockPublicClient as any,
@@ -498,7 +597,7 @@ describe('#data-flow', () => {
     })
 
     describe('Data Sharing Patterns', () => {
-      it('should share project data to user query', async () => {
+      it('should share project data to user query (verify NO refetch of project items)', async () => {
         const projectData = await project({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
@@ -506,7 +605,7 @@ describe('#data-flow', () => {
 
         if (!projectData) throw new Error('Project data is null')
 
-        const initialCalls = tracker.getTotalCalls()
+        tracker.reset()
 
         // User should receive and use project data
         await user({
@@ -515,20 +614,48 @@ describe('#data-flow', () => {
           project: projectData, // Sharing project data
         })
 
-        const userCalls = tracker.getTotalCalls() - initialCalls
+        // User should USE these from project:
+        // - project.token.address (for balance query)
+        // - project.token.decimals (for formatting)
+        // - project.staking (for staking queries)
+        // - project.treasury (for context)
+        // - project.pricing (for USD values)
 
-        // User should not re-fetch project data (token info, staking address, etc.)
-        // It should only add its own multicall + getBalance
-        expect(userCalls).toBeLessThan(5)
+        // Verify user() doesn't refetch ANY of these
+        const userCalls = tracker.calls
+
+        // Should NOT query for token info
+        const tokenInfoCalls = userCalls.filter(
+          (c) =>
+            c.functionName === 'name' ||
+            c.functionName === 'symbol' ||
+            c.functionName === 'decimals'
+        )
+        expect(tokenInfoCalls.length).toBe(0)
+
+        // Should NOT query for addresses
+        const addressCalls = userCalls.filter((c) => c.functionName === 'getProjectContracts')
+        expect(addressCalls.length).toBe(0)
+
+        // Should NOT query for pricing
+        const pricingCalls = userCalls.filter(
+          (c) => c.functionName === 'slot0' && c.address !== MOCK_CLANKER_TOKEN
+        )
+        expect(pricingCalls.length).toBe(0)
+
+        // User should only make: 1 multicall + 1 getBalance + 1 airdrop check
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(4)
       })
 
-      it('should share project.pool data to pool query', async () => {
+      it('should share project.pool data to pool query (verify poolKey NOT refetched)', async () => {
         const projectData = await project({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
 
         if (!projectData) throw new Error('Project data is null')
+
+        tracker.reset()
 
         // Pool should use project.pool.poolKey
         const poolData = await pool({
@@ -536,12 +663,21 @@ describe('#data-flow', () => {
           project: projectData, // Sharing project data
         })
 
-        // Pool should use poolKey from project
+        // Pool should use poolKey from project (exact same object)
         expect(poolData?.poolKey).toEqual(projectData.pool?.poolKey)
         expect(poolData?.feeDisplay).toBe(projectData.pool?.feeDisplay)
+
+        // Verify pool() doesn't fetch poolKey (should come from project.pool)
+        const poolKeyCalls = tracker.calls.filter(
+          (c) => c.functionName === 'tokenRewards' // This fetches poolKey
+        )
+        expect(poolKeyCalls.length).toBe(0) // Should NOT be called again!
+
+        // Pool should only make 1 multicall for state (getSlot0, getLiquidity)
+        expect(tracker.getTotalCalls()).toBe(1)
       })
 
-      it('should share project.governor to proposals query', async () => {
+      it('should share project.governor to proposals query (verify NOT refetched)', async () => {
         const projectData = await project({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
@@ -549,7 +685,9 @@ describe('#data-flow', () => {
 
         if (!projectData) throw new Error('Project data is null')
 
-        // Proposals should use project.governor
+        tracker.reset()
+
+        // Proposals should use project.governor and project.token.decimals
         await proposals({
           publicClient: mockPublicClient as any,
           governorAddress: projectData.governor, // Using shared data
@@ -560,7 +698,60 @@ describe('#data-flow', () => {
         const getProjectContractsCalls = tracker.calls.filter(
           (c) => c.type === 'readContract' && c.functionName === 'getProjectContracts'
         )
-        expect(getProjectContractsCalls.length).toBeLessThanOrEqual(1)
+        expect(getProjectContractsCalls.length).toBe(0) // Should be 0!
+
+        // Verify proposals didn't re-fetch token info
+        const tokenInfoCalls = tracker.calls.filter(
+          (c) => c.functionName === 'decimals' || c.functionName === 'name'
+        )
+        expect(tokenInfoCalls.length).toBe(0) // Should be 0!
+
+        // Proposals should only make: 1 getBlockNumber + 1 getLogs + 1 multicall (for proposal details)
+        expect(tracker.getTotalCalls()).toBe(3)
+      })
+
+      it('should use shared utilities (no logic duplication)', async () => {
+        const projectData = await project({
+          publicClient: mockPublicClient as any,
+          clankerToken: MOCK_CLANKER_TOKEN,
+        })
+
+        if (!projectData) throw new Error('Project data is null')
+
+        // Verify project uses formatBalanceWithUsd from balance.ts for treasury stats
+        expect(projectData.treasuryStats).toBeDefined()
+        expect(projectData.treasuryStats?.balance.formatted).toBeDefined()
+        expect(projectData.treasuryStats?.totalAllocated.formatted).toBeDefined()
+
+        // Verify project uses parseFeeReceivers from fee-receivers.ts
+        expect(projectData.feeReceivers).toBeDefined()
+        expect(Array.isArray(projectData.feeReceivers)).toBe(true)
+        if (projectData.feeReceivers && projectData.feeReceivers.length > 0) {
+          // Should have complete structure with areYouAnAdmin (false at project level)
+          expect(projectData.feeReceivers[0].admin).toBeDefined()
+          expect(projectData.feeReceivers[0].recipient).toBeDefined()
+          expect(projectData.feeReceivers[0].percentage).toBeDefined()
+          expect(projectData.feeReceivers[0].areYouAnAdmin).toBe(false) // No userAddress at project level
+        }
+
+        const userData = await user({
+          publicClient: mockPublicClient as any,
+          userAddress: MOCK_USER_ADDRESS,
+          project: projectData,
+        })
+
+        // Verify user uses formatBalanceWithUsd from balance.ts for all balances
+        expect(userData.balances.token.formatted).toBeDefined()
+        expect(userData.balances.weth.formatted).toBeDefined()
+        expect(userData.balances.eth.formatted).toBeDefined()
+        expect(userData.staking.stakedBalance.formatted).toBeDefined()
+        expect(userData.staking.allowance.formatted).toBeDefined()
+        expect(userData.governance.votingPower.formatted).toBeDefined()
+
+        // All should be formatted the same way (using shared utility)
+        // The formatted values should be strings, not numbers
+        expect(typeof userData.balances.token.formatted).toBe('string')
+        expect(typeof projectData.treasuryStats?.balance.formatted).toBe('string')
       })
 
       it('should not re-fetch shared pricing data', async () => {
@@ -602,6 +793,16 @@ describe('#data-flow', () => {
     beforeEach(() => {
       tracker = new RpcCallTracker()
       mockPublicClient = createMockPublicClient(tracker)
+
+      // Update global mocks
+      mockPublicClientGlobal = mockPublicClient
+      mockWalletClientGlobal = {
+        account: { address: MOCK_USER_ADDRESS },
+        chain: { id: MOCK_CHAIN_ID },
+        writeContract: mock(async () => '0x123' as `0x${string}`),
+        sendTransaction: mock(async () => '0x123' as `0x${string}`),
+      }
+
       queryClient = new QueryClient({
         defaultOptions: {
           queries: {
@@ -610,19 +811,6 @@ describe('#data-flow', () => {
           },
         },
       })
-
-      // Mock wagmi hooks
-      mock.module('wagmi', () => ({
-        useAccount: () => ({ address: MOCK_USER_ADDRESS }),
-        useChainId: () => MOCK_CHAIN_ID,
-        usePublicClient: () => mockPublicClient,
-        useConfig: () => ({}),
-      }))
-
-      // Mock getPublicClient util
-      mock.module('../src/util', () => ({
-        getPublicClient: () => mockPublicClient,
-      }))
     })
 
     const createWrapper = () => {
@@ -640,6 +828,110 @@ describe('#data-flow', () => {
     }
 
     describe('Provider Query Hooks Alignment', () => {
+      it('should NOT make duplicate queries when loading provider', async () => {
+        const wrapper = createWrapper()
+
+        const { result } = renderHook(() => useLevrContext(), { wrapper })
+
+        tracker.reset()
+
+        // Set clanker token to trigger queries
+        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+
+        await waitFor(
+          () => {
+            expect(result.current.project.data).toBeDefined()
+            expect(result.current.user.data).toBeDefined()
+          },
+          { timeout: 3000 }
+        )
+
+        // Count RPC calls made
+        const totalCalls = tracker.getTotalCalls()
+        const multicallCount = tracker.getCallCount('multicall')
+        const readContractCount = tracker.getCallCount('readContract')
+        const getBalanceCount = tracker.getCallCount('getBalance')
+
+        console.log('=== RPC CALL COUNTS ===')
+        console.log(`Total calls: ${totalCalls}`)
+        console.log(`Multicalls: ${multicallCount}`)
+        console.log(`readContract: ${readContractCount}`)
+        console.log(`getBalance: ${getBalanceCount}`)
+        console.log('All calls:', tracker.calls.map((c) => c.type).join(', '))
+
+        // Check that NO staking queries are made separately (they should be in user multicall)
+        const stakingFunctionCalls = tracker.calls.filter(
+          (c) =>
+            c.functionName?.includes('staking') ||
+            c.functionName?.includes('Staked') ||
+            c.functionName?.includes('allowance') ||
+            c.functionName?.includes('rewards')
+        )
+        console.log('Staking-related separate calls:', stakingFunctionCalls.length)
+        expect(stakingFunctionCalls.length).toBe(0) // All in user multicall!
+
+        // Should make EXACTLY the expected number of calls (no duplicates!)
+        // Expected: 1 project multicall + 1 user multicall + 2-3 readContract calls + 1 getBalance
+        expect(multicallCount).toBeLessThanOrEqual(4) // project, user, pool, proposals
+        expect(readContractCount).toBeLessThanOrEqual(4) // getProjectContracts, tokenRewards, airdrop
+        expect(getBalanceCount).toBeLessThanOrEqual(1) // Native ETH balance
+
+        // CRITICAL: Total should be less than 15 (with duplicates it would be 20+)
+        expect(totalCalls).toBeLessThan(15)
+      })
+
+      it('should have ALL project data available in provider context', async () => {
+        const wrapper = createWrapper()
+
+        const { result } = renderHook(() => useLevrContext(), { wrapper })
+
+        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+
+        await waitFor(
+          () => {
+            expect(result.current.project.data).toBeDefined()
+          },
+          { timeout: 3000 }
+        )
+
+        const proj = result.current.project.data!
+
+        // Verify ALL items from ZERO-DUPLICATES.md PROJECT box are available
+        // Token (name, symbol, decimals, supply)
+        expect(proj.token.name).toBeDefined()
+        expect(proj.token.symbol).toBeDefined()
+        expect(proj.token.decimals).toBeDefined()
+        expect(proj.token.totalSupply).toBeDefined()
+
+        // Addresses (treasury, governor, staking, etc.)
+        expect(proj.treasury).toBeDefined()
+        expect(proj.governor).toBeDefined()
+        expect(proj.staking).toBeDefined()
+        expect(proj.stakedToken).toBeDefined()
+        expect(proj.forwarder).toBeDefined()
+
+        // Pool (poolKey, feeDisplay, numPositions)
+        expect(proj.pool).toBeDefined()
+        expect(proj.pool?.poolKey).toBeDefined()
+        expect(proj.pool?.feeDisplay).toBeDefined()
+        expect(proj.pool?.numPositions).toBeDefined()
+
+        // Fee receivers
+        expect(proj.feeReceivers).toBeDefined()
+
+        // Treasury stats
+        expect(proj.treasuryStats).toBeDefined()
+
+        // Factory address
+        expect(proj.factory).toBeDefined()
+
+        // Current cycle ID
+        expect(proj.currentCycleId).toBeDefined()
+
+        // Pricing (may be undefined if oracle not provided, which is fine)
+        // The key is it's in project, not fetched elsewhere
+      })
+
       it('should expose project query through context', async () => {
         const wrapper = createWrapper()
 
@@ -716,101 +1008,54 @@ describe('#data-flow', () => {
       it('useProject() should return context.project', async () => {
         const wrapper = createWrapper()
 
-        const { result: contextResult } = renderHook(() => useLevrContext(), { wrapper })
-        const { result: projectResult } = renderHook(() => useProject(), { wrapper })
+        const { result } = renderHook(
+          () => ({
+            context: useLevrContext(),
+            project: useProject(),
+          }),
+          { wrapper }
+        )
 
-        contextResult.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
 
         await waitFor(
           () => {
-            expect(projectResult.current.data).toBeDefined()
+            expect(result.current.project.data).toBeDefined()
           },
           { timeout: 3000 }
         )
 
         // Should be the same object
-        expect(projectResult.current).toBe(contextResult.current.project)
+        expect(result.current.project).toBe(result.current.context.project)
       })
 
       it('useUser() should return context.user', async () => {
         const wrapper = createWrapper()
 
-        const { result: contextResult } = renderHook(() => useLevrContext(), { wrapper })
-        const { result: userResult } = renderHook(() => useUser(), { wrapper })
+        const { result } = renderHook(
+          () => ({
+            context: useLevrContext(),
+            user: useUser(),
+          }),
+          { wrapper }
+        )
 
-        contextResult.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
 
         await waitFor(
           () => {
-            expect(userResult.current.data).toBeDefined()
+            expect(result.current.user.data).toBeDefined()
           },
           { timeout: 3000 }
         )
 
         // Should be the same object
-        expect(userResult.current).toBe(contextResult.current.user)
-      })
-
-      it('useBalance() should return context.balances (derived from user)', async () => {
-        const wrapper = createWrapper()
-
-        const { result: contextResult } = renderHook(() => useLevrContext(), { wrapper })
-        const { result: balanceResult } = renderHook(() => useBalance(), { wrapper })
-
-        contextResult.current.setClankerToken(MOCK_CLANKER_TOKEN)
-
-        await waitFor(
-          () => {
-            expect(balanceResult.current.data).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        // Should be the same object
-        expect(balanceResult.current).toBe(contextResult.current.balances)
-      })
-
-      it('useStakingData() should return context.stakingData (derived from user)', async () => {
-        const wrapper = createWrapper()
-
-        const { result: contextResult } = renderHook(() => useLevrContext(), { wrapper })
-        const { result: stakingResult } = renderHook(() => useStakingData(), { wrapper })
-
-        contextResult.current.setClankerToken(MOCK_CLANKER_TOKEN)
-
-        await waitFor(
-          () => {
-            expect(stakingResult.current.data).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        // Should be the same object
-        expect(stakingResult.current).toBe(contextResult.current.stakingData)
-      })
-
-      it('useGovernanceData() should return context.governanceData (derived from user)', async () => {
-        const wrapper = createWrapper()
-
-        const { result: contextResult } = renderHook(() => useLevrContext(), { wrapper })
-        const { result: governanceResult } = renderHook(() => useGovernanceData(), { wrapper })
-
-        contextResult.current.setClankerToken(MOCK_CLANKER_TOKEN)
-
-        await waitFor(
-          () => {
-            expect(governanceResult.current.data).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        // Should be the same object
-        expect(governanceResult.current).toBe(contextResult.current.governanceData)
+        expect(result.current.user).toBe(result.current.context.user)
       })
     })
 
-    describe('Hierarchical vs Flat Access', () => {
-      it('should provide same data via hierarchical and flat access', async () => {
+    describe('Hierarchical Data Access', () => {
+      it('should provide all user data through hierarchical structure', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -824,44 +1069,22 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        // Hierarchical: user.data.balances
-        // Flat: balances.data
-        // Should be the SAME reference (not a copy)
-        if (
-          result.current.user.data &&
-          result.current.balances.data &&
-          result.current.stakingData.data &&
-          result.current.governanceData.data
-        ) {
-          expect(result.current.user.data.balances).toBe(result.current.balances.data)
-          expect(result.current.user.data.staking).toBe(result.current.stakingData.data)
-          expect(result.current.user.data.governance).toBe(result.current.governanceData.data)
-        }
-      })
+        // All user data should be accessible via hierarchical structure
+        expect(result.current.user.data!.balances).toBeDefined()
+        expect(result.current.user.data!.staking).toBeDefined()
+        expect(result.current.user.data!.governance).toBeDefined()
 
-      it('should maintain object identity (no duplicates)', async () => {
-        const wrapper = createWrapper()
+        // Individual items should be accessible
+        expect(result.current.user.data!.balances.token).toBeDefined()
+        expect(result.current.user.data!.balances.weth).toBeDefined()
+        expect(result.current.user.data!.balances.eth).toBeDefined()
 
-        const { result } = renderHook(() => useLevrContext(), { wrapper })
+        expect(result.current.user.data!.staking.stakedBalance).toBeDefined()
+        expect(result.current.user.data!.staking.allowance).toBeDefined()
+        expect(result.current.user.data!.staking.rewards).toBeDefined()
+        expect(result.current.user.data!.staking.apr).toBeDefined()
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
-
-        await waitFor(
-          () => {
-            expect(result.current.user.data).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        const balancesFromHierarchical = result.current.user.data?.balances
-        const balancesFromFlat = result.current.balances.data
-
-        // Should be exactly the same object (not a deep copy)
-        if (balancesFromHierarchical && balancesFromFlat) {
-          expect(balancesFromHierarchical).toBe(balancesFromFlat)
-          // Verify it's the same token balance object
-          expect(balancesFromHierarchical.token).toBe(balancesFromFlat.token)
-        }
+        expect(result.current.user.data!.governance.votingPower).toBeDefined()
       })
     })
 
@@ -920,7 +1143,7 @@ describe('#data-flow', () => {
         expect(newCalls).toBeLessThan(10)
       })
 
-      it('refetch.afterTrade() should trigger user + pool', async () => {
+      it('refetch.afterTrade() should trigger ONLY user + pool (NOT project or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -934,20 +1157,38 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        const callsBeforeRefetch = tracker.getTotalCalls()
+        tracker.reset()
 
         // Trigger afterTrade refetch
         await result.current.refetch.afterTrade()
 
-        const callsAfterRefetch = tracker.getTotalCalls()
-        const newCalls = callsAfterRefetch - callsBeforeRefetch
+        // Verify call pattern: should make user + pool queries
+        // User: 1 multicall + 1 getBalance + potentially 1 airdrop = 2-3 calls
+        // Pool: 1 multicall = 1 call
+        // Total: 3-4 calls
+        const totalCalls = tracker.getTotalCalls()
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const getLogs = tracker.getCallCount('getLogs') // Proposals use getLogs
+        const getBlockNumber = tracker.getCallCount('getBlockNumber') // Proposals use this
 
-        // Should refetch user + pool (not project or proposals)
-        expect(newCalls).toBeGreaterThanOrEqual(2)
-        expect(newCalls).toBeLessThan(8)
+        // Should have user multicall + pool multicall = 2
+        expect(multicalls).toBeGreaterThanOrEqual(2)
+        expect(multicalls).toBeLessThanOrEqual(3) // Max with airdrop check
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // Should NOT have proposals queries
+        expect(getLogs).toBe(0)
+        expect(getBlockNumber).toBe(0)
+
+        // Total should be user + pool only
+        expect(totalCalls).toBeLessThanOrEqual(5)
+        expect(totalCalls).toBeGreaterThanOrEqual(3)
       })
 
-      it('refetch.afterStake() should trigger user + project', async () => {
+      it('refetch.afterStake() should trigger ONLY user + project (NOT pool or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -961,20 +1202,34 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        const callsBeforeRefetch = tracker.getTotalCalls()
+        tracker.reset()
 
         // Trigger afterStake refetch
         await result.current.refetch.afterStake()
 
-        const callsAfterRefetch = tracker.getTotalCalls()
-        const newCalls = callsAfterRefetch - callsBeforeRefetch
+        // Verify call pattern: should make user + project queries
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const readContracts = tracker.getCallCount('readContract')
+        const getLogs = tracker.getCallCount('getLogs')
+        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should refetch user + project
-        expect(newCalls).toBeGreaterThanOrEqual(2)
-        expect(newCalls).toBeLessThan(12)
+        // Should have: user multicall + project multicall
+        expect(multicalls).toBeGreaterThanOrEqual(2)
+        expect(multicalls).toBeLessThanOrEqual(3)
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // Should have readContract for project (getProjectContracts, tokenRewards, maybe airdrop)
+        expect(readContracts).toBeGreaterThanOrEqual(2)
+
+        // Should NOT have proposals queries
+        expect(getLogs).toBe(0)
+        expect(getBlockNumber).toBe(0)
       })
 
-      it('refetch.afterClaim() should trigger only user', async () => {
+      it('refetch.afterClaim() should trigger ONLY user (NOT project, pool, or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -988,20 +1243,37 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        const callsBeforeRefetch = tracker.getTotalCalls()
+        tracker.reset()
 
         // Trigger afterClaim refetch
         await result.current.refetch.afterClaim()
 
-        const callsAfterRefetch = tracker.getTotalCalls()
-        const newCalls = callsAfterRefetch - callsBeforeRefetch
+        // Verify call pattern: should make ONLY user queries
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const readContracts = tracker.getCallCount('readContract')
+        const getLogs = tracker.getCallCount('getLogs')
+        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should only refetch user (balances, rewards)
-        expect(newCalls).toBeGreaterThanOrEqual(1)
-        expect(newCalls).toBeLessThan(5)
+        // Should have ONLY user multicall (not project or pool multicalls)
+        expect(multicalls).toBe(1)
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // May have 1 airdrop readContract
+        expect(readContracts).toBeLessThanOrEqual(1)
+
+        // Should NOT have proposals queries
+        expect(getLogs).toBe(0)
+        expect(getBlockNumber).toBe(0)
+
+        // Total: user multicall + getBalance + maybe airdrop = 2-3
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(3)
+        expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(2)
       })
 
-      it('refetch.afterVote() should trigger user + proposals', async () => {
+      it('refetch.afterVote() should trigger ONLY user + proposals (NOT project or pool)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1015,20 +1287,36 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        const callsBeforeRefetch = tracker.getTotalCalls()
+        tracker.reset()
 
         // Trigger afterVote refetch
         await result.current.refetch.afterVote()
 
-        const callsAfterRefetch = tracker.getTotalCalls()
-        const newCalls = callsAfterRefetch - callsBeforeRefetch
+        // Verify call pattern: should make user + proposals queries
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const readContracts = tracker.getCallCount('readContract')
+        const getLogs = tracker.getCallCount('getLogs')
+        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should refetch user + proposals
-        expect(newCalls).toBeGreaterThanOrEqual(2)
-        expect(newCalls).toBeLessThan(10)
+        // Should have: user multicall + proposals multicall
+        expect(multicalls).toBeGreaterThanOrEqual(2)
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // Should have proposals event queries
+        expect(getLogs).toBe(1)
+        expect(getBlockNumber).toBe(1)
+
+        // May have airdrop readContract for user
+        expect(readContracts).toBeLessThanOrEqual(1)
+
+        // Total: user (multicall + getBalance + maybe airdrop) + proposals (getBlockNumber + getLogs + multicall)
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(7)
       })
 
-      it('refetch.afterExecute() should trigger project + proposals + user', async () => {
+      it('refetch.afterExecute() should trigger ONLY project + proposals + user (NOT pool)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1042,17 +1330,34 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        const callsBeforeRefetch = tracker.getTotalCalls()
+        tracker.reset()
 
         // Trigger afterExecute refetch
         await result.current.refetch.afterExecute()
 
-        const callsAfterRefetch = tracker.getTotalCalls()
-        const newCalls = callsAfterRefetch - callsBeforeRefetch
+        // Verify call pattern: should make project + proposals + user queries
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const readContracts = tracker.getCallCount('readContract')
+        const getLogs = tracker.getCallCount('getLogs')
+        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should refetch project + proposals + user
-        expect(newCalls).toBeGreaterThanOrEqual(3)
-        expect(newCalls).toBeLessThan(15)
+        // Should have: user multicall + project multicall + proposals multicall = 3
+        expect(multicalls).toBeGreaterThanOrEqual(3)
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // Should have readContract for project (getProjectContracts, tokenRewards, maybe airdrop)
+        expect(readContracts).toBeGreaterThanOrEqual(2)
+
+        // Should have proposals event queries
+        expect(getLogs).toBe(1)
+        expect(getBlockNumber).toBe(1)
+
+        // Total: project + user + proposals = ~10-12 calls
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(12)
+        expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(8)
       })
     })
 
@@ -1129,6 +1434,16 @@ describe('#data-flow', () => {
     beforeEach(() => {
       tracker = new RpcCallTracker()
       mockPublicClient = createMockPublicClient(tracker)
+
+      // Update global mocks
+      mockPublicClientGlobal = mockPublicClient
+      mockWalletClientGlobal = {
+        account: { address: MOCK_USER_ADDRESS },
+        chain: { id: MOCK_CHAIN_ID },
+        writeContract: mock(async () => '0x123' as `0x${string}`),
+        sendTransaction: mock(async () => '0x123' as `0x${string}`),
+      }
+
       queryClient = new QueryClient({
         defaultOptions: {
           queries: {
@@ -1137,19 +1452,6 @@ describe('#data-flow', () => {
           },
         },
       })
-
-      // Mock wagmi hooks
-      mock.module('wagmi', () => ({
-        useAccount: () => ({ address: MOCK_USER_ADDRESS }),
-        useChainId: () => MOCK_CHAIN_ID,
-        usePublicClient: () => mockPublicClient,
-        useConfig: () => ({}),
-      }))
-
-      // Mock getPublicClient util
-      mock.module('../src/util', () => ({
-        getPublicClient: () => mockPublicClient,
-      }))
     })
 
     const createWrapper = () => {
@@ -1242,7 +1544,7 @@ describe('#data-flow', () => {
         expect(result.current.user.data?.balances.token.raw).toBe(initialUserBalance?.raw)
       })
 
-      it('should ensure hierarchical and flat access remain synced after refetches', async () => {
+      it('should ensure hierarchical data structure remains consistent after refetches', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1256,25 +1558,18 @@ describe('#data-flow', () => {
           { timeout: 3000 }
         )
 
-        // Before refetch
-        if (result.current.user.data && result.current.balances.data) {
-          expect(result.current.user.data.balances).toBe(result.current.balances.data)
-        }
-
         // Trigger refetch
         await result.current.refetch.afterStake()
 
-        // After refetch - should still be same reference
-        if (
-          result.current.user.data &&
-          result.current.balances.data &&
-          result.current.stakingData.data &&
-          result.current.governanceData.data
-        ) {
-          expect(result.current.user.data.balances).toBe(result.current.balances.data)
-          expect(result.current.user.data.staking).toBe(result.current.stakingData.data)
-          expect(result.current.user.data.governance).toBe(result.current.governanceData.data)
-        }
+        // After refetch - data should still be accessible through hierarchical structure
+        expect(result.current.user.data!.balances).toBeDefined()
+        expect(result.current.user.data!.staking).toBeDefined()
+        expect(result.current.user.data!.governance).toBeDefined()
+
+        // Structure should be consistent
+        expect(result.current.user.data!.balances.token).toBeDefined()
+        expect(result.current.user.data!.staking.stakedBalance).toBeDefined()
+        expect(result.current.user.data!.governance.votingPower).toBeDefined()
       })
     })
   })

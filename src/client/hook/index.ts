@@ -29,21 +29,6 @@ export const useProposals = () => useLevrContext().proposals
  */
 export const useClankerToken = () => useLevrContext().tokenData
 
-/**
- * Hook to access balance data from LevrProvider (flat access)
- */
-export const useBalance = () => useLevrContext().balances
-
-/**
- * Hook to access staking data from LevrProvider (flat access)
- */
-export const useStakingData = () => useLevrContext().stakingData
-
-/**
- * Hook to access governance data from LevrProvider (flat access)
- */
-export const useGovernanceData = () => useLevrContext().governanceData
-
 // ========================================
 // COMPLEX HOOKS (with mutations/callbacks)
 // ========================================

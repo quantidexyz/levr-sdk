@@ -24,6 +24,51 @@ export type UpdateFeeReceiverParams = {
 }
 
 /**
+ * Get tokenRewards from LP locker (shared utility)
+ * Returns pool info and fee receiver data
+ */
+export async function getTokenRewards(publicClient: PopPublicClient, clankerToken: `0x${string}`) {
+  const chainId = publicClient.chain?.id
+  if (!chainId) throw new Error('Chain ID not found on public client')
+
+  const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+  if (!lpLockerAddress) {
+    throw new Error('LP locker address not found for chain')
+  }
+
+  return await publicClient.readContract({
+    address: lpLockerAddress,
+    abi: IClankerLpLockerMultiple,
+    functionName: 'tokenRewards',
+    args: [clankerToken],
+  })
+}
+
+/**
+ * Parse fee receivers from tokenRewards result
+ * Shared utility to avoid logic duplication
+ */
+export function parseFeeReceivers(
+  tokenRewardsResult: {
+    rewardAdmins?: readonly `0x${string}`[]
+    rewardRecipients?: readonly `0x${string}`[]
+    rewardBps?: readonly number[]
+  },
+  userAddress?: `0x${string}`
+): FeeReceiverAdmin[] {
+  const admins = tokenRewardsResult.rewardAdmins || []
+  const recipients = tokenRewardsResult.rewardRecipients || []
+  const bps = tokenRewardsResult.rewardBps || []
+
+  return admins.map((admin, index) => ({
+    areYouAnAdmin: userAddress ? admin.toLowerCase() === userAddress.toLowerCase() : false,
+    admin,
+    recipient: recipients[index],
+    percentage: bps[index] / 100, // Convert bps to percentage
+  }))
+}
+
+/**
  * Get fee receivers for a clanker token
  */
 export async function feeReceivers({
@@ -35,34 +80,8 @@ export async function feeReceivers({
     throw new Error('Invalid fee receivers params')
   }
 
-  const chainId = publicClient.chain?.id
-  if (!chainId) throw new Error('Chain ID not found on public client')
-
-  const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
-  if (!lpLockerAddress) {
-    throw new Error('LP locker address not found for chain')
-  }
-
-  const info = await publicClient.readContract({
-    address: lpLockerAddress,
-    abi: IClankerLpLockerMultiple,
-    functionName: 'tokenRewards',
-    args: [clankerToken],
-  })
-
-  const admins = info?.rewardAdmins || []
-  const recipients = info?.rewardRecipients || []
-  const bps = info?.rewardBps || []
-
-  const feeReceivers = admins.map((admin, index) => ({
-    areYouAnAdmin: userAddress ? admin.toLowerCase() === userAddress.toLowerCase() : false,
-    admin,
-    recipient: recipients[index],
-    // Convert bps to percentage
-    percentage: bps[index] / 100,
-  }))
-
-  return feeReceivers
+  const tokenRewards = await getTokenRewards(publicClient, clankerToken)
+  return parseFeeReceivers(tokenRewards, userAddress)
 }
 
 /**

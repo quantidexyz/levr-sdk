@@ -1,9 +1,9 @@
 'use client'
 
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { Address, TransactionReceipt } from 'viem'
-import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
+import type { TransactionReceipt } from 'viem'
+import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 
 import { WETH } from '../../constants'
 import type { Project } from '../../project'
@@ -11,30 +11,21 @@ import type { ClaimParams } from '../../stake'
 import { Stake } from '../../stake'
 import { needsApproval } from '../../util'
 import { useLevrContext } from '../levr-provider'
-import { queryKeys } from '../query-keys'
 
 export type UseStakingQueriesParams = {
-  clankerToken: Address | null
   projectData: Project | null | undefined
-  enabled?: boolean
 }
 
 /**
- * Internal: Creates all staking queries with logic
+ * Internal: Creates staking service instance ONLY
  * Used by LevrProvider
+ * NOTE: All staking DATA comes from userQuery multicall - NO separate queries!
  */
-export function useStakingQueries({
-  clankerToken,
-  projectData,
-  enabled: e = true,
-}: UseStakingQueriesParams) {
+export function useStakingQueries({ projectData }: UseStakingQueriesParams) {
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
-  const chainId = useChainId()
-  const { address: userAddress } = useAccount()
-  const wethAddress = WETH(chainId)?.address
 
-  // Create StakeService instance
+  // Create StakeService instance for mutations only
   const stakeService = useMemo(() => {
     if (!wallet.data || !publicClient || !projectData) {
       return null
@@ -50,119 +41,9 @@ export function useStakingQueries({
     })
   }, [wallet.data, publicClient, projectData])
 
-  const allowance = useQuery({
-    queryKey: queryKeys.staking.allowance(
-      projectData?.staking,
-      projectData?.token.address,
-      userAddress
-    ),
-    queryFn: async () => {
-      return stakeService!.getAllowance()
-    },
-    enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
-  })
-
-  const poolData = useQuery({
-    queryKey: queryKeys.staking.poolData(projectData?.staking, projectData?.token.address),
-    queryFn: async () => {
-      return stakeService!.getPoolData()
-    },
-    enabled: e && !!publicClient && !!projectData && !!stakeService,
-  })
-
-  const userData = useQuery({
-    queryKey: queryKeys.staking.userData(projectData?.staking, userAddress),
-    queryFn: async () => {
-      return stakeService!.getUserData()
-    },
-    enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
-  })
-
-  const outstandingRewardsStaking = useQuery({
-    queryKey: queryKeys.staking.outstandingRewards(
-      projectData?.staking,
-      projectData?.token.address,
-      userAddress
-    ),
-    queryFn: async () => {
-      return stakeService!.getOutstandingRewards()
-    },
-    enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
-  })
-
-  const outstandingRewardsWeth = useQuery({
-    queryKey: queryKeys.staking.outstandingRewards(projectData?.staking, wethAddress, userAddress),
-    queryFn: async () => {
-      return stakeService!.getOutstandingRewards(wethAddress!)
-    },
-    enabled:
-      e && !!publicClient && !!projectData && !!userAddress && !!stakeService && !!wethAddress,
-  })
-
-  const claimableRewardsStaking = useQuery({
-    queryKey: queryKeys.staking.claimableRewards(
-      projectData?.staking,
-      projectData?.token.address,
-      userAddress
-    ),
-    queryFn: async () => {
-      return stakeService!.getClaimableRewards()
-    },
-    enabled: e && !!publicClient && !!projectData && !!userAddress && !!stakeService,
-  })
-
-  const claimableRewardsWeth = useQuery({
-    queryKey: queryKeys.staking.claimableRewards(projectData?.staking, wethAddress, userAddress),
-    queryFn: async () => {
-      return stakeService!.getClaimableRewards(wethAddress!)
-    },
-    enabled:
-      e && !!publicClient && !!projectData && !!userAddress && !!stakeService && !!wethAddress,
-  })
-
-  // Query: WETH reward rate per second
-  const wethRewardRate = useQuery({
-    queryKey: ['staking', 'wethRewardRate', projectData?.staking, wethAddress],
-    queryFn: async () => {
-      return stakeService!.getRewardRatePerSecond(wethAddress!)
-    },
-    enabled: e && !!publicClient && !!projectData && !!stakeService && !!wethAddress,
-    refetchInterval: 30000, // Refetch every 30 seconds
-  })
-
-  // Query: WETH APR (calculated off-chain using pool price)
-  const aprBpsWeth = useQuery({
-    queryKey: [
-      'staking',
-      'aprBpsWeth',
-      projectData?.staking,
-      projectData?.pool?.poolKey,
-      wethAddress,
-    ],
-    queryFn: async () => {
-      return stakeService!.calculateWethApr()
-    },
-    enabled:
-      e &&
-      !!publicClient &&
-      !!projectData &&
-      !!projectData.pricing &&
-      !!stakeService &&
-      !!wethAddress,
-    refetchInterval: 30000, // Refetch every 30 seconds
-  })
-
+  // NO QUERIES - all data comes from user multicall!
   return {
     stakeService,
-    allowance,
-    poolData,
-    userData,
-    outstandingRewardsStaking,
-    outstandingRewardsWeth,
-    claimableRewardsStaking,
-    claimableRewardsWeth,
-    wethRewardRate,
-    aprBpsWeth,
   }
 }
 

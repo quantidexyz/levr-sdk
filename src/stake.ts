@@ -1,3 +1,4 @@
+import { omit } from 'lodash'
 import type { TransactionReceipt } from 'viem'
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from 'viem'
 
@@ -68,7 +69,9 @@ export class Stake {
   private pricing?: PricingResult
 
   constructor(config: StakeConfig) {
-    if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
+    // Validate required fields only (not optional fields like trustedForwarder, pricing)
+    if (Object.values(omit(config, ['pricing'])).some((value) => !value))
+      throw new Error('Invalid config')
 
     this.wallet = config.wallet
     this.publicClient = config.publicClient

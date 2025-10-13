@@ -17,11 +17,34 @@ export type BalanceParams = {
 
 /**
  * Calculate USD value for a balance
+ * @param formatted - Formatted token amount as string
+ * @param usdPrice - USD price as string
+ * @returns USD value as string
  */
-const calculateUsd = (formatted: string, usdPrice: string): string => {
+export const calculateUsd = (formatted: string, usdPrice: string): string => {
   const amount = parseFloat(formatted)
   const price = parseFloat(usdPrice)
   return (amount * price).toString()
+}
+
+/**
+ * Format a balance with optional USD value
+ * @param amount - Raw balance amount
+ * @param decimals - Token decimals
+ * @param usdPrice - Optional USD price (null if not available)
+ * @returns BalanceResult with raw, formatted, and optional USD value
+ */
+export const formatBalanceWithUsd = (
+  amount: bigint,
+  decimals: number,
+  usdPrice: number | null
+): BalanceResult => {
+  const formatted = formatUnits(amount, decimals)
+  return {
+    raw: amount,
+    formatted,
+    usd: usdPrice ? (parseFloat(formatted) * usdPrice).toString() : undefined,
+  }
 }
 
 /**

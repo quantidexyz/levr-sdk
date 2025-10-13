@@ -1,7 +1,10 @@
-import { erc20Abi, formatUnits, zeroAddress } from 'viem'
+import { erc20Abi, zeroAddress } from 'viem'
 
-import { IClankerLpLockerMultiple, IClankerToken, LevrFactory_v1, LevrGovernor_v1 } from './abis'
-import { GET_FACTORY_ADDRESS, GET_LP_LOCKER_ADDRESS } from './constants'
+import { IClankerToken, LevrFactory_v1, LevrGovernor_v1 } from './abis'
+import { formatBalanceWithUsd } from './balance'
+import { GET_FACTORY_ADDRESS } from './constants'
+import type { FeeReceiverAdmin } from './fee-receivers'
+import { getTokenRewards, parseFeeReceivers } from './fee-receivers'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -9,6 +12,7 @@ export type ProjectParams = {
   publicClient: PopPublicClient
   clankerToken: `0x${string}`
   oraclePublicClient?: PopPublicClient
+  userAddress?: `0x${string}`
 }
 
 export type ProjectMetadata = {
@@ -27,12 +31,6 @@ export type TreasuryStats = {
   balance: BalanceResult
   totalAllocated: BalanceResult
   utilization: number // percentage (0-100)
-}
-
-export type FeeReceiver = {
-  admin: `0x${string}`
-  recipient: `0x${string}`
-  percentage: number
 }
 
 export type Project = {
@@ -55,7 +53,7 @@ export type Project = {
   }
   pool?: PoolInfo
   treasuryStats?: TreasuryStats
-  feeReceivers?: FeeReceiver[]
+  feeReceivers?: FeeReceiverAdmin[]
   pricing?: PricingResult
 }
 
@@ -66,6 +64,7 @@ export async function project({
   publicClient,
   clankerToken,
   oraclePublicClient,
+  userAddress,
 }: ProjectParams): Promise<Project | null> {
   if (Object.values({ publicClient, clankerToken }).some((value) => !value)) {
     throw new Error('Invalid project params')
@@ -169,36 +168,21 @@ export async function project({
 
   // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
-  let feeReceivers: FeeReceiver[] | undefined
+  let feeReceivers: FeeReceiverAdmin[] | undefined
   try {
-    const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
-    if (lpLockerAddress) {
-      // Get actual pool key from token rewards in LP locker
-      const tokenRewards = await publicClient.readContract({
-        address: lpLockerAddress,
-        abi: IClankerLpLockerMultiple,
-        functionName: 'tokenRewards',
-        args: [clankerToken],
-      })
+    // Use shared utility to get tokenRewards (no duplication)
+    const tokenRewards = await getTokenRewards(publicClient, clankerToken)
 
-      const poolKey = tokenRewards.poolKey
-      poolInfo = {
-        poolKey,
-        feeDisplay: poolKey.fee === 0x800000 ? 'Dynamic' : `${(poolKey.fee / 10000).toFixed(2)}%`,
-        numPositions: tokenRewards.numPositions,
-      }
-
-      // Extract fee receivers
-      const admins = tokenRewards.rewardAdmins || []
-      const recipients = tokenRewards.rewardRecipients || []
-      const bps = tokenRewards.rewardBps || []
-
-      feeReceivers = admins.map((admin, index) => ({
-        admin,
-        recipient: recipients[index],
-        percentage: bps[index] / 100, // Convert bps to percentage
-      }))
+    const poolKey = tokenRewards.poolKey
+    poolInfo = {
+      poolKey,
+      feeDisplay: poolKey.fee === 0x800000 ? 'Dynamic' : `${(poolKey.fee / 10000).toFixed(2)}%`,
+      numPositions: tokenRewards.numPositions,
     }
+
+    // Parse fee receivers using shared utility (no logic duplication)
+    // Pass userAddress so areYouAnAdmin works out of the box
+    feeReceivers = parseFeeReceivers(tokenRewards, userAddress)
   } catch {
     // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
   }
@@ -246,24 +230,11 @@ export async function project({
   }
 
   // Calculate USD values for treasury stats if pricing is available
-  const treasuryBalanceFormatted = formatUnits(treasuryBalanceRaw, tokenDecimals)
-  const totalAllocatedFormatted = formatUnits(totalAllocatedRaw, tokenDecimals)
+  const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
 
   const treasuryStats: TreasuryStats = {
-    balance: {
-      raw: treasuryBalanceRaw,
-      formatted: treasuryBalanceFormatted,
-      usd: pricing
-        ? (parseFloat(treasuryBalanceFormatted) * parseFloat(pricing.tokenUsd)).toString()
-        : undefined,
-    },
-    totalAllocated: {
-      raw: totalAllocatedRaw,
-      formatted: totalAllocatedFormatted,
-      usd: pricing
-        ? (parseFloat(totalAllocatedFormatted) * parseFloat(pricing.tokenUsd)).toString()
-        : undefined,
-    },
+    balance: formatBalanceWithUsd(treasuryBalanceRaw, tokenDecimals, tokenUsdPrice),
+    totalAllocated: formatBalanceWithUsd(totalAllocatedRaw, tokenDecimals, tokenUsdPrice),
     utilization,
   }
 

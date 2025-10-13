@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { usePublicClient } from 'wagmi'
+import { useAccount, usePublicClient } from 'wagmi'
 
 import { project } from '../../project'
 import type { PopPublicClient } from '../../types'
@@ -24,6 +24,7 @@ export function useProjectQuery({
   enabled: e = true,
 }: UseProjectQueryParams) {
   const publicClient = usePublicClient()
+  const { address: userAddress } = useAccount()
   const chainId = publicClient?.chain?.id
 
   const enabled = !!publicClient && !!clankerToken && !!chainId && e
@@ -36,6 +37,7 @@ export function useProjectQuery({
         publicClient: publicClient!,
         clankerToken: clankerToken!,
         oraclePublicClient: oraclePublicClient,
+        userAddress, // Pass userAddress so areYouAnAdmin works out of the box
       })
     },
     staleTime: 300_000, // 5 minutes cache for pricing data

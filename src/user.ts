@@ -1,6 +1,7 @@
-import { erc20Abi, formatUnits } from 'viem'
+import { erc20Abi } from 'viem'
 
 import { IClankerAirdrop, LevrStaking_v1 } from './abis'
+import { formatBalanceWithUsd } from './balance'
 import { GET_CLANKER_AIRDROP_ADDRESS, WETH } from './constants'
 import type { Project } from './project'
 import type { BalanceResult, PopPublicClient } from './types'
@@ -256,15 +257,6 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
   const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
   const wethPrice = pricing ? parseFloat(pricing.wethUsd) : null
 
-  const formatWithUsd = (amount: bigint, decimals: number, price: number | null): BalanceResult => {
-    const formatted = formatUnits(amount, decimals)
-    return {
-      raw: amount,
-      formatted,
-      usd: price ? (parseFloat(formatted) * price).toString() : undefined,
-    }
-  }
-
   // Calculate WETH APR if available
   let wethApr: { raw: bigint; percentage: number } | null = null
   if (wethAddress && wethRewardRate !== null && pricing && totalStaked > 0n) {
@@ -305,8 +297,8 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
       })
 
       airdropStatus = {
-        availableAmount: formatWithUsd(availableAmount, tokenDecimals, tokenPrice),
-        allocatedAmount: formatWithUsd(airdropAmount, tokenDecimals, tokenPrice),
+        availableAmount: formatBalanceWithUsd(availableAmount, tokenDecimals, tokenPrice),
+        allocatedAmount: formatBalanceWithUsd(airdropAmount, tokenDecimals, tokenPrice),
         isAvailable: availableAmount > 0n,
       }
     } catch (error) {
@@ -317,32 +309,32 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
 
   return {
     balances: {
-      token: formatWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
-      weth: formatWithUsd(wethBalanceRaw, 18, wethPrice),
-      eth: formatWithUsd(nativeBalance, 18, wethPrice),
+      token: formatBalanceWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
+      weth: formatBalanceWithUsd(wethBalanceRaw, 18, wethPrice),
+      eth: formatBalanceWithUsd(nativeBalance, 18, wethPrice),
     },
     staking: {
-      stakedBalance: formatWithUsd(stakedBalance, tokenDecimals, tokenPrice),
-      allowance: formatWithUsd(allowance, tokenDecimals, tokenPrice),
+      stakedBalance: formatBalanceWithUsd(stakedBalance, tokenDecimals, tokenPrice),
+      allowance: formatBalanceWithUsd(allowance, tokenDecimals, tokenPrice),
       rewards: {
         outstanding: {
           staking: {
-            available: formatWithUsd(outstandingRewardsToken[0], tokenDecimals, tokenPrice),
-            pending: formatWithUsd(outstandingRewardsToken[1], tokenDecimals, tokenPrice),
+            available: formatBalanceWithUsd(outstandingRewardsToken[0], tokenDecimals, tokenPrice),
+            pending: formatBalanceWithUsd(outstandingRewardsToken[1], tokenDecimals, tokenPrice),
           },
           weth:
             outstandingRewardsWeth && wethAddress
               ? {
-                  available: formatWithUsd(outstandingRewardsWeth[0], 18, wethPrice),
-                  pending: formatWithUsd(outstandingRewardsWeth[1], 18, wethPrice),
+                  available: formatBalanceWithUsd(outstandingRewardsWeth[0], 18, wethPrice),
+                  pending: formatBalanceWithUsd(outstandingRewardsWeth[1], 18, wethPrice),
                 }
               : null,
         },
         claimable: {
-          staking: formatWithUsd(claimableRewardsToken, tokenDecimals, tokenPrice),
+          staking: formatBalanceWithUsd(claimableRewardsToken, tokenDecimals, tokenPrice),
           weth:
             claimableRewardsWeth !== null && wethAddress
-              ? formatWithUsd(claimableRewardsWeth, 18, wethPrice)
+              ? formatBalanceWithUsd(claimableRewardsWeth, 18, wethPrice)
               : null,
         },
       },
@@ -355,7 +347,7 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
       },
     },
     governance: {
-      votingPower: formatWithUsd(votingPower, tokenDecimals, tokenPrice),
+      votingPower: formatBalanceWithUsd(votingPower, tokenDecimals, tokenPrice),
       airdrop: airdropStatus,
     },
   }
