@@ -44,6 +44,7 @@ export * from './use-swap'
 // ========================================
 
 export { usePoolQuery } from './use-pool'
+export { useProposalsQuery } from './use-proposal'
 export { useUserQuery } from './use-user'
 
 // ========================================
@@ -52,5 +53,6 @@ export { useUserQuery } from './use-user'
 
 export * from './use-deploy'
 export * from './use-prepare'
-export * from './use-projects'
+export * from './use-project'
+export { useProposal } from './use-proposal'
 export * from './use-register'

@@ -8,13 +8,13 @@ import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
 import type { PoolData } from '../pool'
-import type { ProposalsResult } from '../proposals'
-import type { UserData } from '../user'
+import type { ProposalsResult } from '../proposal'
+import type { User } from '../user'
 import { getPublicClient } from '../util'
 import { useClankerTokenQuery } from './hook/use-clanker'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
-import { useProposalsQuery } from './hook/use-proposals'
+import { useProposalsQuery } from './hook/use-proposal'
 import { useUserQuery } from './hook/use-user'
 
 type Project = NonNullable<ReturnType<typeof useProjectQuery>['data']>
@@ -31,7 +31,7 @@ export type LevrContextValue = {
   userAddress: Address | undefined
 
   // Data queries (hierarchical structure)
-  user: UseQueryResult<UserData | null>
+  user: UseQueryResult<User | null>
   project: UseQueryResult<Project | null>
   pool: UseQueryResult<PoolData | null>
   proposals: UseQueryResult<ProposalsResult | null>

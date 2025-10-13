@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAccount, usePublicClient } from 'wagmi'
 
 import type { Project } from '../../project'
-import type { UserData } from '../../user'
-import { user } from '../../user'
+import type { User } from '../../user'
+import { getUser } from '../../user'
 import { queryKeys } from '../query-keys'
 
 export type UseUserQueryParams = {
@@ -29,13 +29,12 @@ export function useUserQuery({ project: projectData, enabled: e = true }: UseUse
       projectData?.staking!,
       projectData?.treasury!
     ),
-    queryFn: async (): Promise<UserData> => {
-      return user({
+    queryFn: async (): Promise<User> =>
+      getUser({
         publicClient: publicClient!,
         userAddress: userAddress!,
         project: projectData!,
-      })
-    },
+      }),
     enabled: e && !!publicClient && !!userAddress && !!projectData,
     refetchInterval: 10_000, // Refetch every 10 seconds for live updates
     staleTime: 5_000,

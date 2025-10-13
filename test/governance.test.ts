@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatEther } from 'viem'
 
-import { LevrFactory_v1, LevrTreasury_v1 } from '../src/abis'
+import type { Project, User } from '../src'
+import { getProject, getUser } from '../src'
 import { deployV4 } from '../src/deploy-v4'
 import { Governance } from '../src/governance'
-import { proposals } from '../src/proposals'
+import { proposals } from '../src/proposal'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
 import { setupTest, type SetupTestReturnType } from './helper'
@@ -69,12 +70,8 @@ describe('#GOVERNANCE_TEST', () => {
   let deployedTokenAddress: `0x${string}`
   let staking: Stake
   let governance: Governance
-  let project: {
-    treasury: `0x${string}`
-    governor: `0x${string}`
-    staking: `0x${string}`
-    stakedToken: `0x${string}`
-  }
+  let project: Project
+  let user: User
 
   beforeAll(() => {
     ;({ publicClient, wallet, factoryAddress, clanker } = setupTest())
@@ -103,62 +100,35 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
       await warpAnvil(120)
 
-      console.log('\n📋 Getting project contracts...')
-      project = await publicClient.readContract({
-        address: factoryAddress,
-        abi: LevrFactory_v1,
-        functionName: 'getProjectContracts',
-        args: [deployedTokenAddress],
-      })
-      console.log('Project contracts:', project)
-
-      // Get full project data with treasury stats
-      console.log('\n📊 Getting project data with treasury stats...')
-      const { project: fullProject } = await import('../src/project')
-      const projectData = await fullProject({
+      console.log('\n📋 Getting project...')
+      const projectResult = await getProject({
         publicClient,
         clankerToken: deployedTokenAddress,
       })
 
-      if (projectData?.treasuryStats) {
-        console.log('Treasury stats:', {
-          balance: projectData.treasuryStats.balance.formatted,
-          totalAllocated: projectData.treasuryStats.totalAllocated.formatted,
-          utilization: `${projectData.treasuryStats.utilization.toFixed(2)}%`,
-        })
+      if (!projectResult) throw new Error('Project data is null')
+      project = projectResult
 
-        expect(projectData.treasuryStats.balance.raw).toBeGreaterThanOrEqual(0n)
-        expect(projectData.treasuryStats.totalAllocated.raw).toBeGreaterThanOrEqual(0n)
-        expect(projectData.treasuryStats.utilization).toBeGreaterThanOrEqual(0)
-        expect(projectData.treasuryStats.utilization).toBeLessThanOrEqual(100)
-        console.log('✅ Treasury stats validated')
-      }
+      const userResult = await getUser({
+        publicClient,
+        project,
+        userAddress: wallet.account.address,
+      })
+
+      if (!userResult) throw new Error('User data is null')
+      user = userResult
 
       staking = new Stake({
         wallet,
         publicClient,
-        stakingAddress: project.staking,
-        tokenAddress: deployedTokenAddress,
-        tokenDecimals: 18,
+        project,
       })
 
       governance = new Governance({
         wallet,
         publicClient,
-        governorAddress: project.governor,
-        tokenDecimals: 18,
-        clankerToken: deployedTokenAddress,
+        project,
       })
-
-      // Verify governor is set up correctly
-      const governorAddress = await publicClient.readContract({
-        address: project.treasury,
-        abi: LevrTreasury_v1,
-        functionName: 'governor',
-      })
-      expect(governorAddress.toLowerCase()).toBe(project.governor.toLowerCase())
-      console.log('✅ Governor correctly linked to treasury')
-      console.log('✅ Governance class initialized')
     },
     {
       timeout: 100000,

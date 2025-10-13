@@ -37,7 +37,7 @@ export type UserGovernance = {
   } | null
 }
 
-export type UserData = {
+export type User = {
   balances: UserBalances
   staking: UserStaking
   governance: UserGovernance
@@ -133,7 +133,7 @@ export function stakingContracts(params: {
  * Get all user-related data in a single efficient multicall
  * Composes balances, staking, and governance data with USD values
  */
-export async function user({ publicClient, userAddress, project }: UserParams): Promise<UserData> {
+export async function getUser({ publicClient, userAddress, project }: UserParams): Promise<User> {
   if (Object.values({ publicClient, userAddress, project }).some((value) => !value)) {
     throw new Error('Invalid user params')
   }

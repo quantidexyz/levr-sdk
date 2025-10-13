@@ -72,11 +72,7 @@ export function useGovernance({
     return new Governance({
       wallet: wallet.data,
       publicClient,
-      governorAddress: project.data.governor,
-      tokenDecimals: project.data.token.decimals,
-      clankerToken: project.data.token.address,
-      treasury: project.data.treasury,
-      pricing: project.data.pricing,
+      project: project.data,
     })
   }, [wallet.data, publicClient, project.data])
 

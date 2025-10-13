@@ -1,6 +1,7 @@
 import type { TransactionReceipt } from 'viem'
 import { decodeEventLog, erc20Abi, formatUnits, parseUnits } from 'viem'
 
+import type { Project } from '.'
 import { LevrGovernor_v1 } from './abis'
 import IClankerAirdrop from './abis/IClankerAirdrop'
 import { GET_CLANKER_AIRDROP_ADDRESS, TREASURY_AIRDROP_AMOUNTS } from './constants'
@@ -9,11 +10,7 @@ import type { BalanceResult, PopPublicClient, PopWalletClient, PricingResult } f
 export type GovernanceConfig = {
   wallet: PopWalletClient
   publicClient: PopPublicClient
-  governorAddress: `0x${string}`
-  tokenDecimals: number
-  clankerToken: `0x${string}`
-  treasury: `0x${string}`
-  pricing?: PricingResult
+  project: Project
 }
 
 export type ProposalDetails = {
@@ -81,12 +78,12 @@ export class Governance {
 
     this.wallet = config.wallet
     this.publicClient = config.publicClient
-    this.governorAddress = config.governorAddress
-    this.tokenDecimals = config.tokenDecimals
-    this.clankerToken = config.clankerToken
-    this.treasury = config.treasury
+    this.governorAddress = config.project.governor
+    this.tokenDecimals = config.project.token.decimals
+    this.clankerToken = config.project.token.address
+    this.treasury = config.project.treasury
     this.userAddress = config.wallet.account.address
-    this.pricing = config.pricing
+    this.pricing = config.project?.pricing
   }
 
   /**

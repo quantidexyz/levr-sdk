@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 
 import type { Project } from '../..'
-import { proposal, proposals } from '../../proposals'
+import { proposal, proposals } from '../../proposal'
 import { useLevrContext } from '..'
 import { queryKeys } from '../query-keys'
 

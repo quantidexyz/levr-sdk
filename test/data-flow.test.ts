@@ -25,9 +25,9 @@ mock.module('../src/util', () => ({
 
 import { LevrProvider, useLevrContext, useProject, useUser } from '../src/client'
 import { pool } from '../src/pool'
-import { project } from '../src/project'
-import { proposals } from '../src/proposals'
-import { user } from '../src/user'
+import { getProject } from '../src/project'
+import { proposals } from '../src/proposal'
+import { getUser } from '../src/user'
 
 // ========================================
 // MOCK DATA
@@ -334,7 +334,7 @@ describe('#data-flow', () => {
     describe('Zero Duplicate Fetches', () => {
       it('should make minimal RPC calls when fetching all data groups', async () => {
         // Fetch project data (skip oracle client to avoid pricing queries)
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
           // oraclePublicClient omitted to skip pricing
@@ -351,7 +351,7 @@ describe('#data-flow', () => {
 
         // Fetch user data (shares project data)
         if (projectData) {
-          await user({
+          await getUser({
             publicClient: mockPublicClient as any,
             userAddress: MOCK_USER_ADDRESS,
             project: projectData,
@@ -403,14 +403,14 @@ describe('#data-flow', () => {
       })
 
       it('should not call the same contract function twice', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
 
         if (!projectData) throw new Error('Project data is null')
 
-        await user({
+        await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -434,7 +434,7 @@ describe('#data-flow', () => {
       it('should fetch ALL project data items ONLY in project query', async () => {
         tracker.reset()
 
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -482,7 +482,7 @@ describe('#data-flow', () => {
         tracker.reset()
 
         // Call user, pool, proposals - they should NOT refetch any project data
-        await user({
+        await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -519,7 +519,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch token info only in project query', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -531,7 +531,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch fee receivers in project query (not separate)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -548,7 +548,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch factory and currentCycleId in project query (not governance)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -562,14 +562,14 @@ describe('#data-flow', () => {
       })
 
       it('should fetch user balances only in user query', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
 
         if (!projectData) throw new Error('Project data is null')
 
-        const userData = await user({
+        const userData = await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -583,14 +583,14 @@ describe('#data-flow', () => {
       })
 
       it('should fetch staking data only in user query', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
 
         if (!projectData) throw new Error('Project data is null')
 
-        const userData = await user({
+        const userData = await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -610,14 +610,14 @@ describe('#data-flow', () => {
       })
 
       it('should fetch voting power only in user query', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
 
         if (!projectData) throw new Error('Project data is null')
 
-        const userData = await user({
+        const userData = await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -629,7 +629,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch pool state only in pool query', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -651,7 +651,7 @@ describe('#data-flow', () => {
 
     describe('Data Sharing Patterns', () => {
       it('should share project data to user query (verify NO refetch of project items)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -661,7 +661,7 @@ describe('#data-flow', () => {
         tracker.reset()
 
         // User should receive and use project data
-        await user({
+        await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData, // Sharing project data
@@ -701,7 +701,7 @@ describe('#data-flow', () => {
       })
 
       it('should share project.pool data to pool query (verify poolKey NOT refetched)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -731,7 +731,7 @@ describe('#data-flow', () => {
       })
 
       it('should share project.governor to proposals query (verify NOT refetched)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -771,7 +771,7 @@ describe('#data-flow', () => {
       })
 
       it('should use shared utilities (no logic duplication)', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -794,7 +794,7 @@ describe('#data-flow', () => {
           expect(projectData.feeReceivers[0].areYouAnAdmin).toBe(false) // No userAddress at project level
         }
 
-        const userData = await user({
+        const userData = await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,
@@ -815,7 +815,7 @@ describe('#data-flow', () => {
       })
 
       it('should not re-fetch shared pricing data', async () => {
-        const projectData = await project({
+        const projectData = await getProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -827,7 +827,7 @@ describe('#data-flow', () => {
         const initialCalls = tracker.getTotalCalls()
 
         // User should use project.pricing (even if undefined), not re-fetch
-        await user({
+        await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
           project: projectData,

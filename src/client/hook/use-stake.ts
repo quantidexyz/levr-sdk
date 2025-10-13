@@ -63,11 +63,7 @@ export function useStake({
     return new Stake({
       wallet: wallet.data,
       publicClient,
-      stakingAddress: project.data.staking,
-      tokenAddress: project.data.token.address,
-      tokenDecimals: project.data.token.decimals,
-      trustedForwarder: project.data.forwarder,
-      pricing: project.data.pricing,
+      project: project.data,
     })
   }, [wallet.data, publicClient, project.data])
 
