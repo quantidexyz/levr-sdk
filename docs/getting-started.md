@@ -90,6 +90,8 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
     <div>
       <h1>{project.token.name}</h1>
       <p>Treasury: {project.treasuryStats.balance.formatted} {project.token.symbol}</p>
+      {project.pricing && <p>Price: ${project.pricing.tokenUsd}</p>}
+      <p>Current Cycle: {project.currentCycleId.toString()}</p>
     </div>
   )
 }
@@ -101,11 +103,13 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
 import { useStake } from 'levr-sdk/client'
 
 function StakeComponent() {
-  const { stake, stakedBalance, needsApproval } = useStake()
+  const { stake, user, needsApproval } = useStake()
 
   return (
     <div>
-      <p>Staked: {stakedBalance?.formatted}</p>
+      <p>Balance: {user.data?.balances.token.formatted}</p>
+      <p>Staked: {user.data?.staking.stakedBalance.formatted}</p>
+      <p>Voting Power: {user.data?.governance.votingPower.formatted}</p>
       <button onClick={() => stake.mutate(1000n)}>
         Stake
       </button>
@@ -136,8 +140,8 @@ const walletClient = createWalletClient({
 // Get project data
 const projectData = await project({
   publicClient,
-  factoryAddress: '0x...',
   clankerToken: '0x...',
+  userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
 })
 
 // Stake tokens
@@ -146,7 +150,9 @@ const stake = new Stake({
   publicClient,
   stakingAddress: projectData.staking,
   tokenAddress: projectData.token.address,
-  tokenDecimals: 18,
+  tokenDecimals: projectData.token.decimals,
+  trustedForwarder: projectData.forwarder,
+  pricing: projectData.pricing, // Optional: for USD calculations
 })
 
 await stake.approve(1000n)

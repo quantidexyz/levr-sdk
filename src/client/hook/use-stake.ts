@@ -183,19 +183,8 @@ export function useStake({
     accrueRewards,
     accrueAllRewards,
 
-    // Queries from context (new structure)
-    user,
-    project,
-
     // Helpers
     needsApproval: nA,
-
-    // Convenience accessors for individual values
-    tokenBalance: user.data?.balances.token,
-    stakedBalance: user.data?.staking.stakedBalance,
-    allowance: user.data?.staking.allowance,
-    rewards: user.data?.staking.rewards,
-    apr: user.data?.staking.apr,
 
     // Loading states
     isLoading: user.isLoading || project.isLoading,

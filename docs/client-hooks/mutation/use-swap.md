@@ -1,6 +1,6 @@
 # useSwap
 
-Swap functionality with quotes and price impact.
+Swap functionality with quotes and price impact. All data comes from context.
 
 ## Usage
 
@@ -16,15 +16,17 @@ function SwapInterface() {
     // Mutations
     swap,
 
-    // Queries
+    // Queries from context
+    user,
+    project,
+    pool,
     quote,
-    balances,
-    poolKey,
-    pricing,
 
     // Convenience
+    balances,
     tokenBalance,
     wethBalance,
+    poolKey,
     buildSwapConfig,
   } = useSwap({
     quoteParams: {

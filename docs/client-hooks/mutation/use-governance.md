@@ -1,6 +1,6 @@
 # useGovernance
 
-Governance operations including proposals and voting.
+Governance operations including proposals and voting. All data comes from context.
 
 ## Usage
 
@@ -16,21 +16,30 @@ function GovernanceInterface() {
     executeProposal,
     claimAirdrop,
 
-    // Queries
+    // Data from context
+    user,
+    project,
     currentCycleId,
     addresses,
-    airdropStatus,
-    proposal,
 
-    // Convenience
+    // Dynamic queries (optional)
+    proposal, // Pass proposalId to params
+    proposalsForCycle, // Pass cycleId to params
+
+    // Convenience accessors
+    userVotingPower,
+    airdropStatusData,
+    availableAirdropAmount,
     treasuryAddress,
-    isAirdropAvailable,
+    factoryAddress,
 
     // Loading states
     isProposing,
     isVoting,
     isExecuting,
   } = useGovernance({
+    proposalId: 123n, // Optional: for dynamic proposal query
+    cycleId: 5n, // Optional: for cycle proposals
     onVoteSuccess: (receipt) => {
       console.log('Voted!', receipt)
     },
@@ -40,11 +49,12 @@ function GovernanceInterface() {
   })
 
   const handleProposeTransfer = () => {
-    proposeTransfer.mutate({
+    const config = buildProposeTransferConfig({
       recipient: '0x...',
-      amount: parseUnits('1000', 18),
+      amount: '1000',
       description: 'Fund development team',
     })
+    proposeTransfer.mutate(config)
   }
 
   const handleVote = (proposalId: bigint, support: boolean) => {
@@ -54,13 +64,13 @@ function GovernanceInterface() {
   return (
     <div>
       <h2>Governance</h2>
-
-      <p>Current Cycle: {currentCycleId?.toString()}</p>
+      <p>Current Cycle: {currentCycleId?.data?.toString()}</p>
       <p>Treasury: {treasuryAddress}</p>
+      <p>Your Voting Power: {userVotingPower?.formatted}</p>
 
-      {isAirdropAvailable && (
+      {airdropStatusData?.isAvailable && (
         <button onClick={() => claimAirdrop.mutate()}>
-          Claim Airdrop
+          Claim {availableAirdropAmount?.formatted} Tokens
         </button>
       )}
 
@@ -74,14 +84,40 @@ function GovernanceInterface() {
 
 ## Options
 
+**Query parameters (optional):**
+
+- `proposalId`: Proposal ID for dynamic proposal query
+- `cycleId`: Cycle ID for cycle proposals query
+- `userAddress`: Custom user address for vote receipts
+
+**Callback parameters (optional):**
+
+- `onProposeTransferSuccess`: Callback after successful transfer proposal
+- `onProposeBoostSuccess`: Callback after successful boost proposal
 - `onVoteSuccess`: Callback after successful vote
 - `onExecuteProposalSuccess`: Callback after successful execution
-- `onProposeSuccess`: Callback after successful proposal
+- `onClaimAirdropSuccess`: Callback after successful airdrop claim
 
 ## Mutations
 
-- `proposeTransfer.mutate({ recipient, amount, description })`: Propose a treasury transfer
-- `proposeBoost.mutate({ amount, description })`: Propose staking boost
+- `proposeTransfer.mutate(config)`: Propose a treasury transfer
+- `proposeBoost.mutate(config)`: Propose staking boost
 - `vote.mutate({ proposalId, support })`: Vote on a proposal
-- `executeProposal.mutate(proposalId)`: Execute a passed proposal
+- `executeProposal.mutate(config)`: Execute a passed proposal
 - `claimAirdrop.mutate()`: Claim airdrop tokens
+
+## Data Access
+
+All governance data comes from `user` and `project` context:
+
+```typescript
+// From project context
+project.data?.currentCycleId // Current governance cycle
+project.data?.governor // Governor contract address
+project.data?.treasury // Treasury contract address
+project.data?.factory // Factory contract address
+
+// From user context
+user.data?.governance.votingPower // User's voting power
+user.data?.governance.airdrop // Airdrop status
+```

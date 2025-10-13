@@ -172,17 +172,8 @@ export function useSwap({
     // Mutations
     swap,
 
-    // Queries
-    user,
-    project,
-    pool,
+    // Quote query
     quote,
-
-    // Convenience accessors
-    balances: user.data?.balances,
-    tokenBalance: user.data?.balances.token,
-    wethBalance: user.data?.balances.weth,
-    poolKey,
 
     // Helpers
     buildSwapConfig,

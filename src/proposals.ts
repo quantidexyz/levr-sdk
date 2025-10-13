@@ -1,161 +1,219 @@
-import type { ExtractAbiItem, Log } from 'viem'
 import { formatUnits } from 'viem'
 
 import { LevrGovernor_v1 } from './abis'
 import type { FormattedProposalDetails } from './governance'
-import type { PopPublicClient } from './types'
+import type { PopPublicClient, PricingResult } from './types'
 
 export type ProposalsParams = {
   publicClient: PopPublicClient
   governorAddress: `0x${string}`
+  cycleId?: bigint // Optional: defaults to current cycle
   tokenDecimals?: number
-  fromBlock?: bigint
-  toBlock?: bigint | 'latest'
+  pricing?: PricingResult
   pageSize?: number
 }
 
 export type ProposalsResult = {
-  proposals: FormattedProposalDetails[]
-  fromBlock: bigint
-  toBlock: bigint
+  proposals: EnrichedProposalDetails[]
+  cycleId: bigint
+  winner: bigint
 }
 
-type ProposalCreatedEvent = Log<
-  bigint,
-  number,
-  false,
-  ExtractAbiItem<typeof LevrGovernor_v1, 'ProposalCreated'>,
-  false
->
-
-const proposalCreatedEvent = LevrGovernor_v1.find(
-  (item) => item.type === 'event' && item.name === 'ProposalCreated'
-)
+export type EnrichedProposalDetails = FormattedProposalDetails & {
+  meetsQuorum: boolean
+  meetsApproval: boolean
+  state: number
+}
 
 /**
- * Get multiple proposals data from governor contract
+ * Get call data contracts for a single proposal
+ * Returns 4 contract configs: getProposal, meetsQuorum, meetsApproval, state
+ */
+export function proposalCallData(governorAddress: `0x${string}`, proposalId: bigint) {
+  return [
+    {
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'getProposal' as const,
+      args: [proposalId],
+    },
+    {
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'meetsQuorum' as const,
+      args: [proposalId],
+    },
+    {
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'meetsApproval' as const,
+      args: [proposalId],
+    },
+    {
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'state' as const,
+      args: [proposalId],
+    },
+  ]
+}
+
+/**
+ * Parse proposal data from multicall results
+ * Expects 4 results: [getProposal, meetsQuorum, meetsApproval, state]
+ */
+export function parseProposalData(
+  results: readonly any[],
+  tokenDecimals: number,
+  pricing?: PricingResult
+): EnrichedProposalDetails {
+  const proposalData = results[0] as any
+  const meetsQuorum = results[1] as boolean
+  const meetsApproval = results[2] as boolean
+  const state = results[3] as number
+
+  const amountFormatted = formatUnits(proposalData.amount, tokenDecimals)
+  const yesVotesFormatted = formatUnits(proposalData.yesVotes, tokenDecimals)
+  const noVotesFormatted = formatUnits(proposalData.noVotes, tokenDecimals)
+  const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
+
+  return {
+    id: proposalData.id,
+    proposalType: proposalData.proposalType,
+    proposer: proposalData.proposer,
+    amount: {
+      raw: proposalData.amount,
+      formatted: amountFormatted,
+      usd: tokenPrice ? (parseFloat(amountFormatted) * tokenPrice).toString() : undefined,
+    },
+    recipient: proposalData.recipient,
+    description: proposalData.description,
+    createdAt: {
+      timestamp: proposalData.createdAt,
+      date: new Date(Number(proposalData.createdAt) * 1000),
+    },
+    votingStartsAt: {
+      timestamp: proposalData.votingStartsAt,
+      date: new Date(Number(proposalData.votingStartsAt) * 1000),
+    },
+    votingEndsAt: {
+      timestamp: proposalData.votingEndsAt,
+      date: new Date(Number(proposalData.votingEndsAt) * 1000),
+    },
+    yesVotes: {
+      raw: proposalData.yesVotes,
+      formatted: yesVotesFormatted,
+      usd: tokenPrice ? (parseFloat(yesVotesFormatted) * tokenPrice).toString() : undefined,
+    },
+    noVotes: {
+      raw: proposalData.noVotes,
+      formatted: noVotesFormatted,
+      usd: tokenPrice ? (parseFloat(noVotesFormatted) * tokenPrice).toString() : undefined,
+    },
+    totalBalanceVoted: proposalData.totalBalanceVoted,
+    executed: proposalData.executed,
+    cycleId: proposalData.cycleId,
+    meetsQuorum,
+    meetsApproval,
+    state,
+  }
+}
+
+/**
+ * Get proposals data from governor contract with enriched data
+ * Uses getProposalsForCycle() then single multicall to get all proposal data
  */
 export async function proposals({
   publicClient,
   governorAddress,
+  cycleId,
   tokenDecimals = 18,
-  fromBlock,
-  toBlock = 'latest',
+  pricing,
   pageSize = 50,
 }: ProposalsParams): Promise<ProposalsResult> {
   if (Object.values({ publicClient, governorAddress }).some((value) => !value)) {
     throw new Error('Invalid proposals params')
   }
 
-  // Determine block range
-  const latestBlock = await publicClient.getBlockNumber()
-  const from = fromBlock ?? latestBlock - latestBlock / 10n // Default to last 10% of blocks
-  const to = toBlock === 'latest' ? latestBlock : toBlock
+  // Get current cycle ID if not provided
+  const currentCycleId =
+    cycleId ??
+    (await publicClient.readContract({
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'currentCycleId',
+    }))
 
-  // Fetch ProposalCreated events - indexed events are efficient even across large ranges
-  const allLogs = (await publicClient.getLogs({
+  // Get all proposal IDs for the cycle
+  const proposalIds = await publicClient.readContract({
     address: governorAddress,
-    event: proposalCreatedEvent,
-    fromBlock: from,
-    toBlock: to,
-  })) as ProposalCreatedEvent[]
-
-  // Sort by block number descending (most recent first)
-  const logs = allLogs.sort((a, b) => {
-    if (a.blockNumber > b.blockNumber) return -1
-    if (a.blockNumber < b.blockNumber) return 1
-    return 0
+    abi: LevrGovernor_v1,
+    functionName: 'getProposalsForCycle',
+    args: [currentCycleId],
   })
 
-  // Limit to pageSize
-  const limitedLogs = logs.slice(0, pageSize)
+  // Limit to pageSize (most recent first, array is already in reverse order)
+  const limitedIds = Array.from(proposalIds).slice(0, pageSize)
 
-  if (limitedLogs.length === 0) {
+  if (limitedIds.length === 0) {
     return {
       proposals: [],
-      fromBlock: from,
-      toBlock: to,
+      cycleId: currentCycleId,
+      winner: 0n,
     }
   }
 
-  // Extract proposal IDs from events
-  const proposalIds = limitedLogs.map((log) => log.args.proposalId!)
-
-  // Batch fetch all proposal details
-  const contracts = proposalIds.map((proposalId) => ({
-    address: governorAddress,
-    abi: LevrGovernor_v1,
-    functionName: 'getProposal' as const,
-    args: [proposalId],
-  }))
+  // Build single multicall using proposalCallData utility
+  const contracts = limitedIds.flatMap((proposalId) =>
+    proposalCallData(governorAddress, proposalId)
+  )
 
   const results = await publicClient.multicall({ contracts })
 
-  // Parse results into FormattedProposalDetails objects
-  const proposals: FormattedProposalDetails[] = []
+  // Parse results using parseProposalData utility
+  const parsedProposals: EnrichedProposalDetails[] = []
 
-  for (let i = 0; i < proposalIds.length; i++) {
-    const result = results[i].result as {
-      id: bigint
-      proposalType: number
-      proposer: `0x${string}`
-      amount: bigint
-      recipient: `0x${string}`
-      description: string
-      createdAt: bigint
-      votingStartsAt: bigint
-      votingEndsAt: bigint
-      yesVotes: bigint
-      noVotes: bigint
-      totalBalanceVoted: bigint
-      executed: boolean
-      cycleId: bigint
-    }
+  for (let i = 0; i < limitedIds.length; i++) {
+    const baseIndex = i * 4
+    const proposalResults = [
+      results[baseIndex].result,
+      results[baseIndex + 1].result,
+      results[baseIndex + 2].result,
+      results[baseIndex + 3].result,
+    ]
 
     // Skip if proposal data is invalid
-    if (!result) {
+    if (!proposalResults[0]) {
       continue
     }
 
-    proposals.push({
-      id: result.id,
-      proposalType: result.proposalType,
-      proposer: result.proposer,
-      amount: {
-        raw: result.amount,
-        formatted: formatUnits(result.amount, tokenDecimals),
-      },
-      recipient: result.recipient,
-      description: result.description,
-      createdAt: {
-        timestamp: result.createdAt,
-        date: new Date(Number(result.createdAt) * 1000),
-      },
-      votingStartsAt: {
-        timestamp: result.votingStartsAt,
-        date: new Date(Number(result.votingStartsAt) * 1000),
-      },
-      votingEndsAt: {
-        timestamp: result.votingEndsAt,
-        date: new Date(Number(result.votingEndsAt) * 1000),
-      },
-      yesVotes: {
-        raw: result.yesVotes,
-        formatted: formatUnits(result.yesVotes, tokenDecimals),
-      },
-      noVotes: {
-        raw: result.noVotes,
-        formatted: formatUnits(result.noVotes, tokenDecimals),
-      },
-      totalBalanceVoted: result.totalBalanceVoted,
-      executed: result.executed,
-      cycleId: result.cycleId,
-    })
+    parsedProposals.push(parseProposalData(proposalResults, tokenDecimals, pricing))
   }
 
+  const winner = await publicClient.readContract({
+    address: governorAddress,
+    abi: LevrGovernor_v1,
+    functionName: 'getWinner',
+    args: [currentCycleId],
+  })
+
   return {
-    proposals,
-    fromBlock: from,
-    toBlock: to,
+    proposals: parsedProposals,
+    cycleId: currentCycleId,
+    winner,
   }
+}
+
+export async function proposal(
+  publicClient: PopPublicClient,
+  governorAddress: `0x${string}`,
+  proposalId: bigint,
+  tokenDecimals: number,
+  pricing?: PricingResult
+) {
+  const results = await publicClient.multicall({
+    contracts: proposalCallData(governorAddress, proposalId),
+  })
+
+  return parseProposalData(results, tokenDecimals, pricing)
 }

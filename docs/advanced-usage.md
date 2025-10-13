@@ -41,8 +41,10 @@ function RefreshButton() {
   return (
     <div>
       <button onClick={() => refetch.all()}>Refresh All</button>
-      <button onClick={() => refetch.staking()}>Refresh Staking</button>
-      <button onClick={() => refetch.afterStake()}>Smart Refetch</button>
+      <button onClick={() => refetch.user()}>Refresh User Data</button>
+      <button onClick={() => refetch.project()}>Refresh Project</button>
+      <button onClick={() => refetch.afterStake()}>Smart Refetch After Stake</button>
+      <button onClick={() => refetch.afterTrade()}>Smart Refetch After Trade</button>
     </div>
   )
 }
@@ -192,21 +194,24 @@ test('displays project', async () => {
 
 ## USD Pricing
 
-Enable USD values:
+Enable USD values by providing `oraclePublicClient` to LevrProvider:
 
 ```typescript
-import { useProject, useBalance } from 'levr-sdk/client'
+import { useProject, useUser } from 'levr-sdk/client'
 
 function PricingDisplay() {
   const { data: project } = useProject()
-  const { data: balances } = useBalance()
+  const { data: user } = useUser()
 
   return (
     <div>
       {project?.pricing && (
         <>
           <p>Token Price: ${project.pricing.tokenUsd}</p>
-          <p>Balance: ${balances?.token?.usd}</p>
+          <p>WETH Price: ${project.pricing.wethUsd}</p>
+          <p>Your Balance: {user?.balances.token.formatted} (${user?.balances.token.usd})</p>
+          <p>Staked Value: ${user?.staking.stakedBalance.usd}</p>
+          <p>Treasury Value: ${project.treasuryStats?.balance.usd}</p>
         </>
       )}
     </div>

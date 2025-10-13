@@ -21,25 +21,9 @@ export type UserBalances = {
 export type UserStaking = {
   stakedBalance: BalanceResult
   allowance: BalanceResult
-  rewards: {
-    outstanding: {
-      staking: {
-        available: BalanceResult
-        pending: BalanceResult
-      }
-      weth: {
-        available: BalanceResult
-        pending: BalanceResult
-      } | null
-    }
-    claimable: {
-      staking: BalanceResult
-      weth: BalanceResult | null
-    }
-  }
-  apr: {
-    token: { raw: bigint; percentage: number }
-    weth: { raw: bigint; percentage: number } | null
+  claimableRewards: {
+    staking: BalanceResult
+    weth: BalanceResult | null
   }
 }
 
@@ -93,7 +77,8 @@ export function balanceContracts(params: {
 }
 
 /**
- * Helper: Get staking contracts for multicall composition
+ * Helper: Get user-specific staking contracts for multicall composition
+ * Pool-level stats (totalStaked, apr, outstandingRewards) now in project.ts
  */
 export function stakingContracts(params: {
   userAddress: `0x${string}`
@@ -117,19 +102,8 @@ export function stakingContracts(params: {
     {
       address: params.stakingAddress,
       abi: LevrStaking_v1,
-      functionName: 'outstandingRewards' as const,
-      args: [params.clankerToken],
-    },
-    {
-      address: params.stakingAddress,
-      abi: LevrStaking_v1,
       functionName: 'claimableRewards' as const,
       args: [params.userAddress, params.clankerToken],
-    },
-    {
-      address: params.stakingAddress,
-      abi: LevrStaking_v1,
-      functionName: 'aprBps' as const,
     },
     {
       address: params.stakingAddress,
@@ -137,34 +111,15 @@ export function stakingContracts(params: {
       functionName: 'getVotingPower' as const,
       args: [params.userAddress],
     },
-    {
-      address: params.stakingAddress,
-      abi: LevrStaking_v1,
-      functionName: 'totalStaked' as const,
-    },
   ]
 
   if (params.wethAddress) {
-    contracts.push(
-      {
-        address: params.stakingAddress,
-        abi: LevrStaking_v1,
-        functionName: 'outstandingRewards' as const,
-        args: [params.wethAddress],
-      },
-      {
-        address: params.stakingAddress,
-        abi: LevrStaking_v1,
-        functionName: 'claimableRewards' as const,
-        args: [params.userAddress, params.wethAddress],
-      },
-      {
-        address: params.stakingAddress,
-        abi: LevrStaking_v1,
-        functionName: 'rewardRatePerSecond' as const,
-        args: [params.wethAddress],
-      }
-    )
+    contracts.push({
+      address: params.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'claimableRewards' as const,
+      args: [params.userAddress, params.wethAddress],
+    })
   }
 
   return contracts
@@ -232,53 +187,20 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
   const tokenBalanceRaw = results[0].result as bigint
   const wethBalanceRaw = wethAddress ? (results[1].result as bigint) : 0n
 
-  // Parse staking results (offset by balance contracts)
+  // Parse user-specific staking results (pool stats now in project)
   const stakedBalance = results[stakingDataStartIndex + 0].result as bigint
   const allowance = results[stakingDataStartIndex + 1].result as bigint
-  const outstandingRewardsToken = results[stakingDataStartIndex + 2].result as [bigint, bigint]
-  const claimableRewardsToken = results[stakingDataStartIndex + 3].result as bigint
-  const aprBps = results[stakingDataStartIndex + 4].result as bigint
-  const votingPower = results[stakingDataStartIndex + 5].result as bigint
-  const totalStaked = results[stakingDataStartIndex + 6].result as bigint
+  const claimableRewardsToken = results[stakingDataStartIndex + 2].result as bigint
+  const votingPower = results[stakingDataStartIndex + 3].result as bigint
 
-  // Parse WETH rewards if available (after base staking contracts)
-  let outstandingRewardsWeth: [bigint, bigint] | null = null
-  let claimableRewardsWeth: bigint | null = null
-  let wethRewardRate: bigint | null = null
-
-  if (wethAddress) {
-    const wethRewardsStartIndex = stakingDataStartIndex + 7
-    outstandingRewardsWeth = results[wethRewardsStartIndex + 0].result as [bigint, bigint]
-    claimableRewardsWeth = results[wethRewardsStartIndex + 1].result as bigint
-    wethRewardRate = results[wethRewardsStartIndex + 2].result as bigint
-  }
+  // Parse WETH claimable rewards if available
+  const claimableRewardsWeth = wethAddress
+    ? (results[stakingDataStartIndex + 4].result as bigint)
+    : null
 
   // Calculate USD values
   const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
   const wethPrice = pricing ? parseFloat(pricing.wethUsd) : null
-
-  // Calculate WETH APR if available
-  let wethApr: { raw: bigint; percentage: number } | null = null
-  if (wethAddress && wethRewardRate !== null && pricing && totalStaked > 0n) {
-    const wethUsd = parseFloat(pricing.wethUsd)
-    const tokenUsd = parseFloat(pricing.tokenUsd)
-
-    if (tokenUsd > 0) {
-      const wethPriceInTokens = wethUsd / tokenUsd
-      const secondsPerYear = BigInt(365 * 24 * 60 * 60)
-      const annualWethRewards = wethRewardRate * secondsPerYear
-
-      const priceScaleFactor = BigInt(1e18)
-      const wethPriceScaled = BigInt(Math.floor(wethPriceInTokens * Number(priceScaleFactor)))
-      const annualRewardsInUnderlying = (annualWethRewards * wethPriceScaled) / priceScaleFactor
-
-      const aprBpsWeth = totalStaked > 0n ? (annualRewardsInUnderlying * 10000n) / totalStaked : 0n
-      wethApr = {
-        raw: aprBpsWeth,
-        percentage: Number(aprBpsWeth) / 100,
-      }
-    }
-  }
 
   // Get airdrop status
   let airdropStatus: UserGovernance['airdrop'] = null
@@ -316,34 +238,12 @@ export async function user({ publicClient, userAddress, project }: UserParams): 
     staking: {
       stakedBalance: formatBalanceWithUsd(stakedBalance, tokenDecimals, tokenPrice),
       allowance: formatBalanceWithUsd(allowance, tokenDecimals, tokenPrice),
-      rewards: {
-        outstanding: {
-          staking: {
-            available: formatBalanceWithUsd(outstandingRewardsToken[0], tokenDecimals, tokenPrice),
-            pending: formatBalanceWithUsd(outstandingRewardsToken[1], tokenDecimals, tokenPrice),
-          },
-          weth:
-            outstandingRewardsWeth && wethAddress
-              ? {
-                  available: formatBalanceWithUsd(outstandingRewardsWeth[0], 18, wethPrice),
-                  pending: formatBalanceWithUsd(outstandingRewardsWeth[1], 18, wethPrice),
-                }
-              : null,
-        },
-        claimable: {
-          staking: formatBalanceWithUsd(claimableRewardsToken, tokenDecimals, tokenPrice),
-          weth:
-            claimableRewardsWeth !== null && wethAddress
-              ? formatBalanceWithUsd(claimableRewardsWeth, 18, wethPrice)
-              : null,
-        },
-      },
-      apr: {
-        token: {
-          raw: aprBps,
-          percentage: Number(aprBps) / 100,
-        },
-        weth: wethApr,
+      claimableRewards: {
+        staking: formatBalanceWithUsd(claimableRewardsToken, tokenDecimals, tokenPrice),
+        weth:
+          claimableRewardsWeth !== null && wethAddress
+            ? formatBalanceWithUsd(claimableRewardsWeth, 18, wethPrice)
+            : null,
       },
     },
     governance: {

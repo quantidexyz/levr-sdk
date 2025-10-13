@@ -117,6 +117,8 @@ export function LevrProvider({
   const proposalsQueryResult = useProposalsQuery({
     governorAddress: project.data?.governor,
     tokenDecimals: project.data?.token.decimals,
+    pricing: project.data?.pricing,
+    cycleId: project.data?.currentCycleId, // Pass from project to avoid re-fetching!
     enabled,
   })
 
