@@ -623,9 +623,8 @@ describe('#data-flow', () => {
           project: projectData,
         })
 
-        // Voting power should be in user.governance
-        expect(userData.governance).toBeDefined()
-        expect(userData.governance.votingPower).toBeDefined()
+        // Voting power should be directly in user object
+        expect(userData.votingPower).toBeDefined()
       })
 
       it('should fetch pool state only in pool query', async () => {
@@ -806,7 +805,7 @@ describe('#data-flow', () => {
         expect(userData.balances.eth.formatted).toBeDefined()
         expect(userData.staking.stakedBalance.formatted).toBeDefined()
         expect(userData.staking.allowance.formatted).toBeDefined()
-        expect(userData.governance.votingPower.formatted).toBeDefined()
+        expect(userData.votingPower.formatted).toBeDefined()
 
         // All should be formatted the same way (using shared utility)
         // The formatted values should be strings, not numbers
@@ -1138,7 +1137,7 @@ describe('#data-flow', () => {
         // All user data should be accessible via hierarchical structure
         expect(result.current.user.data!.balances).toBeDefined()
         expect(result.current.user.data!.staking).toBeDefined()
-        expect(result.current.user.data!.governance).toBeDefined()
+        expect(result.current.user.data!.votingPower).toBeDefined()
 
         // Individual items should be accessible
         expect(result.current.user.data!.balances.token).toBeDefined()
@@ -1148,8 +1147,6 @@ describe('#data-flow', () => {
         expect(result.current.user.data!.staking.stakedBalance).toBeDefined()
         expect(result.current.user.data!.staking.allowance).toBeDefined()
         expect(result.current.user.data!.staking.claimableRewards).toBeDefined()
-
-        expect(result.current.user.data!.governance.votingPower).toBeDefined()
 
         // Pool-level staking stats should be in project
         expect(result.current.project.data!.stakingStats).toBeDefined()
@@ -1638,12 +1635,11 @@ describe('#data-flow', () => {
         // After refetch - data should still be accessible through hierarchical structure
         expect(result.current.user.data!.balances).toBeDefined()
         expect(result.current.user.data!.staking).toBeDefined()
-        expect(result.current.user.data!.governance).toBeDefined()
+        expect(result.current.user.data!.votingPower).toBeDefined()
 
         // Structure should be consistent
         expect(result.current.user.data!.balances.token).toBeDefined()
         expect(result.current.user.data!.staking.stakedBalance).toBeDefined()
-        expect(result.current.user.data!.governance.votingPower).toBeDefined()
       })
     })
   })

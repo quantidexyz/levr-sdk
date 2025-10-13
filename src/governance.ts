@@ -1,11 +1,10 @@
 import type { TransactionReceipt } from 'viem'
-import { decodeEventLog, erc20Abi, formatUnits, parseUnits } from 'viem'
+import { decodeEventLog, parseUnits } from 'viem'
 
 import type { Project } from '.'
-import { LevrGovernor_v1 } from './abis'
-import IClankerAirdrop from './abis/IClankerAirdrop'
-import { GET_CLANKER_AIRDROP_ADDRESS, TREASURY_AIRDROP_AMOUNTS } from './constants'
-import type { BalanceResult, PopPublicClient, PopWalletClient, PricingResult } from './types'
+import { IClankerAirdrop, LevrGovernor_v1 } from './abis'
+import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
+import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type GovernanceConfig = {
   wallet: PopWalletClient
@@ -66,24 +65,14 @@ export type ExecuteProposalConfig = {
 export class Governance {
   private wallet: PopWalletClient
   private publicClient: PopPublicClient
-  private governorAddress: `0x${string}`
-  private tokenDecimals: number
-  private clankerToken: `0x${string}`
-  private treasury: `0x${string}`
-  private userAddress: `0x${string}`
-  private pricing?: PricingResult
+  private project: Project
 
   constructor(config: GovernanceConfig) {
     if (Object.values(config).some((value) => !value)) throw new Error('Invalid config')
 
     this.wallet = config.wallet
     this.publicClient = config.publicClient
-    this.governorAddress = config.project.governor
-    this.tokenDecimals = config.project.token.decimals
-    this.clankerToken = config.project.token.address
-    this.treasury = config.project.treasury
-    this.userAddress = config.wallet.account.address
-    this.pricing = config.project?.pricing
+    this.project = config.project
   }
 
   /**
@@ -95,10 +84,12 @@ export class Governance {
     description: string
   ): Promise<{ receipt: TransactionReceipt; proposalId: bigint }> {
     const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+      typeof amount === 'bigint'
+        ? amount
+        : parseUnits(amount.toString(), this.project.token.decimals)
 
     const hash = await this.wallet.writeContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'proposeTransfer',
       args: [recipient, parsedAmount, description],
@@ -147,10 +138,12 @@ export class Governance {
     amount: number | string | bigint
   ): Promise<{ receipt: TransactionReceipt; proposalId: bigint }> {
     const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+      typeof amount === 'bigint'
+        ? amount
+        : parseUnits(amount.toString(), this.project.token.decimals)
 
     const hash = await this.wallet.writeContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'proposeBoost',
       args: [parsedAmount],
@@ -199,7 +192,7 @@ export class Governance {
     const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
 
     const hash = await this.wallet.writeContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'vote',
       args: [parsedProposalId, support],
@@ -223,7 +216,7 @@ export class Governance {
     const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
 
     const hash = await this.wallet.writeContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'execute',
       args: [parsedProposalId],
@@ -247,10 +240,10 @@ export class Governance {
     voter?: `0x${string}`
   ): Promise<{ hasVoted: boolean; support: boolean; votes: bigint }> {
     const parsedProposalId = typeof proposalId === 'bigint' ? proposalId : BigInt(proposalId)
-    const voterAddress = voter ?? this.userAddress
+    const voterAddress = voter ?? this.wallet.account.address
 
     return await this.publicClient.readContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'getVoteReceipt',
       args: [parsedProposalId, voterAddress],
@@ -262,7 +255,7 @@ export class Governance {
    */
   async getActiveProposalCount(proposalType: number): Promise<bigint> {
     return await this.publicClient.readContract({
-      address: this.governorAddress,
+      address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'activeProposalCount',
       args: [proposalType],
@@ -270,241 +263,10 @@ export class Governance {
   }
 
   /**
-   * Find treasury airdrop allocation by checking all known amounts using multicall
-   */
-  private async findTreasuryAllocation(): Promise<{
-    amount: bigint
-    available: bigint
-    status: 'available' | 'locked' | 'claimed' | 'not_found'
-    error?: string
-  } | null> {
-    const chainId = this.publicClient.chain?.id
-    const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
-
-    if (!airdropAddress) return null
-
-    // Prepare multicall for all possible treasury airdrop amounts + treasury balance check
-    const amounts = Object.values(TREASURY_AIRDROP_AMOUNTS).map(
-      (amountInTokens) => BigInt(amountInTokens) * 10n ** 18n
-    )
-
-    const results = await this.publicClient.multicall({
-      contracts: [
-        // First check treasury balance
-        {
-          address: this.clankerToken,
-          abi: erc20Abi,
-          functionName: 'balanceOf',
-          args: [this.treasury],
-        },
-        // Then check all airdrop amounts
-        ...amounts.map((amount) => ({
-          address: airdropAddress,
-          abi: IClankerAirdrop,
-          functionName: 'amountAvailableToClaim' as const,
-          args: [this.clankerToken, this.treasury, amount],
-        })),
-      ] as any, // Mixed ABIs in multicall
-      allowFailure: true,
-    })
-
-    // Extract treasury balance from first result
-    const treasuryBalanceResult = results[0]
-    const treasuryBalance =
-      treasuryBalanceResult && treasuryBalanceResult.status === 'success'
-        ? (treasuryBalanceResult.result as bigint)
-        : 0n
-
-    // Extract airdrop check results (skip first result which is balance)
-    const airdropResults = results.slice(1)
-
-    // Collect all valid results first
-    const allResults: Array<{
-      amount: bigint
-      available: bigint
-      status: 'available' | 'locked' | 'claimed' | 'not_found'
-      error?: string
-      priority: number // Lower is better
-    }> = []
-
-    for (let i = 0; i < airdropResults.length; i++) {
-      const result = airdropResults[i]
-      const amount = amounts[i]
-
-      if (result.status === 'success' && result.result !== undefined) {
-        const available = result.result as bigint
-
-        if (available > 0n) {
-          // Available - highest priority (1)
-          allResults.push({ amount, available, status: 'available', priority: 1 })
-        } else {
-          // Available is 0 - check treasury balance to determine if claimed or locked
-          // If treasury has >= this amount, it's likely already claimed
-          // Otherwise it's still locked
-          const isClaimed = treasuryBalance >= amount
-          const priority = isClaimed ? 4 : 2
-          const status = isClaimed ? 'claimed' : 'locked'
-          const error = isClaimed ? 'Treasury airdrop already claimed' : 'Airdrop is still locked'
-
-          allResults.push({ amount, available: 0n, status, priority, error })
-        }
-      } else if (result.status === 'failure') {
-        const errorMessage = result.error?.message || ''
-
-        // AirdropNotCreated means this amount wasn't configured - skip entirely
-        if (errorMessage.includes('AirdropNotCreated')) {
-          continue
-        }
-
-        // AirdropNotUnlocked means this amount exists but is locked (priority 2)
-        if (errorMessage.includes('AirdropNotUnlocked')) {
-          allResults.push({
-            amount,
-            available: 0n,
-            status: 'locked',
-            error: 'Airdrop is still locked',
-            priority: 2,
-          })
-          continue
-        }
-
-        // Already claimed errors (priority 3)
-        if (errorMessage.includes('UserMaxClaimed') || errorMessage.includes('TotalMaxClaimed')) {
-          allResults.push({
-            amount,
-            available: 0n,
-            status: 'claimed',
-            error: 'Already claimed maximum amount',
-            priority: 3,
-          })
-          continue
-        }
-
-        // Arithmetic underflow/overflow means a different (larger) amount was claimed
-        // Skip this result entirely - the correct amount will be detected separately
-        if (errorMessage.includes('underflow') || errorMessage.includes('overflow')) {
-          continue
-        }
-
-        // Other errors - treat as locked (priority 2)
-        allResults.push({
-          amount,
-          available: 0n,
-          status: 'locked',
-          error: errorMessage,
-          priority: 2,
-        })
-      }
-    }
-
-    // If no results found, return null
-    if (allResults.length === 0) {
-      return null
-    }
-
-    // Sort by priority (lower is better), then by amount (higher is better for same priority)
-    allResults.sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return a.priority - b.priority
-      }
-      // For same priority, prefer larger amounts
-      return a.amount > b.amount ? -1 : 1
-    })
-
-    // Return the best result
-    const best = allResults[0]
-
-    return {
-      amount: best.amount,
-      available: best.available,
-      status: best.status,
-      error: best.error,
-    }
-  }
-
-  /**
-   * Get available airdrop amount for treasury using known amounts
-   */
-  async getAvailableAirdropAmount(): Promise<bigint> {
-    const allocation = await this.findTreasuryAllocation()
-    return allocation?.available || 0n
-  }
-
-  /**
-   * Get airdrop status for treasury with detailed status information
-   */
-  async getAirdropStatus(): Promise<{
-    availableAmount: BalanceResult
-    allocatedAmount: BalanceResult
-    isAvailable: boolean
-    error?: string
-  }> {
-    const allocation = await this.findTreasuryAllocation()
-
-    if (!allocation) {
-      return {
-        availableAmount: { raw: 0n, formatted: formatUnits(0n, this.tokenDecimals) },
-        allocatedAmount: { raw: 0n, formatted: formatUnits(0n, this.tokenDecimals) },
-        isAvailable: false,
-        error: 'No treasury airdrop found',
-      }
-    }
-
-    // Generate appropriate error message based on status
-    let error: string | undefined
-    switch (allocation.status) {
-      case 'available':
-        error = undefined
-        break
-      case 'locked':
-        error = allocation.error || 'Airdrop is still locked (lockup period not passed)'
-        break
-      case 'claimed':
-        error = 'Treasury airdrop already claimed'
-        break
-      case 'not_found':
-        error = 'No treasury airdrop found'
-        break
-    }
-
-    const availableFormatted = formatUnits(allocation.available, this.tokenDecimals)
-    const allocatedFormatted = formatUnits(allocation.amount, this.tokenDecimals)
-    const tokenPrice = this.pricing ? parseFloat(this.pricing.tokenUsd) : null
-
-    return {
-      availableAmount: {
-        raw: allocation.available,
-        formatted: availableFormatted,
-        usd: tokenPrice ? (parseFloat(availableFormatted) * tokenPrice).toString() : undefined,
-      },
-      allocatedAmount: {
-        raw: allocation.amount,
-        formatted: allocatedFormatted,
-        usd: tokenPrice ? (parseFloat(allocatedFormatted) * tokenPrice).toString() : undefined,
-      },
-      isAvailable: allocation.status === 'available' && allocation.available > 0n,
-      error,
-    }
-  }
-
-  /**
    * Claim airdrop for treasury
+   * Uses airdrop data from project that was already fetched
    */
   async claimAirdrop(): Promise<TransactionReceipt> {
-    const allocation = await this.findTreasuryAllocation()
-
-    if (!allocation) {
-      throw new Error('No treasury airdrop found to claim')
-    }
-
-    if (allocation.status === 'claimed') {
-      throw new Error('Treasury airdrop already claimed')
-    }
-
-    if (allocation.status === 'not_found') {
-      throw new Error('No treasury airdrop configured for this token')
-    }
-
     const chainId = this.publicClient.chain?.id
     const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
 
@@ -512,11 +274,31 @@ export class Governance {
       throw new Error(`No airdrop address found for chain ID ${chainId}`)
     }
 
+    // Use airdrop status from project data
+    const airdropStatus = this.project.airdrop
+
+    if (!airdropStatus) {
+      throw new Error('No treasury airdrop found')
+    }
+
+    if (airdropStatus.error) {
+      throw new Error(airdropStatus.error)
+    }
+
+    if (!airdropStatus.isAvailable) {
+      throw new Error('No airdrop available to claim')
+    }
+
     const hash = await this.wallet.writeContract({
       address: airdropAddress,
       abi: IClankerAirdrop,
       functionName: 'claim',
-      args: [this.clankerToken, this.treasury, allocation.amount, []], // Empty proof for single-leaf merkle tree
+      args: [
+        this.project.token.address,
+        this.project.treasury,
+        airdropStatus.allocatedAmount.raw,
+        [],
+      ],
       chain: this.wallet.chain,
     })
 

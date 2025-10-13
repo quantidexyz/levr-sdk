@@ -1,8 +1,8 @@
 import { erc20Abi } from 'viem'
 
-import { IClankerAirdrop, LevrStaking_v1 } from './abis'
+import { LevrStaking_v1 } from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { GET_CLANKER_AIRDROP_ADDRESS, WETH } from './constants'
+import { WETH } from './constants'
 import type { Project } from './project'
 import type { BalanceResult, PopPublicClient } from './types'
 
@@ -27,20 +27,10 @@ export type UserStaking = {
   }
 }
 
-export type UserGovernance = {
-  votingPower: BalanceResult
-  airdrop: {
-    availableAmount: BalanceResult
-    allocatedAmount: BalanceResult
-    isAvailable: boolean
-    error?: string
-  } | null
-}
-
 export type User = {
   balances: UserBalances
   staking: UserStaking
-  governance: UserGovernance
+  votingPower: BalanceResult
 }
 
 // ========================================
@@ -142,10 +132,9 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   if (!chainId) throw new Error('Chain ID not found on public client')
 
   const wethAddress = WETH(chainId)?.address
-  const { clankerToken, stakingAddress, treasuryAddress, tokenDecimals, pricing } = {
+  const { clankerToken, stakingAddress, tokenDecimals, pricing } = {
     clankerToken: project.token.address,
     stakingAddress: project.staking,
-    treasuryAddress: project.treasury,
     tokenDecimals: project.token.decimals,
     pricing: project.pricing,
   }
@@ -202,33 +191,6 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
   const wethPrice = pricing ? parseFloat(pricing.wethUsd) : null
 
-  // Get airdrop status
-  let airdropStatus: UserGovernance['airdrop'] = null
-  const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
-
-  if (airdropAddress) {
-    try {
-      // Try to find treasury airdrop allocation (simplified version)
-      const airdropAmount = 50_000_000_000n * 10n ** 18n // 50B tokens default
-
-      const availableAmount = await publicClient.readContract({
-        address: airdropAddress,
-        abi: IClankerAirdrop,
-        functionName: 'amountAvailableToClaim',
-        args: [clankerToken, treasuryAddress, airdropAmount],
-      })
-
-      airdropStatus = {
-        availableAmount: formatBalanceWithUsd(availableAmount, tokenDecimals, tokenPrice),
-        allocatedAmount: formatBalanceWithUsd(airdropAmount, tokenDecimals, tokenPrice),
-        isAvailable: availableAmount > 0n,
-      }
-    } catch (error) {
-      // Airdrop not found or error - return null
-      airdropStatus = null
-    }
-  }
-
   return {
     balances: {
       token: formatBalanceWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
@@ -246,9 +208,6 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
             : null,
       },
     },
-    governance: {
-      votingPower: formatBalanceWithUsd(votingPower, tokenDecimals, tokenPrice),
-      airdrop: airdropStatus,
-    },
+    votingPower: formatBalanceWithUsd(votingPower, tokenDecimals, tokenPrice),
   }
 }

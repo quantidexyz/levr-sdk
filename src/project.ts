@@ -6,6 +6,8 @@ import { formatBalanceWithUsd } from './balance'
 import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin } from './fee-receivers'
 import { getTokenRewards, parseFeeReceivers } from './fee-receivers'
+import type { AirdropStatus } from './treasury'
+import { getTreasuryAirdropStatus } from './treasury'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -79,6 +81,7 @@ export type Project = {
   stakingStats?: StakingStats
   feeReceivers?: FeeReceiverAdmin[]
   pricing?: PricingResult
+  airdrop?: AirdropStatus | null
 }
 
 // ---
@@ -775,6 +778,15 @@ export async function getProject({
     pricing
   )
 
+  // Get airdrop status
+  const airdropStatus = await getTreasuryAirdropStatus(
+    publicClient,
+    clankerToken,
+    treasury,
+    tokenData.decimals,
+    tokenUsdPrice
+  )
+
   return {
     chainId,
     treasury: factoryData.treasury,
@@ -790,5 +802,6 @@ export async function getProject({
     stakingStats,
     feeReceivers,
     pricing,
+    airdrop: airdropStatus,
   }
 }
