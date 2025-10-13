@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { usePublicClient } from 'wagmi'
+import { useAccount, usePublicClient } from 'wagmi'
 
 import type { Project } from '../..'
 import { proposal, proposals } from '../../proposal'
@@ -22,20 +22,27 @@ export type UseProposalParams = {
  * Internal: Creates proposals query with all logic
  * Used by LevrProvider
  * Gets all proposals for current cycle with enriched data in single multicall
+ * Includes vote receipts if user is connected
  */
 export function useProposalsQuery({ project, enabled: e = true }: UseProposalsQueryParams) {
   const publicClient = usePublicClient()
+  const { address: userAddress } = useAccount()
 
   return useQuery({
-    queryKey: queryKeys.proposals(project?.chainId, project?.currentCycleId?.toString()),
+    queryKey: queryKeys.proposals(
+      project?.chainId,
+      project?.governanceStats?.currentCycleId?.toString(),
+      userAddress
+    ),
     queryFn: async () => {
       return proposals({
         publicClient: publicClient!,
         governorAddress: project!.governor,
         tokenDecimals: project!.token.decimals,
         pricing: project!.pricing,
-        cycleId: project!.currentCycleId,
+        cycleId: project!.governanceStats!.currentCycleId,
         pageSize: 50,
+        userAddress, // Include vote receipts if user is connected
       })
     },
     enabled: e && !!publicClient && !!project!,
@@ -52,7 +59,7 @@ export function useProposal({ proposalId, enabled: e = true }: UseProposalParams
   return useQuery({
     queryKey: queryKeys.proposal(
       project.data?.chainId,
-      project.data?.currentCycleId?.toString(),
+      project.data?.governanceStats?.currentCycleId?.toString(),
       proposalId?.toString()
     ),
     queryFn: async () => {

@@ -162,13 +162,12 @@ export function LevrProvider({
         ])
       },
       afterClaim: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances, claimable rewards changed
-        ])
+        await userQuery.refetch() // Balances, claimable rewards changed
       },
       afterAccrue: async () => {
         await Promise.all([
-          userQuery.refetch(), // Outstanding/claimable rewards changed
+          userQuery.refetch(), // Claimable rewards changed
+          project.refetch(), // Outstanding rewards changed (pool-level)
         ])
       },
       afterVote: async () => {
@@ -191,9 +190,7 @@ export function LevrProvider({
         ])
       },
       afterAirdrop: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances, airdrop status changed
-        ])
+        await project.refetch() // Treasury balance, airdrop status changed
       },
     }),
     [queryClient, project, userQuery, poolQuery, proposalsQuery]

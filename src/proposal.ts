@@ -11,6 +11,7 @@ export type ProposalsParams = {
   tokenDecimals?: number
   pricing?: PricingResult
   pageSize?: number
+  userAddress?: `0x${string}` // Optional: include vote receipts if provided
 }
 
 export type ProposalsResult = {
@@ -23,14 +24,23 @@ export type EnrichedProposalDetails = FormattedProposalDetails & {
   meetsQuorum: boolean
   meetsApproval: boolean
   state: number
+  voteReceipt?: {
+    hasVoted: boolean
+    support: boolean // true = yes, false = no
+    votes: bigint
+  }
 }
 
 /**
  * Get call data contracts for a single proposal
- * Returns 4 contract configs: getProposal, meetsQuorum, meetsApproval, state
+ * Returns 4-5 contract configs: getProposal, meetsQuorum, meetsApproval, state, [getVoteReceipt]
  */
-export function proposalCallData(governorAddress: `0x${string}`, proposalId: bigint) {
-  return [
+export function proposalCallData(
+  governorAddress: `0x${string}`,
+  proposalId: bigint,
+  userAddress?: `0x${string}`
+) {
+  const baseContracts = [
     {
       address: governorAddress,
       abi: LevrGovernor_v1,
@@ -56,11 +66,26 @@ export function proposalCallData(governorAddress: `0x${string}`, proposalId: big
       args: [proposalId],
     },
   ]
+
+  // Add vote receipt if userAddress is provided
+  if (userAddress) {
+    return [
+      ...baseContracts,
+      {
+        address: governorAddress,
+        abi: LevrGovernor_v1,
+        functionName: 'getVoteReceipt' as const,
+        args: [proposalId, userAddress],
+      },
+    ]
+  }
+
+  return baseContracts
 }
 
 /**
  * Parse proposal data from multicall results
- * Expects 4 results: [getProposal, meetsQuorum, meetsApproval, state]
+ * Expects 4-5 results: [getProposal, meetsQuorum, meetsApproval, state, [getVoteReceipt]]
  */
 export function parseProposalData(
   results: readonly any[],
@@ -71,6 +96,9 @@ export function parseProposalData(
   const meetsQuorum = results[1] as boolean
   const meetsApproval = results[2] as boolean
   const state = results[3] as number
+  const voteReceiptData = results[4] as
+    | { hasVoted: boolean; support: boolean; votes: bigint }
+    | undefined
 
   const amountFormatted = formatUnits(proposalData.amount, tokenDecimals)
   const yesVotesFormatted = formatUnits(proposalData.yesVotes, tokenDecimals)
@@ -116,6 +144,7 @@ export function parseProposalData(
     meetsQuorum,
     meetsApproval,
     state,
+    voteReceipt: voteReceiptData,
   }
 }
 
@@ -130,6 +159,7 @@ export async function proposals({
   tokenDecimals = 18,
   pricing,
   pageSize = 50,
+  userAddress,
 }: ProposalsParams): Promise<ProposalsResult> {
   if (Object.values({ publicClient, governorAddress }).some((value) => !value)) {
     throw new Error('Invalid proposals params')
@@ -163,23 +193,25 @@ export async function proposals({
     }
   }
 
-  // Build single multicall using proposalCallData utility
+  // Build single multicall using proposalCallData utility (includes vote receipts if userAddress provided)
   const contracts = limitedIds.flatMap((proposalId) =>
-    proposalCallData(governorAddress, proposalId)
+    proposalCallData(governorAddress, proposalId, userAddress)
   )
 
   const results = await publicClient.multicall({ contracts })
 
   // Parse results using parseProposalData utility
   const parsedProposals: EnrichedProposalDetails[] = []
+  const contractsPerProposal = userAddress ? 5 : 4 // 5 if including vote receipt, 4 otherwise
 
   for (let i = 0; i < limitedIds.length; i++) {
-    const baseIndex = i * 4
+    const baseIndex = i * contractsPerProposal
     const proposalResults = [
       results[baseIndex].result,
       results[baseIndex + 1].result,
       results[baseIndex + 2].result,
       results[baseIndex + 3].result,
+      userAddress ? results[baseIndex + 4].result : undefined,
     ]
 
     // Skip if proposal data is invalid

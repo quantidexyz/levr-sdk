@@ -58,6 +58,14 @@ export type StakingStats = {
   }
 }
 
+export type GovernanceStats = {
+  currentCycleId: bigint
+  activeProposalCount: {
+    boost: bigint
+    transfer: bigint
+  }
+}
+
 export type Project = {
   chainId: number
   treasury: `0x${string}`
@@ -66,7 +74,6 @@ export type Project = {
   stakedToken: `0x${string}`
   forwarder: `0x${string}`
   factory: `0x${string}`
-  currentCycleId: bigint
   token: {
     address: `0x${string}`
     decimals: number
@@ -79,6 +86,7 @@ export type Project = {
   pool?: PoolInfo
   treasuryStats?: TreasuryStats
   stakingStats?: StakingStats
+  governanceStats?: GovernanceStats
   feeReceivers?: FeeReceiverAdmin[]
   pricing?: PricingResult
   airdrop?: AirdropStatus | null
@@ -119,6 +127,8 @@ type TreasuryContractsResult = [
 
 type GovernanceContractsResult = [
   MulticallResult<bigint>, // currentCycleId
+  MulticallResult<bigint>, // activeProposalCount (boost - type 0)
+  MulticallResult<bigint>, // activeProposalCount (transfer - type 1)
 ]
 
 type StakingContractsResult = [
@@ -150,6 +160,10 @@ type FactoryData = {
 
 type GovernanceData = {
   currentCycleId: bigint
+  activeProposalCount: {
+    boost: bigint
+    transfer: bigint
+  }
 }
 
 // ---
@@ -233,6 +247,18 @@ function getGovernanceContracts(governor: `0x${string}`) {
       address: governor,
       abi: LevrGovernor_v1,
       functionName: 'currentCycleId' as const,
+    },
+    {
+      address: governor,
+      abi: LevrGovernor_v1,
+      functionName: 'activeProposalCount' as const,
+      args: [0], // boost type
+    },
+    {
+      address: governor,
+      abi: LevrGovernor_v1,
+      functionName: 'activeProposalCount' as const,
+      args: [1], // transfer type
     },
   ]
 }
@@ -342,10 +368,8 @@ function parseTreasuryStats(
   const totalAllocatedRaw = treasuryBalanceRaw + stakingBalanceRaw
 
   // Utilization = (total allocated / total supply) * 100
-  const utilization =
-    totalSupply > 0n
-      ? Number((totalAllocatedRaw * 10000n) / totalSupply) / 100 // Convert to percentage
-      : 0
+  const utilizationBps = totalSupply > 0n ? (totalAllocatedRaw * 10000n) / totalSupply : 0n
+  const utilization = Number(utilizationBps) / 100
 
   return {
     balance: formatBalanceWithUsd(treasuryBalanceRaw, tokenDecimals, tokenUsdPrice),
@@ -355,9 +379,13 @@ function parseTreasuryStats(
 }
 
 function parseGovernanceData(results: GovernanceContractsResult): GovernanceData {
-  const [currentCycleId] = results
+  const [currentCycleId, boostCount, transferCount] = results
   return {
     currentCycleId: currentCycleId.result,
+    activeProposalCount: {
+      boost: boostCount.result,
+      transfer: transferCount.result,
+    },
   }
 }
 
@@ -453,7 +481,16 @@ export type ProjectsParams = {
 }
 
 export type ProjectsResult = {
-  projects: Omit<Project, 'forwarder' | 'pool' | 'pricing' | 'stakingStats' | 'feeReceivers'>[]
+  projects: Omit<
+    Project,
+    | 'forwarder'
+    | 'pool'
+    | 'pricing'
+    | 'stakingStats'
+    | 'governanceStats'
+    | 'feeReceivers'
+    | 'airdrop'
+  >[]
   fromBlock: bigint
   toBlock: bigint
 }
@@ -572,11 +609,10 @@ export async function getProjects({
     }
   }
 
-  // Build contract calls for valid tokens only
+  // Build contract calls for valid tokens only (no governance for list view)
   const validContracts = validTokensWithContracts.flatMap(({ token, contracts }) => [
     ...getTokenContracts(token),
     ...getTreasuryContracts(token, contracts.treasury, contracts.staking),
-    ...getGovernanceContracts(contracts.governor),
   ])
 
   const results = await publicClient.multicall({ contracts: validContracts })
@@ -584,9 +620,15 @@ export async function getProjects({
   // Parse results into Project objects
   const projects: Omit<
     Project,
-    'forwarder' | 'pool' | 'pricing' | 'stakingStats' | 'feeReceivers'
+    | 'forwarder'
+    | 'pool'
+    | 'pricing'
+    | 'stakingStats'
+    | 'governanceStats'
+    | 'feeReceivers'
+    | 'airdrop'
   >[] = []
-  const callsPerProject = 9 // 6 token + 2 treasury + 1 governance
+  const callsPerProject = 8 // 6 token + 2 treasury (no governance for list view)
 
   for (let i = 0; i < validTokensWithContracts.length; i++) {
     const { token, contracts: projectContracts } = validTokensWithContracts[i]
@@ -595,11 +637,9 @@ export async function getProjects({
     // Extract results for this project
     const tokenResults = results.slice(offset, offset + 6) as TokenContractsResult
     const treasuryResults = results.slice(offset + 6, offset + 8) as TreasuryContractsResult
-    const governanceResults = results.slice(offset + 8, offset + 9) as GovernanceContractsResult
 
     // Parse using our type-safe parsers
     const tokenData = parseTokenData(tokenResults, token)
-    const governanceData = parseGovernanceData(governanceResults)
     const treasuryStats = parseTreasuryStats(
       treasuryResults,
       tokenData.decimals,
@@ -614,7 +654,6 @@ export async function getProjects({
       staking: projectContracts.staking,
       stakedToken: projectContracts.stakedToken,
       factory: factoryAddress,
-      currentCycleId: governanceData.currentCycleId,
       token: tokenData,
       treasuryStats,
     })
@@ -686,7 +725,7 @@ export async function getProject({
 
   // Calculate slice indices for additional data
   const treasuryCount = 2
-  const governanceCount = 1
+  const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 6 : 4
 
   let idx2 = 0
@@ -706,9 +745,6 @@ export async function getProject({
     idx2,
     idx2 + stakingCount
   ) as StakingContractsResult
-
-  // Parse additional data
-  const governanceData = parseGovernanceData(governanceResults)
 
   // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
@@ -787,6 +823,8 @@ export async function getProject({
     tokenUsdPrice
   )
 
+  const governanceStats = parseGovernanceData(governanceResults)
+
   return {
     chainId,
     treasury: factoryData.treasury,
@@ -795,11 +833,11 @@ export async function getProject({
     stakedToken: factoryData.stakedToken,
     forwarder: factoryData.forwarder,
     factory: factoryAddress,
-    currentCycleId: governanceData.currentCycleId,
     token: tokenData,
     pool: poolInfo,
     treasuryStats,
     stakingStats,
+    governanceStats,
     feeReceivers,
     pricing,
     airdrop: airdropStatus,

@@ -251,18 +251,6 @@ export class Governance {
   }
 
   /**
-   * Get active proposal count for a specific proposal type
-   */
-  async getActiveProposalCount(proposalType: number): Promise<bigint> {
-    return await this.publicClient.readContract({
-      address: this.project.governor,
-      abi: LevrGovernor_v1,
-      functionName: 'activeProposalCount',
-      args: [proposalType],
-    })
-  }
-
-  /**
    * Claim airdrop for treasury
    * Uses airdrop data from project that was already fetched
    */

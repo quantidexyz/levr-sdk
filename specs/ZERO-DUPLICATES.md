@@ -9,8 +9,8 @@ Through intelligent data sharing and composition, we've achieved **zero duplicat
 ### RPC Calls (Page Load)
 
 - **Before:** 19+ calls
-- **After:** 5 calls
-- **Reduction:** 74%
+- **After:** 9-12 calls (depending on oracle)
+- **Reduction:** 37-53%
 
 ### Query Groups
 
@@ -48,10 +48,11 @@ Through intelligent data sharing and composition, we've achieved **zero duplicat
 └──────────────────────┘    └─────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
-│ PROPOSALS (Event Query + Multicall)               │
+│ PROPOSALS (Efficient Query)                       │
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
-│ • ProposalCreated events                          │
-│ • Batch getProposal() for each ID                 │
+│ • getProposalsForCycle(cycleId)                   │
+│ • Single multicall for ALL proposals              │
+│ • getWinner(cycleId)                              │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -223,19 +224,20 @@ Multicall (2 contracts):
 ### Proposals Query
 
 ```
-Event query + multicall:
-  1. getLogs(ProposalCreated)
-  2-N. governor.getProposal(id) for each proposal
+Efficient query (no events):
+  1. getProposalsForCycle(cycleId)
+  2. multicall(N proposals × 4 calls each)
+  3. getWinner(cycleId)
 ```
 
 ### Total Unique Calls
 
-- Project: 13 calls (1 multicall + 3 separate)
-- User: 14 calls (1 multicall + 2 separate)
+- Project: 3 multicalls + 1 readContract (+ 2 pricing if oracle)
+- User: 1 multicall + 1 getBalance
 - Pool: 1 multicall (2 contracts)
-- Proposals: 1 event query + 1 multicall
+- Proposals: 2 readContract + 1 multicall
 
-**Total when all loaded:** ~5 unique RPC calls
+**Total when all loaded:** ~9-12 unique RPC calls (depending on oracle)
 **No duplicates:** ✅ Verified
 
 ## 🎨 Access Pattern Consistency
@@ -271,10 +273,11 @@ Both access patterns point to the **same underlying data** - zero duplication!
 ## 🏆 Achievement Summary
 
 ✅ **Zero duplicate contract calls** - Every call is unique  
-✅ **Zero duplicate event queries** - Proposals fetched once  
-✅ **Zero redundant multicalls** - Each domain has one  
-✅ **Zero governance queries** - All data in project  
-✅ **74% fewer RPC calls** - 19 → 5 calls  
-✅ **100% data sharing** - Everything reused optimally
+✅ **Zero duplicate queries** - No data fetched twice  
+✅ **Optimized multicalls** - Maximum parallelization per domain  
+✅ **Zero governance query** - All data in project  
+✅ **37-53% fewer RPC calls** - 19+ → 9-12 calls  
+✅ **100% data sharing** - Everything reused optimally  
+✅ **No event drilling** - Proposals use efficient getProposalsForCycle
 
 **Mission accomplished:** True zero-duplicate architecture!

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { TransactionReceipt } from 'viem'
 import { parseUnits } from 'viem'
@@ -75,34 +75,6 @@ export function useGovernance({
       project: project.data,
     })
   }, [wallet.data, publicClient, project.data])
-
-  const voteReceipt = useQuery({
-    queryKey: [
-      'governance',
-      'voteReceipt',
-      project.data?.governor,
-      proposalId?.toString(),
-      userAddress || wallet.data?.account.address,
-    ],
-    queryFn: async () => {
-      return await governance!.getVoteReceipt(proposalId!, userAddress!)
-    },
-    enabled: !!governance && proposalId !== undefined,
-    retry: 1,
-  })
-
-  const activeProposalCount = useQuery({
-    queryKey: ['governance', 'activeProposalCount', project.data?.governor],
-    queryFn: async () => {
-      const [boostCount, transferCount] = await Promise.all([
-        governance!.getActiveProposalCount(0),
-        governance!.getActiveProposalCount(1),
-      ])
-      return { boost: boostCount, transfer: transferCount }
-    },
-    enabled: !!governance,
-    retry: 1,
-  })
 
   // Mutations
   const vote = useMutation({
@@ -239,10 +211,6 @@ export function useGovernance({
     executeProposal,
     claimAirdrop,
 
-    // Dynamic queries (using proposals.ts functions)
-    voteReceipt,
-    activeProposalCount,
-
     // Helpers
     buildProposeTransferConfig,
     buildProposeBoostConfig,
@@ -250,7 +218,6 @@ export function useGovernance({
 
     // Loading states
     isReady: !!governance && !!wallet.data,
-    isLoading: voteReceipt.isLoading || activeProposalCount.isLoading,
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
     isVoting: vote.isPending,
     isExecuting: executeProposal.isPending,

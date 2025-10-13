@@ -48,7 +48,8 @@ export const queryKeys = {
   /**
    * Proposals query keys
    */
-  proposals: (chainId?: number, cycleId?: string) => ['proposals', chainId, cycleId] as const,
+  proposals: (chainId?: number, cycleId?: string, userAddress?: Address) =>
+    ['proposals', chainId, cycleId, userAddress] as const,
 
   proposal: (chainId?: number, cycleId?: string, proposalId?: string) =>
     ['proposal', chainId, cycleId, proposalId] as const,

@@ -55,15 +55,20 @@ This document maps out exactly what data each query fetches and how we eliminate
 └──────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────┐
-│ Proposals Query (src/proposals.ts)               │
+│ Proposals Query (src/proposal.ts)                │
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
-│ Event logs + multicall:                          │
-│   • ProposalCreated events                       │
-│   • getProposal() for each ID                    │
+│ Efficient query (no event drilling!):            │
+│   • getProposalsForCycle(cycleId)                │
+│   • Single multicall for ALL proposals           │
+│     (getProposal, meetsQuorum, meetsApproval,    │
+│      state for each proposal - 4 calls per ID)   │
+│   • getWinner(cycleId)                           │
 │                                                   │
 │ Uses from project:                               │
 │   • governor (project.governor)                  │
 │   • tokenDecimals (project.token.decimals)       │
+│   • currentCycleId (project.governanceStats)     │
+│   • pricing (project.pricing)                    │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -216,17 +221,27 @@ Total: ~19+ RPC calls
 ### After Optimization
 
 ```
-Project load:
-  1. Project multicall (token, addresses, treasury stats, pool, fee receivers, factory, currentCycleId)
-  2. Pricing queries (WETH/USD, Token/USD - parallel)
-  3. User multicall (balances + staking + governance) + native balance (parallel)
-  4. Pool multicall (state) - optional, only if pool exists
-  5. Proposals list (event query)
+Project load (without oracle):
+  1. Project multicall #1: token + factory (8 contracts)
+  2. Project multicall #2: treasury + governance + staking (7-11 contracts)
+  3. Project readContract: tokenRewards (pool + fee receivers)
+  4. Project multicall #3: airdrop check (1 balance + N amounts)
+  5. User multicall: balances + staking (5-7 contracts)
+  6. User getBalance: native ETH
+  7. Pool multicall: state (2 contracts) - optional
+  8. Proposals readContract: getProposalsForCycle
+  9. Proposals multicall: N proposals × 4 calls
+ 10. Proposals readContract: getWinner
 
-Total: ~5 RPC calls (3 multicalls + 2 pricing reads + 1 event query)
+Total: ~9-10 RPC calls (no oracle)
+
+With oracle pricing:
+  + 2 pricing calls (getWethUsdPrice, getUsdPrice)
+
+Total: ~11-12 RPC calls (with oracle)
 ```
 
-**Reduction: 19 → 5 calls (74% reduction)**
+**Reduction: 19+ → 9-12 calls (37-53% reduction)**
 
 ## Shared Data Preventing Duplicates
 

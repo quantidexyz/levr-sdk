@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import React from 'react'
 import type { Address } from 'viem'
@@ -107,42 +107,56 @@ function createMockPublicClient(tracker: RpcCallTracker) {
     }))
 
     // Customize based on expected multicall structure
-    if (contracts.length === 16) {
-      // Project multicall with WETH (16 contracts)
-      // 10 original + 4 staking pool stats (token) + 2 weth stats
-      results[0] = { result: 18, status: 'success' } // decimals
+    // Check first contract to determine the type of multicall
+    const firstContract: any = contracts[0]
+    const isTokenMulticall = firstContract?.functionName === 'decimals'
+    const isProposalMulticall = firstContract?.functionName === 'getProposal'
+
+    if (contracts.length === 8 && isTokenMulticall) {
+      // First project multicall (8 contracts)
+      // 6 token + 2 factory
+      results[0] = { result: 18, status: 'success' } // decimals - must be regular number (uint8)
       results[1] = { result: 'Test Token', status: 'success' } // name
       results[2] = { result: 'TEST', status: 'success' } // symbol
       results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
       results[4] = { result: JSON.stringify({ description: 'Test' }), status: 'success' } // metadata
       results[5] = { result: 'https://example.com/image.png', status: 'success' } // imageUrl
-      results[6] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
-      results[7] = { result: 500000000000000000000n, status: 'success' } // treasury balance
-      results[8] = { result: 200000000000000000000n, status: 'success' } // staking balance
-      results[9] = { result: 5n, status: 'success' } // currentCycleId
-      results[10] = { result: 300000000000000000000n, status: 'success' } // totalStaked
-      results[11] = { result: 500n, status: 'success' } // APR bps
-      results[12] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
-      results[13] = { result: 50000000000000000n, status: 'success' } // token reward rate
-      results[14] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
-      results[15] = { result: 100000000000000000n, status: 'success' } // weth reward rate
-    } else if (contracts.length === 14) {
-      // Project multicall without WETH (14 contracts)
-      // 10 original + 4 staking pool stats (token only, no weth)
-      results[0] = { result: 18, status: 'success' } // decimals
-      results[1] = { result: 'Test Token', status: 'success' } // name
-      results[2] = { result: 'TEST', status: 'success' } // symbol
-      results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
-      results[4] = { result: JSON.stringify({ description: 'Test' }), status: 'success' } // metadata
-      results[5] = { result: 'https://example.com/image.png', status: 'success' } // imageUrl
-      results[6] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
-      results[7] = { result: 500000000000000000000n, status: 'success' } // treasury balance
-      results[8] = { result: 200000000000000000000n, status: 'success' } // staking balance
-      results[9] = { result: 5n, status: 'success' } // currentCycleId
-      results[10] = { result: 300000000000000000000n, status: 'success' } // totalStaked
-      results[11] = { result: 500n, status: 'success' } // APR bps
-      results[12] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
-      results[13] = { result: 50000000000000000n, status: 'success' } // token reward rate
+      results[6] = {
+        result: {
+          treasury: MOCK_TREASURY_ADDRESS,
+          governor: MOCK_GOVERNOR_ADDRESS,
+          staking: MOCK_STAKING_ADDRESS,
+          stakedToken: MOCK_STAKED_TOKEN_ADDRESS,
+        },
+        status: 'success',
+      } // getProjectContracts
+      results[7] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
+    } else if (contracts.length === 11) {
+      // Second project multicall with WETH (11 contracts)
+      // 2 treasury + 3 governance + 6 staking (with weth)
+      results[0] = { result: 500000000000000000000n, status: 'success' } // treasury balance
+      results[1] = { result: 200000000000000000000n, status: 'success' } // staking balance
+      results[2] = { result: 5n, status: 'success' } // currentCycleId
+      results[3] = { result: 2n, status: 'success' } // activeProposalCount (boost)
+      results[4] = { result: 3n, status: 'success' } // activeProposalCount (transfer)
+      results[5] = { result: 300000000000000000000n, status: 'success' } // totalStaked
+      results[6] = { result: 500n, status: 'success' } // APR bps
+      results[7] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
+      results[8] = { result: 50000000000000000n, status: 'success' } // token reward rate
+      results[9] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
+      results[10] = { result: 100000000000000000n, status: 'success' } // weth reward rate
+    } else if (contracts.length === 9) {
+      // Second project multicall without WETH (9 contracts)
+      // 2 treasury + 3 governance + 4 staking (no weth)
+      results[0] = { result: 500000000000000000000n, status: 'success' } // treasury balance
+      results[1] = { result: 200000000000000000000n, status: 'success' } // staking balance
+      results[2] = { result: 5n, status: 'success' } // currentCycleId
+      results[3] = { result: 2n, status: 'success' } // activeProposalCount (boost)
+      results[4] = { result: 3n, status: 'success' } // activeProposalCount (transfer)
+      results[5] = { result: 300000000000000000000n, status: 'success' } // totalStaked
+      results[6] = { result: 500n, status: 'success' } // APR bps
+      results[7] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
+      results[8] = { result: 50000000000000000n, status: 'success' } // token reward rate
     } else if (contracts.length === 7) {
       // User multicall with WETH (7 contracts)
       // 2 balances + 4 staking user-specific + 1 weth claimable
@@ -161,40 +175,48 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[2] = { result: 1000000000000000000000n, status: 'success' } // allowance
       results[3] = { result: 2000000000000000000n, status: 'success' } // claimable rewards (token)
       results[4] = { result: 75000000000000000000n, status: 'success' } // voting power
-    } else if (contracts.length === 10) {
-      // Old project multicall (10 contracts) - for backwards compat in tests
-      results[0] = { result: 18, status: 'success' } // decimals
-      results[1] = { result: 'Test Token', status: 'success' } // name
-      results[2] = { result: 'TEST', status: 'success' } // symbol
-      results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
-      results[4] = { result: JSON.stringify({ description: 'Test' }), status: 'success' } // metadata
-      results[5] = { result: 'https://example.com/image.png', status: 'success' } // imageUrl
-      results[6] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
-      results[7] = { result: 500000000000000000000n, status: 'success' } // treasury balance
-      results[8] = { result: 200000000000000000000n, status: 'success' } // staking balance
-      results[9] = { result: 5n, status: 'success' } // currentCycleId
     } else if (contracts.length === 2) {
       // Pool multicall (2 contracts)
-      const firstContract: any = contracts[0]
       if (
         firstContract?.functionName === 'getSlot0' ||
         firstContract?.functionName === 'getLiquidity'
       ) {
         results[0] = {
-          result: [1000000000000000000n, 100, 0, 3000],
+          result: [1000000000000000000n, 100n, 0n, 3000n],
           status: 'success',
-        } // slot0
+        } // slot0 - all BigInt
         results[1] = { result: 5000000000000000000000n, status: 'success' } // liquidity
       }
-    } else if (contracts.length === 8) {
-      // Proposals multicall (8 contracts = 2 proposals * 4 calls each)
-      // Pattern: getProposal, meetsQuorum, meetsApproval, state for each proposal
-      for (let i = 0; i < 2; i++) {
-        const baseIndex = i * 4
+    }
+
+    // Check for airdrop multicall (balanceOf + multiple amountAvailableToClaim)
+    const secondContract: any = contracts[1]
+    if (
+      firstContract?.functionName === 'balanceOf' &&
+      secondContract?.functionName === 'amountAvailableToClaim'
+    ) {
+      // Treasury balance check for airdrop
+      results[0] = { result: 100000000000000000000n, status: 'success' }
+      // Remaining are airdrop amount checks - return 0n for all (not available)
+      for (let i = 1; i < contracts.length; i++) {
+        results[i] = { result: 0n, status: 'success' }
+      }
+    }
+
+    // Check for proposals multicall (with or without vote receipts)
+    const isProposalWithVoteReceipt = isProposalMulticall && contracts.length >= 10 // At least 2 proposals with 5 calls each
+
+    if (isProposalMulticall) {
+      const contractsPerProposal = isProposalWithVoteReceipt ? 5 : 4
+      const proposalCount = Math.floor(contracts.length / contractsPerProposal)
+
+      // Pattern: getProposal, meetsQuorum, meetsApproval, state, [getVoteReceipt] for each proposal
+      for (let i = 0; i < proposalCount; i++) {
+        const baseIndex = i * contractsPerProposal
         results[baseIndex] = {
           result: {
             id: BigInt(i + 1),
-            proposalType: 0,
+            proposalType: 0n,
             proposer: MOCK_USER_ADDRESS,
             amount: 1000000000000000000000n,
             recipient: MOCK_TREASURY_ADDRESS,
@@ -212,7 +234,19 @@ function createMockPublicClient(tracker: RpcCallTracker) {
         }
         results[baseIndex + 1] = { result: true, status: 'success' } // meetsQuorum
         results[baseIndex + 2] = { result: true, status: 'success' } // meetsApproval
-        results[baseIndex + 3] = { result: 1, status: 'success' } // state
+        results[baseIndex + 3] = { result: 1n, status: 'success' } // state - must be BigInt
+
+        // Add vote receipt if included
+        if (isProposalWithVoteReceipt) {
+          results[baseIndex + 4] = {
+            result: {
+              hasVoted: i === 0, // User voted on first proposal only
+              support: true, // Voted yes
+              votes: 75000000000000000000n, // Voting power used
+            },
+            status: 'success',
+          }
+        }
       }
     }
 
@@ -264,11 +298,11 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       if (functionName === 'slot0') {
         return {
           sqrtPriceX96: 1000000000000000000n,
-          tick: 0,
-          observationIndex: 0,
-          observationCardinality: 0,
-          observationCardinalityNext: 0,
-          feeProtocol: 0,
+          tick: 0n,
+          observationIndex: 0n,
+          observationCardinality: 0n,
+          observationCardinalityNext: 0n,
+          feeProtocol: 0n,
           unlocked: true,
         }
       }
@@ -345,9 +379,9 @@ describe('#data-flow', () => {
 
         const projectCalls = tracker.getTotalCalls()
 
-        // Project should make: 1 readContract (getProjectContracts) + 1 multicall (with staking stats) + 1 readContract (tokenRewards)
-        // Now includes pool-level staking stats (totalStaked, apr, outstanding rewards)
-        expect(projectCalls).toBe(3) // Exactly 3 calls
+        // Project should make: 3 multicalls (token+factory, treasury+governance+staking, airdrop) + 1 readContract (tokenRewards)
+        // Total: 4 calls (without oracle pricing)
+        expect(projectCalls).toBe(4)
 
         // Fetch user data (shares project data)
         if (projectData) {
@@ -358,9 +392,9 @@ describe('#data-flow', () => {
           })
 
           const userCallsAdded = tracker.getTotalCalls() - projectCalls
-          // User should add: 1 multicall (user-specific only) + 1 getBalance + 1 airdrop readContract = 3 calls
-          // User multicall is now smaller (no pool stats)
-          expect(userCallsAdded).toBe(3)
+          // User should add: 1 multicall (balances + staking) + 1 getBalance = 2 calls
+          // User data is separate from pool-level stats (which are in project)
+          expect(userCallsAdded).toBe(2)
 
           // Fetch pool data (shares project data)
           await pool({
@@ -372,31 +406,26 @@ describe('#data-flow', () => {
           // Pool should add: 1 multicall (exactly 1, no duplicates)
           expect(poolCallsAdded).toBe(1)
 
-          // Fetch proposals (uses project.governor and project.currentCycleId)
+          // Fetch proposals (uses project.governor and project.governanceStats.currentCycleId)
           await proposals({
             publicClient: mockPublicClient as any,
             governorAddress: projectData.governor,
             tokenDecimals: projectData.token.decimals,
-            cycleId: projectData.currentCycleId, // Pass from project to avoid re-fetching!
+            cycleId: projectData.governanceStats!.currentCycleId, // Pass from project to avoid re-fetching!
           })
 
           const proposalsCallsAdded =
             tracker.getTotalCalls() - projectCalls - userCallsAdded - poolCallsAdded
 
-          // Debug: see what proposals actually called
-          const proposalsCalls = tracker.calls.slice(-proposalsCallsAdded)
-          console.log(
-            'Proposals calls:',
-            proposalsCalls.map((c) => c.type + ':' + c.functionName).join(', ')
-          )
-
-          // Proposals should add: 1 getProposalsForCycle + 1 multicall = 2 calls (uses cycleId from project!)
-          // Gets all proposal data (meetsQuorum, meetsApproval, state) in single multicall!
-          expect(proposalsCallsAdded).toBeLessThanOrEqual(3) // Allow some flexibility
+          // Proposals should add: 1 getProposalsForCycle + 1 multicall + 1 getWinner = 2-3 calls
+          // Uses cycleId from project (no refetch!)
+          // Gets all proposal data (getProposal, meetsQuorum, meetsApproval, state) in single multicall!
+          expect(proposalsCallsAdded).toBeGreaterThanOrEqual(2)
+          expect(proposalsCallsAdded).toBeLessThanOrEqual(3)
         }
 
         // Verify total calls
-        // Project: 3, User: 3, Pool: 1, Proposals: 2-3 = 9-10 total
+        // Project: 4, User: 2, Pool: 1, Proposals: 2-3 = 9-10 total (without oracle)
         const totalCalls = tracker.getTotalCalls()
         expect(totalCalls).toBeGreaterThanOrEqual(9)
         expect(totalCalls).toBeLessThanOrEqual(10) // Exact range - any more would be duplicates!
@@ -473,8 +502,8 @@ describe('#data-flow', () => {
         expect(projectData?.factory).toBe(MOCK_FACTORY_ADDRESS)
 
         // Current cycle ID
-        expect(projectData?.currentCycleId).toBeDefined()
-        expect(typeof projectData?.currentCycleId).toBe('bigint')
+        expect(projectData?.governanceStats?.currentCycleId).toBeDefined()
+        expect(typeof projectData?.governanceStats?.currentCycleId).toBe('bigint')
 
         // Now verify NO other queries fetch any of this data
         if (!projectData) throw new Error('Project data is null')
@@ -497,6 +526,8 @@ describe('#data-flow', () => {
           publicClient: mockPublicClient as any,
           governorAddress: projectData.governor,
           tokenDecimals: projectData.token.decimals,
+          cycleId: projectData.governanceStats!.currentCycleId,
+          pricing: projectData.pricing,
         })
 
         // CRITICAL: None of these should have queried for:
@@ -557,8 +588,8 @@ describe('#data-flow', () => {
         expect(projectData?.factory).toBe(MOCK_FACTORY_ADDRESS)
 
         // Current cycle ID should be in project
-        expect(projectData?.currentCycleId).toBeDefined()
-        expect(typeof projectData?.currentCycleId).toBe('bigint')
+        expect(projectData?.governanceStats?.currentCycleId).toBeDefined()
+        expect(typeof projectData?.governanceStats?.currentCycleId).toBe('bigint')
       })
 
       it('should fetch user balances only in user query', async () => {
@@ -739,12 +770,13 @@ describe('#data-flow', () => {
 
         tracker.reset()
 
-        // Proposals should use project.governor, project.token.decimals, and project.currentCycleId
+        // Proposals should use project.governor, project.token.decimals, and project.governanceStats.currentCycleId
         await proposals({
           publicClient: mockPublicClient as any,
           governorAddress: projectData.governor, // Using shared data
           tokenDecimals: projectData.token.decimals, // Using shared data
-          cycleId: projectData.currentCycleId, // Using shared data from project!
+          cycleId: projectData.governanceStats!.currentCycleId, // Using shared data from project!
+          pricing: projectData.pricing, // Using shared pricing from project!
         })
 
         // Verify proposals didn't re-fetch governor address
@@ -895,7 +927,9 @@ describe('#data-flow', () => {
         tracker.reset()
 
         // Set clanker token to trigger queries
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -929,20 +963,21 @@ describe('#data-flow', () => {
         console.log('Staking-related separate calls:', stakingFunctionCalls.length)
         expect(stakingFunctionCalls.length).toBe(0) // All in project/user multicalls!
 
-        // Check that NO event-based queries are made (new approach uses getProposalsForCycle)
+        // Check that NO event-based queries are made (we use getProposalsForCycle instead)
         const eventCalls = tracker.calls.filter(
           (c) => c.type === 'getLogs' || c.type === 'getBlockNumber'
         )
         console.log('Event-based calls:', eventCalls.length)
-        expect(eventCalls.length).toBe(0) // No more event drilling!
+        expect(eventCalls.length).toBe(0) // No event drilling! Uses getProposalsForCycle
 
         // Should make EXACTLY the expected number of calls (no duplicates!)
-        expect(multicallCount).toBeLessThanOrEqual(4) // project, user, pool, proposals
-        expect(readContractCount).toBeLessThanOrEqual(6) // getProjectContracts, tokenRewards, currentCycleId, getProposalsForCycle, airdrop
+        expect(multicallCount).toBeLessThanOrEqual(6) // project (3), user (1), pool (1), proposals (1) = 6
+        expect(readContractCount).toBeLessThanOrEqual(4) // tokenRewards, getProposalsForCycle, getWinner = 3
         expect(getBalanceCount).toBeLessThanOrEqual(1) // Native ETH balance
 
-        // CRITICAL: Total should be less than 15 (with duplicates it would be 20+)
-        expect(totalCalls).toBeLessThan(15)
+        // CRITICAL: Total should be ~10-12 (with duplicates it would be 20+)
+        expect(totalCalls).toBeGreaterThanOrEqual(9)
+        expect(totalCalls).toBeLessThan(13)
       })
 
       it('should have ALL project data available in provider context', async () => {
@@ -950,7 +985,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -990,8 +1027,9 @@ describe('#data-flow', () => {
         // Factory address
         expect(proj.factory).toBeDefined()
 
-        // Current cycle ID
-        expect(proj.currentCycleId).toBeDefined()
+        // Governance stats (currentCycleId, activeProposalCount)
+        expect(proj.governanceStats?.currentCycleId).toBeDefined()
+        expect(proj.governanceStats?.activeProposalCount).toBeDefined()
 
         // Pricing (may be undefined if oracle not provided, which is fine)
         // The key is it's in project, not fetched elsewhere
@@ -1021,7 +1059,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1039,7 +1079,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1056,7 +1098,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1081,7 +1125,9 @@ describe('#data-flow', () => {
           { wrapper }
         )
 
-        result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1105,7 +1151,9 @@ describe('#data-flow', () => {
           { wrapper }
         )
 
-        result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.context.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1125,7 +1173,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1163,7 +1213,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1190,7 +1242,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1217,7 +1271,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1232,29 +1288,22 @@ describe('#data-flow', () => {
         await result.current.refetch.afterTrade()
 
         // Verify call pattern: should make user + pool queries
-        // User: 1 multicall + 1 getBalance + potentially 1 airdrop = 2-3 calls
+        // User: 1 multicall + 1 getBalance = 2 calls
         // Pool: 1 multicall = 1 call
-        // Total: 3-4 calls
+        // Total: 3 calls
         const totalCalls = tracker.getTotalCalls()
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
-        const getLogs = tracker.getCallCount('getLogs') // Proposals use getLogs
-        const getBlockNumber = tracker.getCallCount('getBlockNumber') // Proposals use this
 
         // Should have user multicall + pool multicall = 2
         expect(multicalls).toBeGreaterThanOrEqual(2)
-        expect(multicalls).toBeLessThanOrEqual(3) // Max with airdrop check
+        expect(multicalls).toBeLessThanOrEqual(2)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // Should NOT have proposals queries
-        expect(getLogs).toBe(0)
-        expect(getBlockNumber).toBe(0)
-
-        // Total should be user + pool only
-        expect(totalCalls).toBeLessThanOrEqual(5)
-        expect(totalCalls).toBeGreaterThanOrEqual(3)
+        // Total should be user + pool only: 3 calls exactly
+        expect(totalCalls).toBe(3)
       })
 
       it('refetch.afterStake() should trigger ONLY user + project (NOT pool or proposals)', async () => {
@@ -1262,7 +1311,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1280,22 +1331,16 @@ describe('#data-flow', () => {
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
         const readContracts = tracker.getCallCount('readContract')
-        const getLogs = tracker.getCallCount('getLogs')
-        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should have: user multicall + project multicall
-        expect(multicalls).toBeGreaterThanOrEqual(2)
-        expect(multicalls).toBeLessThanOrEqual(3)
+        // Should have: user multicall + 3 project multicalls (token+factory, treasury+gov+staking, airdrop)
+        expect(multicalls).toBeGreaterThanOrEqual(3)
+        expect(multicalls).toBeLessThanOrEqual(4)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // Should have readContract for project (getProjectContracts, tokenRewards, maybe airdrop)
-        expect(readContracts).toBeGreaterThanOrEqual(2)
-
-        // Should NOT have proposals queries
-        expect(getLogs).toBe(0)
-        expect(getBlockNumber).toBe(0)
+        // Should have readContract for project (tokenRewards)
+        expect(readContracts).toBeGreaterThanOrEqual(1)
       })
 
       it('refetch.afterClaim() should trigger ONLY user (NOT project, pool, or proposals)', async () => {
@@ -1303,7 +1348,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1320,26 +1367,91 @@ describe('#data-flow', () => {
         // Verify call pattern: should make ONLY user queries
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
-        const readContracts = tracker.getCallCount('readContract')
-        const getLogs = tracker.getCallCount('getLogs')
-        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should have ONLY user multicall (not project or pool multicalls)
+        // Should have ONLY user multicall
         expect(multicalls).toBe(1)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // May have 1 airdrop readContract
-        expect(readContracts).toBeLessThanOrEqual(1)
+        // Total: user (multicall + getBalance) = 2 calls
+        expect(tracker.getTotalCalls()).toBe(2)
+      })
 
-        // Should NOT have proposals queries
-        expect(getLogs).toBe(0)
-        expect(getBlockNumber).toBe(0)
+      it('refetch.afterAccrue() should trigger user + project (NOT pool or proposals)', async () => {
+        const wrapper = createWrapper()
 
-        // Total: user multicall + getBalance + maybe airdrop = 2-3
-        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(3)
-        expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(2)
+        const { result } = renderHook(() => useLevrContext(), { wrapper })
+
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
+
+        await waitFor(
+          () => {
+            expect(result.current.user.data).toBeDefined()
+          },
+          { timeout: 3000 }
+        )
+
+        tracker.reset()
+
+        // Trigger afterAccrue refetch
+        await result.current.refetch.afterAccrue()
+
+        // Verify call pattern: should make user + project queries (same as afterClaim)
+        const multicalls = tracker.getCallCount('multicall')
+        const getBalanceCalls = tracker.getCallCount('getBalance')
+        const readContracts = tracker.getCallCount('readContract')
+
+        // Should have: user multicall + 3 project multicalls
+        expect(multicalls).toBeGreaterThanOrEqual(3)
+        expect(multicalls).toBeLessThanOrEqual(4)
+
+        // Should have getBalance for user
+        expect(getBalanceCalls).toBe(1)
+
+        // Should have readContract for project (tokenRewards)
+        expect(readContracts).toBeGreaterThanOrEqual(1)
+
+        // Total: user (2) + project (4) = 6 calls
+        expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(5)
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(7)
+      })
+
+      it('refetch.afterAirdrop() should trigger ONLY project (NOT user, pool, or proposals)', async () => {
+        const wrapper = createWrapper()
+
+        const { result } = renderHook(() => useLevrContext(), { wrapper })
+
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
+
+        await waitFor(
+          () => {
+            expect(result.current.user.data).toBeDefined()
+          },
+          { timeout: 3000 }
+        )
+
+        tracker.reset()
+
+        // Trigger afterAirdrop refetch
+        await result.current.refetch.afterAirdrop()
+
+        // Verify call pattern: should make ONLY project queries
+        const multicalls = tracker.getCallCount('multicall')
+        const readContracts = tracker.getCallCount('readContract')
+
+        // Should have: 3 project multicalls
+        expect(multicalls).toBe(3)
+
+        // Should have readContract for project (tokenRewards)
+        expect(readContracts).toBe(1)
+
+        // Total: project only = 4 calls
+        expect(tracker.getTotalCalls()).toBe(4)
       })
 
       it('refetch.afterVote() should trigger ONLY user + proposals (NOT project or pool)', async () => {
@@ -1347,7 +1459,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1365,25 +1479,18 @@ describe('#data-flow', () => {
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
         const readContracts = tracker.getCallCount('readContract')
-        const getLogs = tracker.getCallCount('getLogs')
-        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should have: user multicall + proposals multicall
-        expect(multicalls).toBeGreaterThanOrEqual(2)
+        // Should have: user multicall + proposals multicall = 2
+        expect(multicalls).toBe(2)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // Should NOT have old event-based queries
-        expect(getLogs).toBe(0)
-        expect(getBlockNumber).toBe(0)
+        // Should have readContract for proposals (getProposalsForCycle + getWinner) = 2
+        expect(readContracts).toBe(2)
 
-        // Should have readContract for proposals (currentCycleId + getProposalsForCycle) + user airdrop
-        expect(readContracts).toBeGreaterThanOrEqual(2)
-        expect(readContracts).toBeLessThanOrEqual(3)
-
-        // Total: user (multicall + getBalance + maybe airdrop) + proposals (currentCycleId + getProposalsForCycle + multicall)
-        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(8)
+        // Total: user (multicall + getBalance) + proposals (getProposalsForCycle + multicall + getWinner) = 5
+        expect(tracker.getTotalCalls()).toBe(5)
       })
 
       it('refetch.afterExecute() should trigger ONLY project + proposals + user (NOT pool)', async () => {
@@ -1391,7 +1498,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1409,26 +1518,20 @@ describe('#data-flow', () => {
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
         const readContracts = tracker.getCallCount('readContract')
-        const getLogs = tracker.getCallCount('getLogs')
-        const getBlockNumber = tracker.getCallCount('getBlockNumber')
 
-        // Should have: user multicall + project multicall + proposals multicall = 3
-        expect(multicalls).toBeGreaterThanOrEqual(3)
+        // Should have: user multicall + 3 project multicalls + proposals multicall = 5
+        expect(multicalls).toBeGreaterThanOrEqual(4)
+        expect(multicalls).toBeLessThanOrEqual(5)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // Should have readContract for project (getProjectContracts, tokenRewards, maybe airdrop)
-        // and proposals (currentCycleId, getProposalsForCycle)
-        expect(readContracts).toBeGreaterThanOrEqual(4)
+        // Should have readContract for project (tokenRewards) and proposals (getProposalsForCycle, getWinner) = 3
+        expect(readContracts).toBeGreaterThanOrEqual(3)
 
-        // Should NOT have old event-based queries
-        expect(getLogs).toBe(0)
-        expect(getBlockNumber).toBe(0)
-
-        // Total: project + user + proposals = ~10-14 calls
-        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(14)
+        // Total: project (3 multicalls + 1 readContract) + user (1 multicall + 1 getBalance) + proposals (2 readContract + 1 multicall) = 9
         expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(8)
+        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(10)
       })
     })
 
@@ -1438,7 +1541,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1470,7 +1575,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1546,7 +1653,9 @@ describe('#data-flow', () => {
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
         // Step 1: Set clanker token (triggers initial queries)
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1595,7 +1704,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
@@ -1620,7 +1731,9 @@ describe('#data-flow', () => {
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
 
-        result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        act(() => {
+          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
+        })
 
         await waitFor(
           () => {
