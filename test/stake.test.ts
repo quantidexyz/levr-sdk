@@ -1,8 +1,10 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatEther, parseEther } from 'viem'
 
-import { LevrFactory_v1 } from '../src/abis'
+import { LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
+import type { Project } from '../src/project'
+import { getProject } from '../src/project'
 import { quote } from '../src/quote'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
@@ -50,20 +52,14 @@ describe('#STAKE_TEST', () => {
   let publicClient: SetupTestReturnType['publicClient']
   let wallet: SetupTestReturnType['wallet']
   let chainId: SetupTestReturnType['chainId']
-  let factoryAddress: SetupTestReturnType['factoryAddress']
   let clanker: SetupTestReturnType['clanker']
   let weth: SetupTestReturnType['weth']
   let deployedTokenAddress: `0x${string}`
   let staking: Stake
-  let project: {
-    treasury: `0x${string}`
-    governor: `0x${string}`
-    staking: `0x${string}`
-    stakedToken: `0x${string}`
-  }
+  let project: Project
 
   beforeAll(() => {
-    ;({ publicClient, wallet, chainId, factoryAddress, clanker, weth } = setupTest())
+    ;({ publicClient, wallet, chainId, clanker, weth } = setupTest())
   })
 
   it(
@@ -89,21 +85,24 @@ describe('#STAKE_TEST', () => {
       console.log('\n⏰ Warping 120 seconds forward to bypass MEV protection...')
       await warpAnvil(120)
 
-      console.log('\n📋 Getting project contracts...')
-      project = await publicClient.readContract({
-        address: factoryAddress,
-        abi: LevrFactory_v1,
-        functionName: 'getProjectContracts',
-        args: [deployedTokenAddress],
+      console.log('\n📋 Getting project data...')
+      const projectData = await getProject({
+        publicClient,
+        clankerToken: deployedTokenAddress,
       })
-      console.log('Project contracts:', project)
+      if (!projectData) throw new Error('Project data is null')
+      project = projectData
+      console.log('Project contracts:', {
+        treasury: project.treasury,
+        governor: project.governor,
+        staking: project.staking,
+        stakedToken: project.stakedToken,
+      })
 
       staking = new Stake({
         wallet,
         publicClient,
-        stakingAddress: project.staking,
-        tokenAddress: deployedTokenAddress,
-        tokenDecimals: 18, // Assuming 18 decimals for Clanker tokens
+        project,
       })
     },
     {
@@ -141,10 +140,15 @@ describe('#STAKE_TEST', () => {
         gasUsed: stakeReceipt.gasUsed?.toString(),
       })
 
-      // Verify staking balance using StakeService
-      const userData = await staking.getUserData()
-      expect(userData.stakedBalance.raw).toBe(stakeAmount)
-      console.log('\n✅ Staking verified:', `${userData.stakedBalance.formatted} tokens`)
+      // Verify staking balance
+      const stakedBalance = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+      expect(stakedBalance).toBe(stakeAmount)
+      console.log('\n✅ Staking verified:', `${formatEther(stakedBalance)} tokens`)
 
       // Verify staked token balance
       const stakedTokenBalance = await publicClient.readContract({
@@ -161,8 +165,8 @@ describe('#STAKE_TEST', () => {
       )
 
       // Verify staking math: staked amount should be exactly 50% of original balance (within rounding tolerance)
-      expect(userData.stakedBalance.raw * 2n).toBeGreaterThanOrEqual(userBalance - 1n)
-      expect(userData.stakedBalance.raw * 2n).toBeLessThanOrEqual(userBalance + 1n)
+      expect(stakedBalance * 2n).toBeGreaterThanOrEqual(userBalance - 1n)
+      expect(stakedBalance * 2n).toBeLessThanOrEqual(userBalance + 1n)
       console.log('✅ Staking math verified: Staked exactly 50% of total balance')
     },
     {
@@ -294,12 +298,20 @@ describe('#STAKE_TEST', () => {
       if (feeLockerWethBalance > 0n) {
         console.log('✅ Rewards are in ClankerFeeLocker - need to trigger accrual!')
 
-        // First, check what rewards are outstanding using StakeService
+        // First, check what rewards are outstanding from project data
         console.log('\n📊 Checking outstanding rewards...')
-        const outstandingRewards = await staking.getOutstandingRewards(weth.address)
+        const currentProject = await getProject({
+          publicClient,
+          clankerToken: deployedTokenAddress,
+        })
+        const outstandingRewards = currentProject?.stakingStats?.outstandingRewards.weth
 
-        console.log('  Available rewards:', `${outstandingRewards.available.formatted} WETH`)
-        console.log('  Pending rewards:', `${outstandingRewards.pending.formatted} WETH`)
+        if (outstandingRewards) {
+          console.log('  Available rewards:', `${outstandingRewards.available.formatted} WETH`)
+          console.log('  Pending rewards:', `${outstandingRewards.pending.formatted} WETH`)
+        } else {
+          console.log('  No WETH rewards configured')
+        }
 
         // Use accrueRewards with available amount or trigger with minimal amount
         console.log('\n🔧 Calling accrueRewards to trigger automatic ClankerFeeLocker claim...')
@@ -311,17 +323,23 @@ describe('#STAKE_TEST', () => {
           if (accrueReceipt.status === 'success') {
             console.log('  ✅ accrueRewards succeeded!')
 
-            // Check rewards again after accrual using StakeService
-            const outstandingAfter = await staking.getOutstandingRewards(weth.address)
+            // Check rewards again after accrual from project data
+            const projectAfterAccrue = await getProject({
+              publicClient,
+              clankerToken: deployedTokenAddress,
+            })
+            const outstandingAfter = projectAfterAccrue?.stakingStats?.outstandingRewards.weth
 
-            console.log(
-              '  📊 After accrual - Available:',
-              `${outstandingAfter.available.formatted} WETH`
-            )
-            console.log(
-              '  📊 After accrual - Pending:',
-              `${outstandingAfter.pending.formatted} WETH`
-            )
+            if (outstandingAfter) {
+              console.log(
+                '  📊 After accrual - Available:',
+                `${outstandingAfter.available.formatted} WETH`
+              )
+              console.log(
+                '  📊 After accrual - Pending:',
+                `${outstandingAfter.pending.formatted} WETH`
+              )
+            }
 
             // Verify WETH was claimed and credited as rewards
             const stakingWethBalanceAfterAccrual = await publicClient.readContract({

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 
 import { GET_FACTORY_ADDRESS } from '../src/constants'
-import { project } from '../src/project'
+import { getProject } from '../src/project'
 import { type SetupTestReturnType } from './helper'
 import { getPublicClient } from './util'
 
@@ -71,7 +71,7 @@ describe('#USD_PRICE_TEST', () => {
 
       // Fetch project data WITH oracle client (should include pricing)
       console.log('\n💵 Fetching project with USD pricing...')
-      const projectData = await project({
+      const projectData = await getProject({
         publicClient,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         oraclePublicClient, // Providing oracle client enables pricing
@@ -139,7 +139,7 @@ describe('#USD_PRICE_TEST', () => {
 
       // Fetch project data WITHOUT oracle client
       console.log('Fetching project without oracle client...')
-      const projectData = await project({
+      const projectData = await getProject({
         publicClient,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         // No oraclePublicClient provided

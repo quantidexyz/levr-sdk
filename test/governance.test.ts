@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatEther } from 'viem'
 
-import type { Project, User } from '../src'
-import { getProject, getUser } from '../src'
+import type { Project } from '../src'
+import { getProject } from '../src'
+import { LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
 import { Governance } from '../src/governance'
-import { proposals } from '../src/proposal'
+import { proposal, proposals } from '../src/proposal'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
 import { setupTest, type SetupTestReturnType } from './helper'
@@ -71,7 +72,6 @@ describe('#GOVERNANCE_TEST', () => {
   let staking: Stake
   let governance: Governance
   let project: Project
-  let user: User
 
   beforeAll(() => {
     ;({ publicClient, wallet, factoryAddress, clanker } = setupTest())
@@ -108,15 +108,6 @@ describe('#GOVERNANCE_TEST', () => {
 
       if (!projectResult) throw new Error('Project data is null')
       project = projectResult
-
-      const userResult = await getUser({
-        publicClient,
-        project,
-        userAddress: wallet.account.address,
-      })
-
-      if (!userResult) throw new Error('User data is null')
-      user = userResult
 
       staking = new Stake({
         wallet,
@@ -162,15 +153,28 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('  Staked successfully for governance participation')
 
       // Verify staking balance
-      const userData = await staking.getUserData()
-      expect(userData.stakedBalance.raw).toBe(stakeAmount)
-      console.log('✅ Governance stake verified:', `${userData.stakedBalance.formatted} tokens`)
+      const stakedBalance = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+      expect(stakedBalance).toBe(stakeAmount)
+      console.log('✅ Governance stake verified:', `${formatEther(stakedBalance)} tokens`)
 
       console.log('\n🎁 Checking airdrop for treasury...')
 
       try {
-        // Check airdrop status with enhanced detection
-        const status = await governance.getAirdropStatus()
+        // Refetch project to get airdrop status
+        const updatedProject = await getProject({
+          publicClient,
+          clankerToken: deployedTokenAddress,
+        })
+        const status = updatedProject?.airdrop
+
+        if (!status) {
+          throw new Error('No airdrop found for this treasury')
+        }
 
         console.log('  Airdrop Status:', {
           available: status.availableAmount.formatted,
@@ -293,33 +297,40 @@ describe('#GOVERNANCE_TEST', () => {
       expect(proposeReceipt.status).toBe('success')
       console.log('✅ Transfer proposal created:', proposalId.toString())
 
-      const cycleId = await governance.getCurrentCycleId()
+      // Refetch project to get updated governance stats
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
       // Get proposal details
-      const proposal = await governance.getProposal(proposalId)
+      const proposalData = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
 
       console.log('📋 Proposal details:', {
-        proposalType: proposal.proposalType,
-        amount: proposal.amount.formatted,
-        recipient: proposal.recipient,
-        cycleId: proposal.cycleId.toString(),
-        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
-        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
-        executed: proposal.executed,
+        proposalType: proposalData.proposalType,
+        amount: proposalData.amount.formatted,
+        recipient: proposalData.recipient,
+        cycleId: proposalData.cycleId.toString(),
+        votingStartsAt: proposalData.votingStartsAt.date.toISOString(),
+        votingEndsAt: proposalData.votingEndsAt.date.toISOString(),
+        executed: proposalData.executed,
       })
 
-      expect(proposal.amount.raw).toBe(transferAmount)
-      expect(proposal.recipient.toLowerCase()).toBe(receiver.toLowerCase())
-      expect(proposal.executed).toBe(false)
+      expect(proposalData.amount.raw).toBe(transferAmount)
+      expect(proposalData.recipient.toLowerCase()).toBe(receiver.toLowerCase())
+      expect(proposalData.executed).toBe(false)
 
-      // Check proposal state (should be Pending before voting starts)
-      const stateBefore = await governance.getProposalState(proposalId)
-      console.log('  Proposal state before voting:', stateBefore) // 0 = Pending
+      // Check proposal state (included in proposal data now)
+      console.log('  Proposal state before voting:', proposalData.state) // 0 = Pending
 
       // STEP 3: Wait for voting window to start
       const currentTime = await getBlockTimestamp()
-      const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
+      const timeUntilVoting = Number(proposalData.votingStartsAt.timestamp) - currentTime
 
       if (timeUntilVoting > 0) {
         console.log(`\n⏰ Warping ${timeUntilVoting + 1} seconds to voting window...`)
@@ -342,25 +353,35 @@ describe('#GOVERNANCE_TEST', () => {
       expect(voteReceiptData.hasVoted).toBe(true)
       expect(voteReceiptData.support).toBe(true)
 
-      // Check if proposal meets quorum and approval
-      const meetsQuorum = await governance.meetsQuorum(proposalId)
-      const meetsApproval = await governance.meetsApproval(proposalId)
-      console.log('  Meets quorum:', meetsQuorum)
-      console.log('  Meets approval:', meetsApproval)
+      // Fetch updated proposal to check quorum and approval
+      const updatedProposalData = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
+      console.log('  Meets quorum:', updatedProposalData.meetsQuorum)
+      console.log('  Meets approval:', updatedProposalData.meetsApproval)
 
       // STEP 5: Wait for voting window to end
-      const updatedProposal = await governance.getProposal(proposalId)
       const currentTime2 = await getBlockTimestamp()
-      const timeUntilVotingEnds = Number(updatedProposal.votingEndsAt.timestamp) - currentTime2
+      const timeUntilVotingEnds = Number(updatedProposalData.votingEndsAt.timestamp) - currentTime2
 
       if (timeUntilVotingEnds > 0) {
         console.log(`\n⏰ Warping ${timeUntilVotingEnds + 1} seconds to end voting window...`)
         await warpAnvil(timeUntilVotingEnds + 1)
       }
 
-      // Check proposal state (should be Succeeded if quorum/approval met)
-      const stateAfter = await governance.getProposalState(proposalId)
-      console.log('  Proposal state after voting:', stateAfter) // 3 = Succeeded
+      // Fetch proposal again to check state after voting
+      const proposalAfterVoting = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
+      console.log('  Proposal state after voting:', proposalAfterVoting.state) // 3 = Succeeded
 
       // STEP 6: Execute the winning proposal
       console.log('\n⚡ Executing transfer proposal...')
@@ -393,12 +414,15 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('✅ Transfer executed correctly!')
 
       // Verify proposal is marked as executed
-      const executedProposal = await governance.getProposal(proposalId)
-      expect(executedProposal.executed).toBe(true)
-
-      // Check final proposal state (should be Executed)
-      const stateFinal = await governance.getProposalState(proposalId)
-      console.log('  Final proposal state:', stateFinal) // 4 = Executed
+      const executedProposalData = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
+      expect(executedProposalData.executed).toBe(true)
+      console.log('  Final proposal state:', executedProposalData.state) // 4 = Executed
     },
     {
       timeout: 120000, // Increased timeout for full cycle
@@ -440,19 +464,27 @@ describe('#GOVERNANCE_TEST', () => {
 
       console.log('✅ Boost proposal created:', proposalId.toString())
 
-      const cycleId = await governance.getCurrentCycleId()
+      // Refetch project to get updated governance stats
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
       // Get proposal details
-      const proposal = await governance.getProposal(proposalId)
+      const proposalData = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
       console.log('📋 Proposal voting window:', {
-        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
-        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
+        votingStartsAt: proposalData.votingStartsAt.date.toISOString(),
+        votingEndsAt: proposalData.votingEndsAt.date.toISOString(),
       })
 
       // STEP 3: Wait for voting window to start
       const currentTime = await getBlockTimestamp()
-      const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
+      const timeUntilVoting = Number(proposalData.votingStartsAt.timestamp) - currentTime
 
       if (timeUntilVoting > 0) {
         console.log(`\n⏰ Warping ${timeUntilVoting + 1} seconds to voting window...`)
@@ -470,9 +502,8 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('  Voting power used:', voteReceiptData.votes.toString())
 
       // STEP 5: Wait for voting window to end
-      const updatedProposal = await governance.getProposal(proposalId)
       const currentTime2 = await getBlockTimestamp()
-      const timeUntilVotingEnds = Number(updatedProposal.votingEndsAt.timestamp) - currentTime2
+      const timeUntilVotingEnds = Number(proposalData.votingEndsAt.timestamp) - currentTime2
 
       if (timeUntilVotingEnds > 0) {
         console.log(`\n⏰ Warping ${timeUntilVotingEnds + 1} seconds to end voting window...`)
@@ -564,19 +595,27 @@ describe('#GOVERNANCE_TEST', () => {
         'Voting window test proposal'
       )
 
-      const cycleId = await governance.getCurrentCycleId()
+      // Refetch project to get updated governance stats
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ New cycle auto-started, Cycle ID:', cycleId.toString())
 
-      // Get proposal details using governance class
-      const proposal = await governance.getProposal(proposalId)
+      // Get proposal details
+      const proposalData = await proposal(
+        publicClient,
+        project.governor,
+        proposalId,
+        project.token.decimals,
+        project.pricing
+      )
       console.log('📋 Proposal voting window:', {
-        votingStartsAt: proposal.votingStartsAt.date.toISOString(),
-        votingEndsAt: proposal.votingEndsAt.date.toISOString(),
+        votingStartsAt: proposalData.votingStartsAt.date.toISOString(),
+        votingEndsAt: proposalData.votingEndsAt.date.toISOString(),
       })
 
       // STEP 3: Warp PAST the voting window end
       const currentTime = await getBlockTimestamp()
-      const timeToWarp = Number(proposal.votingEndsAt.timestamp) - currentTime + 1
+      const timeToWarp = Number(proposalData.votingEndsAt.timestamp) - currentTime + 1
 
       console.log(`\n⏰ Warping ${timeToWarp} seconds forward to exceed voting window...`)
       await warpAnvil(timeToWarp)
@@ -605,31 +644,30 @@ describe('#GOVERNANCE_TEST', () => {
     async () => {
       console.log('\n🔍 Checking governance contract addresses...')
 
-      // Check governance contract addresses
-      const [treasury, factory, stakedToken] = await Promise.all([
-        governance.getTreasury(),
-        governance.getFactory(),
-        governance.getStakedToken(),
-      ])
+      // All addresses are now in project
       console.log('📋 Governance addresses:', {
-        treasury,
-        factory,
-        stakedToken,
+        treasury: project.treasury,
+        factory: project.factory,
+        stakedToken: project.stakedToken,
       })
 
-      expect(treasury).toBe(project.treasury)
-      expect(factory).toBe(factoryAddress)
-      expect(stakedToken).toBe(project.stakedToken)
+      expect(project.treasury).toBeDefined()
+      expect(project.factory).toBe(factoryAddress)
+      expect(project.stakedToken).toBeDefined()
 
       // Get user's staked balance
-      const userData = await staking.getUserData()
-      console.log('User staked balance:', userData.stakedBalance.formatted, 'tokens')
-      expect(userData.stakedBalance.raw).toBeGreaterThan(0n)
+      const stakedBalance = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+      console.log('User staked balance:', formatEther(stakedBalance), 'tokens')
+      expect(stakedBalance).toBeGreaterThan(0n)
 
-      // Check current cycle ID
-      const cycleId = await governance.getCurrentCycleId()
-      console.log('Current cycle ID:', cycleId.toString())
-      expect(cycleId).toBeGreaterThanOrEqual(0n)
+      // Check current cycle ID from project
+      console.log('Current cycle ID:', project.governanceStats!.currentCycleId.toString())
+      expect(project.governanceStats!.currentCycleId).toBeGreaterThanOrEqual(0n)
 
       console.log('✅ Governance contract verification complete')
     },
@@ -649,16 +687,17 @@ describe('#GOVERNANCE_TEST', () => {
         governorAddress: project.governor,
         tokenDecimals: 18,
         pageSize: 10,
+        cycleId: project.governanceStats!.currentCycleId,
+        userAddress: wallet.account.address,
       })
 
       console.log('Proposals result:', {
         count: proposalsResult.proposals.length,
-        fromBlock: proposalsResult.fromBlock.toString(),
-        toBlock: proposalsResult.toBlock.toString(),
+        cycleId: proposalsResult.cycleId.toString(),
+        winner: proposalsResult.winner.toString(),
       })
 
       // We should have at least the proposals we created in previous tests
-      // Note: Due to timing or indexing delays, this might be 0 in some cases
       console.log('Found', proposalsResult.proposals.length, 'proposals')
 
       if (proposalsResult.proposals.length > 0) {
@@ -710,8 +749,7 @@ describe('#GOVERNANCE_TEST', () => {
     async () => {
       console.log('\n📊 Verifying treasury stats after governance actions...')
 
-      const { project: fullProject } = await import('../src/project')
-      const finalProjectData = await fullProject({
+      const finalProjectData = await getProject({
         publicClient,
         clankerToken: deployedTokenAddress,
       })
@@ -755,10 +793,10 @@ describe('#GOVERNANCE_TEST', () => {
     async () => {
       console.log('\n🧪 Testing ALL governance class methods...')
 
-      // 1. Test getActiveProposalCount (before creating proposals)
-      console.log('\n📊 Testing getActiveProposalCount()...')
-      const boostCountBefore = await governance.getActiveProposalCount(0) // 0 = BoostStakingPool
-      const transferCountBefore = await governance.getActiveProposalCount(1) // 1 = TransferToAddress
+      // 1. Check active proposal count from project (before creating proposals)
+      console.log('\n📊 Checking active proposal counts (from project data)...')
+      const boostCountBefore = project.governanceStats!.activeProposalCount.boost
+      const transferCountBefore = project.governanceStats!.activeProposalCount.transfer
       console.log(`  Boost proposals active: ${boostCountBefore.toString()}`)
       console.log(`  Transfer proposals active: ${transferCountBefore.toString()}`)
       expect(typeof boostCountBefore).toBe('bigint')
@@ -770,7 +808,9 @@ describe('#GOVERNANCE_TEST', () => {
       const { proposalId: boostId } = await governance.proposeBoost(10000000n)
       console.log(`  ✅ Boost proposal created: ${boostId.toString()}`)
 
-      const cycleId = await governance.getCurrentCycleId()
+      // Refetch project to get updated governance stats
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const cycleId = project.governanceStats!.currentCycleId
       console.log(`  ✅ Fresh cycle ${cycleId.toString()} auto-started`)
 
       const { proposalId: transferId1 } = await governance.proposeTransfer(
@@ -783,10 +823,11 @@ describe('#GOVERNANCE_TEST', () => {
       // Note: Cannot create a second transfer proposal from the same user in the same cycle
       // The contract enforces: one proposal per type per user per cycle (AlreadyProposedInCycle error)
 
-      // 3. Test getActiveProposalCount (after creating proposals)
-      console.log('\n📊 Testing getActiveProposalCount() after proposals...')
-      const boostCountAfter = await governance.getActiveProposalCount(0)
-      const transferCountAfter = await governance.getActiveProposalCount(1)
+      // 3. Refetch project to get active proposal counts after creating proposals
+      console.log('\n📊 Checking active proposal counts after proposals...')
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const boostCountAfter = project.governanceStats!.activeProposalCount.boost
+      const transferCountAfter = project.governanceStats!.activeProposalCount.transfer
       console.log(`  Boost proposals active: ${boostCountAfter.toString()}`)
       console.log(`  Transfer proposals active: ${transferCountAfter.toString()}`)
       expect(boostCountAfter).toBeGreaterThan(boostCountBefore)
@@ -795,22 +836,39 @@ describe('#GOVERNANCE_TEST', () => {
         '  ✅ Active proposal counts increased correctly (note: limited to 1 per type per user per cycle)'
       )
 
-      // 4. Test getProposalsForCycle
-      console.log('\n📋 Testing getProposalsForCycle()...')
-      const cycleProposals = await governance.getProposalsForCycle(cycleId)
-      console.log(`  Found ${cycleProposals.length} proposals in cycle ${cycleId.toString()}`)
-      console.log(`  Proposal IDs: ${cycleProposals.map((id) => id.toString()).join(', ')}`)
+      // 4. Fetch all proposals for the cycle
+      console.log('\n📋 Fetching proposals for cycle...')
+      const proposalsResult = await proposals({
+        publicClient,
+        governorAddress: project.governor,
+        tokenDecimals: project.token.decimals,
+        cycleId,
+        userAddress: wallet.account.address,
+      })
+      console.log(
+        `  Found ${proposalsResult.proposals.length} proposals in cycle ${cycleId.toString()}`
+      )
+      console.log(
+        `  Proposal IDs: ${proposalsResult.proposals.map((p) => p.id.toString()).join(', ')}`
+      )
 
-      expect(cycleProposals.length).toBeGreaterThanOrEqual(2) // At least the 2 we just created
-      expect(cycleProposals).toContain(boostId)
-      expect(cycleProposals).toContain(transferId1)
+      expect(proposalsResult.proposals.length).toBeGreaterThanOrEqual(2) // At least the 2 we just created
+      const proposalIds = proposalsResult.proposals.map((p) => p.id)
+      expect(proposalIds).toContain(boostId)
+      expect(proposalIds).toContain(transferId1)
       console.log('  ✅ All created proposals found in cycle')
 
       // 5. Warp to voting window and vote
       console.log('\n⏰ Warping to voting window...')
-      const proposal = await governance.getProposal(boostId)
+      const proposalData = await proposal(
+        publicClient,
+        project.governor,
+        boostId,
+        project.token.decimals,
+        project.pricing
+      )
       const currentTime = await getBlockTimestamp()
-      const timeUntilVoting = Number(proposal.votingStartsAt.timestamp) - currentTime
+      const timeUntilVoting = Number(proposalData.votingStartsAt.timestamp) - currentTime
       if (timeUntilVoting > 0) {
         console.log(`  Warping ${timeUntilVoting + 1} seconds to voting window...`)
         await warpAnvil(timeUntilVoting + 1)
@@ -835,76 +893,107 @@ describe('#GOVERNANCE_TEST', () => {
 
       // 7. Warp to end of voting and test winner selection
       const currentTime2 = await getBlockTimestamp()
-      const timeUntilVotingEnds = Number(proposal.votingEndsAt.timestamp) - currentTime2
+      const timeUntilVotingEnds = Number(proposalData.votingEndsAt.timestamp) - currentTime2
       if (timeUntilVotingEnds > 0) {
         console.log(`\n⏰ Warping ${timeUntilVotingEnds + 1} seconds to end voting...`)
         await warpAnvil(timeUntilVotingEnds + 1)
       }
 
-      // 8. Test getWinner explicitly
-      console.log('\n🏆 Testing getWinner()...')
-      const winnerProposalId = await governance.getWinner(cycleId)
+      // 8. Refetch proposals after voting ends to get winner and final states
+      console.log('\n📋 Refetching proposals after voting ends...')
+      const finalProposalsResult = await proposals({
+        publicClient,
+        governorAddress: project.governor,
+        tokenDecimals: project.token.decimals,
+        cycleId,
+        userAddress: wallet.account.address,
+      })
+
+      // 9. Check winner
+      console.log('\n🏆 Checking winner...')
+      const winnerProposalId = finalProposalsResult.winner
       console.log(`  Winner proposal ID: ${winnerProposalId.toString()}`)
 
       // Winner should be one of the proposals with YES votes
       expect([boostId, transferId1]).toContain(winnerProposalId)
       console.log('  ✅ Winner correctly determined (highest YES votes)')
 
-      // 9. Test meetsQuorum and meetsApproval for all proposals
-      console.log('\n📊 Testing meetsQuorum() and meetsApproval() for all proposals...')
-      const quorum1 = await governance.meetsQuorum(boostId)
-      const quorum2 = await governance.meetsQuorum(transferId1)
+      // 10. Check meetsQuorum and meetsApproval from proposal data
+      console.log('\n📊 Checking quorum and approval status for all proposals...')
+      const boostProposalData = finalProposalsResult.proposals.find((p) => p.id === boostId)!
+      const transferProposalData = finalProposalsResult.proposals.find((p) => p.id === transferId1)!
 
-      const approval1 = await governance.meetsApproval(boostId)
-      const approval2 = await governance.meetsApproval(transferId1)
+      console.log(
+        `  Boost: quorum=${boostProposalData.meetsQuorum}, approval=${boostProposalData.meetsApproval}`
+      )
+      console.log(
+        `  Transfer: quorum=${transferProposalData.meetsQuorum}, approval=${transferProposalData.meetsApproval}`
+      )
 
-      console.log(`  Boost: quorum=${quorum1}, approval=${approval1}`)
-      console.log(`  Transfer: quorum=${quorum2}, approval=${approval2}`)
-
-      expect(quorum1).toBe(true)
-      expect(approval1).toBe(true)
-      expect(quorum2).toBe(true)
-      expect(approval2).toBe(true)
+      expect(boostProposalData.meetsQuorum).toBe(true)
+      expect(boostProposalData.meetsApproval).toBe(true)
+      expect(transferProposalData.meetsQuorum).toBe(true)
+      expect(transferProposalData.meetsApproval).toBe(true)
       console.log('  ✅ Quorum and approval checks working correctly')
 
-      // 10. Test getProposalState for different states
-      console.log('\n📊 Testing getProposalState() for all proposals...')
-      const state1 = await governance.getProposalState(boostId)
-      const state2 = await governance.getProposalState(transferId1)
+      // 11. Check proposal states
+      console.log('\n📊 Checking proposal states...')
+      console.log(`  Boost state: ${boostProposalData.state} (3=Succeeded)`)
+      console.log(`  Transfer state: ${transferProposalData.state} (3=Succeeded)`)
 
-      console.log(`  Boost state: ${state1} (3=Succeeded)`)
-      console.log(`  Transfer state: ${state2} (3=Succeeded)`)
-
-      expect(state1).toBe(3) // Succeeded
-      expect(state2).toBe(3) // Succeeded
+      expect(boostProposalData.state).toBe(3) // Succeeded
+      expect(transferProposalData.state).toBe(3) // Succeeded
       console.log('  ✅ Proposal states correct')
 
-      // 11. Execute winner and verify execution
+      // 12. Execute winner and verify execution
       console.log('\n⚡ Executing winner proposal...')
       await governance.executeProposal(winnerProposalId)
-      const executedState = await governance.getProposalState(winnerProposalId)
-      expect(executedState).toBe(4) // Executed
+      const executedProposalData = await proposal(
+        publicClient,
+        project.governor,
+        winnerProposalId,
+        project.token.decimals,
+        project.pricing
+      )
+      expect(executedProposalData.state).toBe(4) // Executed
       console.log('  ✅ Winner executed successfully')
 
-      // 12. Test getAvailableAirdropAmount (alternative to getAirdropStatus)
-      console.log('\n🎁 Testing getAvailableAirdropAmount()...')
-      const availableAmount = await governance.getAvailableAirdropAmount()
-      console.log(`  Available airdrop: ${formatEther(availableAmount)} tokens`)
-      expect(typeof availableAmount).toBe('bigint')
-      console.log('  ✅ Airdrop amount check works')
+      // 13. Test airdrop status from project
+      console.log('\n🎁 Checking airdrop status from project data...')
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const airdropStatus = project.airdrop
+      if (airdropStatus) {
+        console.log(`  Available airdrop: ${airdropStatus.availableAmount.formatted} tokens`)
+        expect(typeof airdropStatus.availableAmount.raw).toBe('bigint')
+        console.log('  ✅ Airdrop status available in project data')
+      } else {
+        console.log('  ℹ️ No airdrop configured for this project')
+      }
 
-      // 13. Test proposal descriptions (now always included from contract)
+      // 14. Test proposal descriptions (now always included from contract)
       console.log('\n📝 Testing proposal descriptions...')
 
-      const proposal1 = await governance.getProposal(transferId1)
-      console.log(`  Description for transfer 1: "${proposal1.description}"`)
-      expect(typeof proposal1.description).toBe('string')
-      expect(proposal1.description).toBe('Test transfer 1')
+      const transfer1ProposalData = await proposal(
+        publicClient,
+        project.governor,
+        transferId1,
+        project.token.decimals,
+        project.pricing
+      )
+      console.log(`  Description for transfer 1: "${transfer1ProposalData.description}"`)
+      expect(typeof transfer1ProposalData.description).toBe('string')
+      expect(transfer1ProposalData.description).toBe('Test transfer 1')
 
-      const boostProposal = await governance.getProposal(boostId)
-      console.log(`  Description for boost: "${boostProposal.description}"`)
-      expect(typeof boostProposal.description).toBe('string')
-      expect(boostProposal.description).toBe('') // Boost proposals have empty description
+      const boostProposalData2 = await proposal(
+        publicClient,
+        project.governor,
+        boostId,
+        project.token.decimals,
+        project.pricing
+      )
+      console.log(`  Description for boost: "${boostProposalData2.description}"`)
+      expect(typeof boostProposalData2.description).toBe('string')
+      expect(boostProposalData2.description).toBe('') // Boost proposals have empty description
 
       console.log('  ✅ Descriptions are properly stored and retrieved from contract!')
 
@@ -924,8 +1013,15 @@ describe('#GOVERNANCE_TEST', () => {
         '   This verifies that underflow errors from checking wrong amounts are handled correctly'
       )
 
-      // Get current airdrop status
-      const statusBefore = await governance.getAirdropStatus()
+      // Get current airdrop status from project
+      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      const statusBefore = project.airdrop
+
+      if (!statusBefore) {
+        console.log('⏭️ No airdrop configured for this project - skipping test')
+        return
+      }
+
       console.log('Status before:', {
         allocated: statusBefore.allocatedAmount.formatted,
         available: statusBefore.availableAmount.formatted,

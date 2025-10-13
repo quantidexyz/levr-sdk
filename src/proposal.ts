@@ -241,11 +241,15 @@ export async function proposal(
   governorAddress: `0x${string}`,
   proposalId: bigint,
   tokenDecimals: number,
-  pricing?: PricingResult
+  pricing?: PricingResult,
+  userAddress?: `0x${string}`
 ) {
   const results = await publicClient.multicall({
-    contracts: proposalCallData(governorAddress, proposalId),
+    contracts: proposalCallData(governorAddress, proposalId, userAddress),
   })
 
-  return parseProposalData(results, tokenDecimals, pricing)
+  // Extract .result from each multicall result
+  const extractedResults = results.map((r) => r.result)
+
+  return parseProposalData(extractedResults, tokenDecimals, pricing)
 }
