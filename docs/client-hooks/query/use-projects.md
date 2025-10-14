@@ -1,6 +1,6 @@
 # useProjects
 
-Get a list of all registered Levr projects from the factory.
+Get a list of all registered Levr projects using paginated factory query.
 
 ## Usage
 
@@ -9,9 +9,8 @@ import { useProjects } from 'levr-sdk/client'
 
 function ProjectsList() {
   const { data, isLoading } = useProjects({
-    fromBlock: 0n, // Optional
-    toBlock: 'latest', // Optional
-    pageSize: 50, // Optional: default 100
+    offset: 0, // Optional: default 0
+    limit: 50, // Optional: default 50
   })
 
   if (isLoading) return <div>Loading projects...</div>
@@ -20,8 +19,7 @@ function ProjectsList() {
   return (
     <div>
       <h2>Projects</h2>
-      <p>Found {data.projects.length} projects</p>
-      <p>Block range: {data.fromBlock.toString()} - {data.toBlock.toString()}</p>
+      <p>Showing {data.projects.length} of {data.total} total projects</p>
 
       {data.projects.map((project) => (
         <div key={project.token.address}>
@@ -38,9 +36,8 @@ function ProjectsList() {
 
 ## Options
 
-- `fromBlock` (optional): Start block (default: last 10,000 blocks)
-- `toBlock` (optional): End block (default: 'latest')
-- `pageSize` (optional): Maximum projects to return (default: 100)
+- `offset` (optional): Starting index for pagination (default: 0)
+- `limit` (optional): Maximum number of projects to return (default: 50)
 - `enabled` (optional): Enable/disable query (default: true)
 
 ## Returns
@@ -69,16 +66,14 @@ function ProjectsList() {
       utilization: number
     }
   }>
-  fromBlock: bigint
-  toBlock: bigint
+  total: number
 }
 ```
 
 ## Notes
 
-- Queries `Registered` events from LevrFactory
-- Returns projects sorted by most recent first
+- Uses factory's `getProjects(offset, limit)` for efficient pagination
 - Filters out unregistered projects (zero addresses)
-- Does not include pool, pricing, staking stats, or governance stats (use `useProject()` for full data)
+- Does **not** include: `forwarder`, `pool`, `pricing`, `stakingStats`, `governanceStats`, `feeReceivers`, `airdrop`
+- For full project data, use `useProject()` for individual projects
 - Useful for project discovery and listing pages
-

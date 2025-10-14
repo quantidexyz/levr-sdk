@@ -1,6 +1,6 @@
 # getProjects()
 
-Get multiple projects data from the Levr factory.
+Get multiple projects data using the Levr factory's paginated view function.
 
 ## Usage
 
@@ -14,42 +14,38 @@ const publicClient = createPublicClient({
   transport: http(),
 })
 
-const {
-  projects: projectsList,
-  fromBlock,
-  toBlock,
-} = await getProjects({
+const { projects, total } = await getProjects({
   publicClient,
-  pageSize: 100, // Optional: default 100
-  fromBlock: 0n, // Optional: default to last 10,000 blocks
-  toBlock: 'latest', // Optional: default 'latest'
+  offset: 0, // Optional: default 0
+  limit: 50, // Optional: default 50
 })
 
-console.log(`Found ${projectsList.length} projects`)
-console.log(`Block range: ${fromBlock} - ${toBlock}`)
+console.log(`Found ${projects.length} of ${total} total projects`)
 
-for (const project of projectsList) {
+for (const project of projects) {
   console.log(`${project.token.name} (${project.token.symbol})`)
   console.log(`Treasury: ${project.treasuryStats.balance.formatted} tokens`)
+  console.log(`Utilization: ${project.treasuryStats.utilization}%`)
 }
 ```
 
 ## Parameters
 
 - `publicClient` (required): Viem public client (chain ID is derived from client)
-- `pageSize` (optional): Maximum number of projects to return (default: 100)
-- `fromBlock` (optional): Start block (default: last 10,000 blocks)
-- `toBlock` (optional): End block (default: 'latest')
+- `offset` (optional): Starting index for pagination (default: 0)
+- `limit` (optional): Maximum number of projects to return (default: 50)
 
 ## Returns
 
 ```typescript
 {
   projects: Array<{
+    chainId: number
     treasury: `0x${string}`
     governor: `0x${string}`
     staking: `0x${string}`
     stakedToken: `0x${string}`
+    factory: `0x${string}`
     token: {
       address: `0x${string}`
       decimals: number
@@ -58,17 +54,6 @@ for (const project of projectsList) {
       totalSupply: bigint
       metadata: ProjectMetadata | null
       imageUrl?: string
-    }
-    pool?: {
-      poolKey: {
-        currency0: `0x${string}`
-        currency1: `0x${string}`
-        fee: number
-        tickSpacing: number
-        hooks: `0x${string}`
-      }
-      feeDisplay: string
-      numPositions: bigint
     }
     treasuryStats: {
       balance: {
@@ -82,14 +67,15 @@ for (const project of projectsList) {
       utilization: number
     }
   }>
-  fromBlock: bigint
-  toBlock: bigint
+  total: number
 }
 ```
 
 ## Notes
 
-- Projects are returned in descending order (most recent first)
+- Uses factory's `getProjects(offset, limit)` for efficient pagination
 - Filters out unregistered projects (where contracts are zero addresses)
-- Uses multicall for efficient batch fetching
+- Uses multicall for efficient batch fetching of token and treasury data
 - Treasury stats include balance and total allocated (treasury + staking)
+- Does **not** include: `forwarder`, `pool`, `pricing`, `stakingStats`, `governanceStats`, `feeReceivers`, `airdrop`
+- For full project data, use `getProject()` for individual projects
