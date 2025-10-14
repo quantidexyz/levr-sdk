@@ -141,6 +141,10 @@ export type GetUsdPriceParams = {
    */
   tokenAddress: `0x${string}`
   /**
+   * Token decimals (required for accurate pricing)
+   */
+  tokenDecimals: number
+  /**
    * Optional fee tier for the token/WETH pool (in hundredths of a bip, e.g. 3000 = 0.3%)
    * If not provided, uses defaults from pool-key module (3000 = 0.3%)
    * Note: WETH/USDC pool is automatically discovered
@@ -204,6 +208,7 @@ export type GetUsdPriceReturnType = {
  *   oraclePublicClient: mainnetClient,
  *   quotePublicClient: testnetClient,
  *   tokenAddress: '0x123...',
+ *   tokenDecimals: 18,
  * })
  * console.log(`Token price: $${priceUsd}`)
  * ```
@@ -212,6 +217,7 @@ export const getUsdPrice = async ({
   oraclePublicClient,
   quotePublicClient,
   tokenAddress,
+  tokenDecimals,
   quoteFee,
   quoteTickSpacing,
   quoteHooks,
@@ -248,8 +254,8 @@ export const getUsdPrice = async ({
     tokenAddress.toLowerCase() < quoteWethData.address.toLowerCase()
 
   // Quote 1 token unit -> WETH to get token price in WETH (on quote chain)
-  // Using token decimals (assume 18 if not available)
-  const oneToken = parseUnits('1', 18)
+  // Using the actual token decimals
+  const oneToken = parseUnits('1', tokenDecimals)
   const tokenWethQuote = await quote.v4.read({
     publicClient: quotePublicClient,
     poolKey: tokenWethPoolKey,
@@ -263,8 +269,23 @@ export const getUsdPrice = async ({
   // Calculate USD price: (token/WETH) * (WETH/USD) = token/USD
   const tokenPriceInUsd = parseFloat(tokenPriceInWeth) * parseFloat(wethUsdPriceData.priceUsd)
 
+  // Use adaptive precision for very small values
+  // For values < $0.01, use up to 10 decimals to capture micro-cap tokens
+  // For values >= $0.01, use 6 decimals (standard for currency)
+  let formattedPrice: string
+  if (tokenPriceInUsd < 0.01) {
+    // For very small values, use 10 decimals or scientific notation if needed
+    if (tokenPriceInUsd < 0.0000000001) {
+      formattedPrice = tokenPriceInUsd.toExponential(6)
+    } else {
+      formattedPrice = tokenPriceInUsd.toFixed(10)
+    }
+  } else {
+    formattedPrice = tokenPriceInUsd.toFixed(6)
+  }
+
   return {
-    priceUsd: tokenPriceInUsd.toFixed(6),
+    priceUsd: formattedPrice,
     tokenPerWeth: tokenWethQuote.amountOut,
     wethPerUsdc: wethUsdPriceData.wethPerUsdc,
   }

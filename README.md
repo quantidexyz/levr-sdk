@@ -618,6 +618,7 @@ const { priceUsd, tokenPerWeth, wethPerUsdc } = await getUsdPrice({
   oraclePublicClient: mainnetClient, // For WETH/USDC price (auto-discovers best V3 pool)
   quotePublicClient: testnetClient, // For token/WETH price (your chain)
   tokenAddress: '0x...', // Token to price
+  tokenDecimals: 18, // Token decimals (required)
   quoteFee: 3000, // Optional: Pool fee tier (default: 3000 = 0.3%)
 })
 

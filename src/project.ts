@@ -697,6 +697,7 @@ export async function getProject({
           oraclePublicClient,
           quotePublicClient: publicClient,
           tokenAddress: clankerToken,
+          tokenDecimals: tokenData.decimals,
           quoteFee: poolInfo.poolKey.fee,
           quoteTickSpacing: poolInfo.poolKey.tickSpacing,
           quoteHooks: poolInfo.poolKey.hooks,
