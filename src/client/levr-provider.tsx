@@ -250,9 +250,16 @@ export function useLevrContext(): LevrContextValue {
 
 /**
  * Hook to set the current clanker token
- * This allows components to update the global token context
+ * Automatically updates when the token address changes
+ * @param clankerToken - Token address to set (null to clear)
  */
-export const useSetClankerToken = () => useLevrContext().setClankerToken
+export const useSetClankerToken = (clankerToken?: Address | null) => {
+  const { setClankerToken } = useLevrContext()
+
+  React.useEffect(() => {
+    setClankerToken(clankerToken ?? null)
+  }, [clankerToken, setClankerToken])
+}
 
 /**
  * Hook to access refetch methods from LevrProvider

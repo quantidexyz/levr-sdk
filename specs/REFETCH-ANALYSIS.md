@@ -102,19 +102,22 @@
 
 ---
 
-### ✅ afterAccrue (CORRECT - FIXED)
+### ✅ afterAccrue (CORRECT)
 
 **Action:** Accrue rewards (collect fees FROM LP locker TO staking contract)
 
 **Changes:**
 
 - **Outstanding rewards (pool-level)** ← `project.stakingStats` ✓ (new fees added to pool)
-- User claimable rewards ← `user` (increases proportionally to stake)
 
-**Current Refetch:** `user + project`  
-**Status:** ✅ CORRECT (after fix)
+**Does NOT change:**
 
-**Fix Applied:** Added `project.refetch()` to capture outstanding rewards change
+- User claimable rewards (updated on-demand by contract, user can refetch manually if needed)
+
+**Current Refetch:** `project` only  
+**Status:** ✅ CORRECT
+
+**Note:** User claimable rewards are calculated proportionally on-demand by the contract based on outstanding rewards and user's stake. No need to refetch user query immediately - users can manually refetch when they want to see updated claimable amounts.
 
 ---
 
@@ -192,7 +195,7 @@
 | afterStake       | user + project             | user + project             | ✅         |
 | afterUnstake     | user + project             | user + project             | ✅         |
 | afterClaim       | user                       | user                       | ✅         |
-| **afterAccrue**  | **user**                   | **user + project**         | ✅ (fixed) |
+| **afterAccrue**  | **user + project**         | **project only**           | ✅ (fixed) |
 | afterVote        | user + proposals           | user + proposals           | ✅         |
 | afterProposal    | proposals + project        | proposals + project        | ✅         |
 | afterExecute     | project + proposals + user | project + proposals + user | ✅         |
@@ -216,14 +219,11 @@ afterClaim: async () => {
 
 ```typescript
 afterAccrue: async () => {
-  await Promise.all([
-    userQuery.refetch(), // Claimable rewards changed
-    project.refetch(), // Outstanding rewards changed (fees from LP locker)
-  ])
+  await project.refetch() // Outstanding rewards changed (fees from LP locker)
 }
 ```
 
-**Fix:** Added `project.refetch()` to capture pool-level outstanding rewards change.
+**Fix:** Changed from `user + project` to `project only`. Outstanding rewards change (pool-level), but user claimable rewards are calculated on-demand by the contract. Users can manually refetch if they want to see updated claimable amounts immediately.
 
 ### 3. ✅ afterAirdrop - FIXED
 

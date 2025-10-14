@@ -337,6 +337,19 @@ if (user?.staking.stakedBalance.usd) {
 }
 ```
 
+### Set Active Token
+
+```typescript
+import { useSetClankerToken } from 'levr-sdk/client'
+
+function ProjectPage({ clankerToken }) {
+  // Automatically sets and updates when clankerToken prop changes
+  useSetClankerToken(clankerToken)
+
+  return <div>Project content</div>
+}
+```
+
 ## TypeScript Types
 
 ### Import Types

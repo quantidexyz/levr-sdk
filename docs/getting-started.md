@@ -74,15 +74,12 @@ export function App() {
 
 ```typescript
 import { useSetClankerToken, useProject } from 'levr-sdk/client'
-import { useEffect } from 'react'
 
 export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
-  const setClankerToken = useSetClankerToken()
   const { data: project } = useProject()
 
-  useEffect(() => {
-    setClankerToken(clankerToken)
-  }, [clankerToken, setClankerToken])
+  // Automatically sets and updates when clankerToken prop changes
+  useSetClankerToken(clankerToken)
 
   if (!project) return <div>Loading...</div>
 

@@ -1378,7 +1378,7 @@ describe('#data-flow', () => {
         expect(tracker.getTotalCalls()).toBe(2)
       })
 
-      it('refetch.afterAccrue() should trigger user + project (NOT pool or proposals)', async () => {
+      it('refetch.afterAccrue() should trigger ONLY project (NOT user, pool, or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1399,24 +1399,22 @@ describe('#data-flow', () => {
         // Trigger afterAccrue refetch
         await result.current.refetch.afterAccrue()
 
-        // Verify call pattern: should make user + project queries (same as afterClaim)
+        // Verify call pattern: should make ONLY project queries
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
         const readContracts = tracker.getCallCount('readContract')
 
-        // Should have: user multicall + 3 project multicalls
-        expect(multicalls).toBeGreaterThanOrEqual(3)
-        expect(multicalls).toBeLessThanOrEqual(4)
+        // Should have: 3 project multicalls
+        expect(multicalls).toBe(3)
 
-        // Should have getBalance for user
-        expect(getBalanceCalls).toBe(1)
+        // Should NOT have getBalance (no user refetch)
+        expect(getBalanceCalls).toBe(0)
 
         // Should have readContract for project (tokenRewards)
-        expect(readContracts).toBeGreaterThanOrEqual(1)
+        expect(readContracts).toBe(1)
 
-        // Total: user (2) + project (4) = 6 calls
-        expect(tracker.getTotalCalls()).toBeGreaterThanOrEqual(5)
-        expect(tracker.getTotalCalls()).toBeLessThanOrEqual(7)
+        // Total: project only = 4 calls
+        expect(tracker.getTotalCalls()).toBe(4)
       })
 
       it('refetch.afterAirdrop() should trigger ONLY project (NOT user, pool, or proposals)', async () => {

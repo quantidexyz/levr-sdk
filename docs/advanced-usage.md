@@ -8,15 +8,22 @@ Switch between different tokens:
 
 ```typescript
 import { useSetClankerToken, useProject } from 'levr-sdk/client'
+import { useState } from 'react'
 
 function TokenSwitcher({ tokens }: { tokens: Array<`0x${string}`> }) {
-  const setClankerToken = useSetClankerToken()
+  const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(tokens[0])
   const { data: project } = useProject()
+
+  // Automatically updates when selectedToken changes
+  useSetClankerToken(selectedToken)
 
   return (
     <div>
       <h2>Current: {project?.token.name}</h2>
-      <select onChange={(e) => setClankerToken(e.target.value as `0x${string}`)}>
+      <select
+        value={selectedToken || ''}
+        onChange={(e) => setSelectedToken(e.target.value as `0x${string}`)}
+      >
         {tokens.map((address) => (
           <option key={address} value={address}>{address}</option>
         ))}
