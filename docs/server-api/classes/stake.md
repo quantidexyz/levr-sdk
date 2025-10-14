@@ -1,6 +1,6 @@
 # Stake Class
 
-Manage staking operations.
+Manage staking operations including stake, unstake, claim, and accrue.
 
 ::: tip Protocol Fees
 Staking and unstaking operations incur a variable protocol fee (set by Levr team) that is deducted from the amount.
@@ -9,105 +9,40 @@ Staking and unstaking operations incur a variable protocol fee (set by Levr team
 ## Constructor
 
 ```typescript
-import { Stake } from 'levr-sdk'
+import { Stake, getProject } from 'levr-sdk'
 
+// First get project data
+const projectData = await getProject({
+  publicClient,
+  clankerToken: '0x...',
+})
+
+// Then create stake instance
 const stake = new Stake({
   wallet: walletClient,
   publicClient,
-  stakingAddress: '0x...',
-  tokenAddress: '0x...',
-  tokenDecimals: 18,
-  trustedForwarder: '0x...',
+  project: projectData,
 })
 ```
 
 ## Methods
-
-### `getAllowance()`
-
-Get the current token allowance for staking.
-
-```typescript
-const allowance = await stake.getAllowance()
-console.log('Allowance:', formatUnits(allowance, 18))
-```
 
 ### `approve(amount)`
 
 Approve tokens for staking.
 
 ```typescript
+import { parseUnits } from 'viem'
+
 const receipt = await stake.approve(parseUnits('1000', 18))
 console.log('Approved:', receipt.transactionHash)
 ```
 
-### `getPoolData()`
-
-Get pool-level staking data.
-
-```typescript
-const poolData = await stake.getPoolData()
-console.log('Total Staked:', formatUnits(poolData.totalStaked, 18))
-console.log('Total Supply:', formatUnits(poolData.totalSupply, 18))
-```
-
-**Returns:**
-
-```typescript
-{
-  totalStaked: bigint
-  totalSupply: bigint
-}
-```
-
-### `getUserData()`
-
-Get user-specific staking data.
-
-```typescript
-const userData = await stake.getUserData()
-console.log('Staked:', formatUnits(userData.stakedBalance, 18))
-console.log('Pending Rewards:', userData.pendingRewards)
-```
-
-**Returns:**
-
-```typescript
-{
-  stakedBalance: bigint
-  pendingRewards: { [tokenAddress: string]: bigint }
-}
-```
-
-### `getWethRewardRate(config)`
-
-Get WETH reward rate and APR.
-
-```typescript
-const poolData = await stake.getPoolData()
-
-const rewardData = await stake.getWethRewardRate({
-  totalStaked: poolData.totalStaked,
-  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' }, // Optional
-})
-
-console.log('APR:', (Number(rewardData.aprBps) / 100).toFixed(2), '%')
-console.log('Reward Rate:', formatUnits(rewardData.rewardRate, 18), 'WETH/second')
-```
-
 **Parameters:**
 
-- `totalStaked` (required): Total staked amount
-- `pricing` (optional): USD pricing for APR calculation
+- `amount` (required): Amount to approve (bigint, string, or number)
 
-**Returns:**
-
-```typescript
-{
-  rewardRate: bigint
-  aprBps: bigint // APR in basis points (e.g., 1500 = 15%)
-}
-```
+**Returns:** `TransactionReceipt`
 
 ### `stake(amount)`
 
@@ -117,6 +52,12 @@ Stake tokens. Protocol fee is deducted from the amount.
 const receipt = await stake.stake(parseUnits('100', 18))
 console.log('Staked:', receipt.transactionHash)
 ```
+
+**Parameters:**
+
+- `amount` (required): Amount to stake (bigint, string, or number)
+
+**Returns:** `TransactionReceipt`
 
 ### `unstake(params)`
 
@@ -143,14 +84,30 @@ console.log('New voting power:', newVotingPower.toString())
 
 **Note:** Partial unstakes reduce your voting power proportionally. If you unstake 30% of your tokens, your time accumulation is reduced by 30%.
 
-### `claimRewards()`
+### `claimRewards(params?)`
 
-Claim all pending rewards.
+Claim pending rewards.
 
 ```typescript
+// Claim all rewards (token + WETH)
 const receipt = await stake.claimRewards()
+
+// Or claim specific tokens
+const receipt = await stake.claimRewards({
+  tokens: ['0x...'], // Array of token addresses
+  to: '0x...', // Optional recipient (defaults to sender)
+})
+
 console.log('Claimed rewards:', receipt.transactionHash)
 ```
+
+**Parameters:**
+
+- `params` (optional): Claim configuration
+  - `tokens` (optional): Array of token addresses to claim (defaults to [token, WETH])
+  - `to` (optional): Recipient address (defaults to sender)
+
+**Returns:** `TransactionReceipt`
 
 ### `accrueRewards(tokenAddress)`
 
@@ -161,15 +118,61 @@ const receipt = await stake.accrueRewards('0x...')
 console.log('Accrued rewards:', receipt.transactionHash)
 ```
 
-### `accrueAllRewards()`
+### `accrueAllRewards(tokenAddresses)`
 
-Manually accrue rewards for all tokens. Required before rewards can be claimed.
+Manually accrue rewards for multiple tokens in a single transaction using forwarder multicall.
 
 ```typescript
-const receipt = await stake.accrueAllRewards()
+import { WETH } from 'levr-sdk'
+
+const chainId = publicClient.chain?.id
+const wethAddress = WETH(chainId)?.address
+
+const tokenAddresses = [projectData.token.address]
+if (wethAddress) {
+  tokenAddresses.push(wethAddress)
+}
+
+const receipt = await stake.accrueAllRewards(tokenAddresses)
 console.log('Accrued all rewards:', receipt.transactionHash)
 ```
 
+**Parameters:**
+
+- `tokenAddresses` (required): Array of token addresses to accrue rewards for
+
+**Returns:** `TransactionReceipt`
+
+**Note:** Requires `trustedForwarder` in project data for multicall support.
+
+### `votingPowerOnUnstake(amount, userAddress?)`
+
+Simulate voting power after an unstake (without executing).
+
+```typescript
+const result = await stake.votingPowerOnUnstake(
+  parseUnits('100', 18),
+  '0x...' // Optional: defaults to wallet address
+)
+
+console.log('New voting power:', result.formatted)
+console.log('Token-days:', result.tokenDays.toString())
+```
+
+**Parameters:**
+
+- `amount` (required): Amount to unstake (bigint, string, or number)
+- `userAddress` (optional): User address (defaults to wallet address)
+
+**Returns:**
+
+```typescript
+{
+  tokenDays: bigint
+  formatted: string
+}
+```
+
 ::: tip Manual Accrual System
-Levr uses explicit reward accrual for security and predictability. You must call `accrueRewards()` or `accrueAllRewards()` before claiming to update pending rewards from trading fees.
+Levr uses explicit reward accrual for security and predictability. You must call `accrueRewards()` or `accrueAllRewards()` before claiming to collect fees from the LP locker and update claimable rewards.
 :::

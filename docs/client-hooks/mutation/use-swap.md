@@ -16,18 +16,15 @@ function SwapInterface() {
     // Mutations
     swap,
 
-    // Queries from context
-    user,
-    project,
-    pool,
+    // Quote query
     quote,
 
-    // Convenience
-    balances,
-    tokenBalance,
-    wethBalance,
-    poolKey,
+    // Helpers
     buildSwapConfig,
+
+    // Loading states
+    isLoading,
+    isSwapping,
   } = useSwap({
     quoteParams: {
       zeroForOne,
@@ -96,9 +93,31 @@ function SwapInterface() {
   - `amountOutDecimals`: Output token decimals
 - `onSwapSuccess`: Callback after successful swap
 
-## Queries
+## Data Access
+
+Get balances and pool data from context:
+
+```typescript
+import { useUser, useProject, usePool } from 'levr-sdk/client'
+
+const { data: user } = useUser()
+const { data: project } = useProject()
+const { data: pool } = usePool()
+
+// Balances
+user?.balances.token // Token balance
+user?.balances.weth // WETH balance
+user?.balances.eth // Native ETH balance
+
+// Pool info
+project?.pool?.poolKey // Pool key for swaps
+project?.pool?.feeDisplay // Fee display (e.g., "3.00%")
+pool?.sqrtPriceX96 // Current price
+pool?.liquidity // Current liquidity
+```
+
+## Quote Query
 
 - `quote.data`: Quote with price impact and hook fees
-- `balances`: Token and WETH balances
-- `pricing`: USD pricing data
-- `poolKey`: Uniswap V4 pool key
+- `quote.isLoading`: Quote loading state
+- `quote.error`: Quote error state

@@ -8,10 +8,12 @@ Complete reference for server-side APIs provided by Levr SDK.
 
 Core data fetching functions:
 
-- [project()](./queries/project.md) - Get complete project data
-- [projects()](./queries/projects.md) - Get multiple projects data
-- [balance()](./queries/balance.md) - Get token balances
-- [proposals()](./queries/proposals.md) - Get governance proposals
+- [getProject()](./queries/project.md) - Get complete project data
+- [getProjects()](./queries/projects.md) - Get multiple projects data
+- [getUser()](./queries/user.md) - Get user data (balances, staking, voting power)
+- [proposals()](./queries/proposals.md) - Get governance proposals with vote receipts
+- [proposal()](./queries/proposal.md) - Get single proposal by ID
+- [balance()](./queries/balance.md) - Get token balances (used internally by getUser)
 - [feeReceivers()](./queries/fee-receivers.md) - Get fee receiver information
 
 ### Class APIs
@@ -39,7 +41,7 @@ Helper functions and constants:
 ## Quick Example
 
 ```typescript
-import { project, Stake } from 'levr-sdk'
+import { getProject, Stake } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -49,20 +51,22 @@ const publicClient = createPublicClient({
 })
 
 // Get project data
-const projectData = await project({
+const projectData = await getProject({
   publicClient,
-  factoryAddress: '0x...',
   clankerToken: '0x...',
 })
+
+if (!projectData) {
+  throw new Error('Project not found')
+}
 
 // Use staking
 const stake = new Stake({
   wallet: walletClient,
   publicClient,
-  stakingAddress: projectData.staking,
-  tokenAddress: projectData.token.address,
-  tokenDecimals: 18,
+  project: projectData,
 })
 
+await stake.approve(1000n)
 await stake.stake(1000n)
 ```

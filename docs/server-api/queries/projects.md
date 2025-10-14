@@ -1,11 +1,11 @@
-# projects()
+# getProjects()
 
 Get multiple projects data from the Levr factory.
 
 ## Usage
 
 ```typescript
-import { projects } from 'levr-sdk'
+import { getProjects } from 'levr-sdk'
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -18,12 +18,10 @@ const {
   projects: projectsList,
   fromBlock,
   toBlock,
-} = await projects({
+} = await getProjects({
   publicClient,
-  factoryAddress: '0x...',
-  chainId: base.id,
   pageSize: 100, // Optional: default 100
-  fromBlock: 0n, // Optional: default to last 10% of blocks
+  fromBlock: 0n, // Optional: default to last 10,000 blocks
   toBlock: 'latest', // Optional: default 'latest'
 })
 
@@ -38,11 +36,9 @@ for (const project of projectsList) {
 
 ## Parameters
 
-- `publicClient` (required): Viem public client
-- `factoryAddress` (required): Levr factory contract address
-- `chainId` (required): Chain ID
+- `publicClient` (required): Viem public client (chain ID is derived from client)
 - `pageSize` (optional): Maximum number of projects to return (default: 100)
-- `fromBlock` (optional): Start block (default: last 10% of blocks)
+- `fromBlock` (optional): Start block (default: last 10,000 blocks)
 - `toBlock` (optional): End block (default: 'latest')
 
 ## Returns

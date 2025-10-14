@@ -5,8 +5,8 @@ TypeScript SDK for interacting with Levr protocol - a decentralized governance, 
 ## Features
 
 - 🎯 **Type-Safe** - Full TypeScript support with comprehensive types
-- 🔄 **Centralized Refetch** - 100% coverage with smart cross-domain awareness
-- ⚡ **Zero Duplication** - Optimized query management via React Context
+- 🔄 **Zero Duplication** - Single multicalls per data group (37-53% fewer RPC calls)
+- ⚡ **Centralized Provider** - All queries in one place with smart refetch management
 - 🪝 **React Hooks** - Easy integration with React applications
 - 🔌 **Server & Client** - Works in both server and client environments
 - 📦 **Tree-Shakeable** - Import only what you need
@@ -43,7 +43,7 @@ import { LevrProvider, useStake, useSwap, useGovernance } from 'levr-sdk/client'
 For server-side operations:
 
 ```typescript
-import { project, balance, Stake, Governance, quoteV4 } from 'levr-sdk'
+import { getProject, getUser, Stake, Governance, quote } from 'levr-sdk'
 ```
 
 ## Client Usage (React)
@@ -89,9 +89,9 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
   return (
     <div>
       <h1>{project.token.name}</h1>
-      <p>Treasury: {project.treasuryStats.balance.formatted} {project.token.symbol}</p>
+      <p>Treasury: {project.treasuryStats?.balance.formatted} {project.token.symbol}</p>
       {project.pricing && <p>Price: ${project.pricing.tokenUsd}</p>}
-      <p>Current Cycle: {project.currentCycleId.toString()}</p>
+      <p>Current Cycle: {project.governanceStats?.currentCycleId.toString()}</p>
     </div>
   )
 }
@@ -100,16 +100,17 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
 ### 3. Use Hooks
 
 ```typescript
-import { useStake } from 'levr-sdk/client'
+import { useStake, useUser } from 'levr-sdk/client'
 
 function StakeComponent() {
-  const { stake, user, needsApproval } = useStake()
+  const { stake, needsApproval } = useStake()
+  const { data: user } = useUser()
 
   return (
     <div>
-      <p>Balance: {user.data?.balances.token.formatted}</p>
-      <p>Staked: {user.data?.staking.stakedBalance.formatted}</p>
-      <p>Voting Power: {user.data?.governance.votingPower.formatted}</p>
+      <p>Balance: {user?.balances.token.formatted}</p>
+      <p>Staked: {user?.staking.stakedBalance.formatted}</p>
+      <p>Voting Power: {user?.votingPower.formatted}</p>
       <button onClick={() => stake.mutate(1000n)}>
         Stake
       </button>
@@ -121,7 +122,7 @@ function StakeComponent() {
 ## Server Usage
 
 ```typescript
-import { project, Stake } from 'levr-sdk'
+import { getProject, Stake } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -138,7 +139,7 @@ const walletClient = createWalletClient({
 })
 
 // Get project data
-const projectData = await project({
+const projectData = await getProject({
   publicClient,
   clankerToken: '0x...',
   userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
@@ -148,11 +149,7 @@ const projectData = await project({
 const stake = new Stake({
   wallet: walletClient,
   publicClient,
-  stakingAddress: projectData.staking,
-  tokenAddress: projectData.token.address,
-  tokenDecimals: projectData.token.decimals,
-  trustedForwarder: projectData.forwarder,
-  pricing: projectData.pricing, // Optional: for USD calculations
+  project: projectData,
 })
 
 await stake.approve(1000n)
@@ -197,7 +194,10 @@ This system prevents gaming while being fair to users who need to withdraw porti
 
 ## Next Steps
 
+- **[Getting Started](./getting-started.md)** - Complete setup guide
+- **[Quick Reference](./QUICK-REFERENCE.md)** - Fast lookup for common patterns
 - **[Client Hooks](./client-hooks/)** - Complete React hooks reference
 - **[Server API](./server-api/)** - Server-side API reference
 - **[Architecture](./architecture.md)** - How the SDK works internally
 - **[Advanced Usage](./advanced-usage.md)** - Advanced patterns
+- **[Migration Guide](./MIGRATION-GUIDE.md)** - Upgrade from older versions

@@ -34,7 +34,16 @@ function ProjectInfo() {
       <p>Utilization: {project.treasuryStats?.utilization.toFixed(2)}%</p>
 
       <h3>Governance</h3>
-      <p>Current Cycle: {project.currentCycleId.toString()}</p>
+      <p>Current Cycle: {project.governanceStats?.currentCycleId.toString()}</p>
+      <p>Active Transfers: {project.governanceStats?.activeProposalCount.transfer.toString()}</p>
+      <p>Active Boosts: {project.governanceStats?.activeProposalCount.boost.toString()}</p>
+
+      <h3>Staking Stats</h3>
+      <p>Total Staked: {project.stakingStats?.totalStaked.formatted}</p>
+      <p>Token APR: {project.stakingStats?.apr.token.percentage}%</p>
+      {project.stakingStats?.apr.weth && (
+        <p>WETH APR: {project.stakingStats.apr.weth.percentage}%</p>
+      )}
 
       {project.pool && (
         <div>
@@ -75,6 +84,16 @@ Project data contains ALL project-level information:
 
 ```typescript
 {
+  chainId: number
+
+  // Contract Addresses
+  treasury: `0x${string}`
+  governor: `0x${string}`
+  staking: `0x${string}`
+  stakedToken: `0x${string}`
+  forwarder: `0x${string}`
+  factory: `0x${string}`
+
   // Token Info
   token: {
     address: `0x${string}`
@@ -85,17 +104,6 @@ Project data contains ALL project-level information:
     metadata: ProjectMetadata | null
     imageUrl?: string
   }
-
-  // Contract Addresses
-  treasury: `0x${string}`
-  governor: `0x${string}`
-  staking: `0x${string}`
-  stakedToken: `0x${string}`
-  forwarder: `0x${string}`
-  factory: `0x${string}`
-
-  // Governance
-  currentCycleId: bigint
 
   // Pool Info
   pool?: {
@@ -111,6 +119,32 @@ Project data contains ALL project-level information:
     utilization: number
   }
 
+  // Staking Stats (pool-level)
+  stakingStats?: {
+    totalStaked: BalanceResult
+    apr: {
+      token: { raw: bigint, percentage: number }
+      weth: { raw: bigint, percentage: number } | null
+    }
+    outstandingRewards: {
+      staking: { available: BalanceResult, pending: BalanceResult }
+      weth: { available: BalanceResult, pending: BalanceResult } | null
+    }
+    rewardRates: {
+      token: BalanceResult
+      weth: BalanceResult | null
+    }
+  }
+
+  // Governance Stats
+  governanceStats?: {
+    currentCycleId: bigint
+    activeProposalCount: {
+      boost: bigint
+      transfer: bigint
+    }
+  }
+
   // Fee Receivers
   feeReceivers?: Array<{
     areYouAnAdmin: boolean
@@ -124,6 +158,14 @@ Project data contains ALL project-level information:
     wethUsd: string
     tokenUsd: string
   }
+
+  // Airdrop Status (treasury)
+  airdrop?: {
+    availableAmount: BalanceResult
+    allocatedAmount: BalanceResult
+    isAvailable: boolean
+    error?: string
+  } | null
 }
 ```
 

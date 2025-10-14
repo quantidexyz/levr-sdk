@@ -43,8 +43,14 @@ function RefreshButton() {
       <button onClick={() => refetch.all()}>Refresh All</button>
       <button onClick={() => refetch.user()}>Refresh User Data</button>
       <button onClick={() => refetch.project()}>Refresh Project</button>
-      <button onClick={() => refetch.afterStake()}>Smart Refetch After Stake</button>
-      <button onClick={() => refetch.afterTrade()}>Smart Refetch After Trade</button>
+      <button onClick={() => refetch.pool()}>Refresh Pool</button>
+      <button onClick={() => refetch.proposals()}>Refresh Proposals</button>
+
+      {/* Action-based smart refetches */}
+      <button onClick={() => refetch.afterStake()}>After Stake</button>
+      <button onClick={() => refetch.afterTrade()}>After Trade</button>
+      <button onClick={() => refetch.afterClaim()}>After Claim</button>
+      <button onClick={() => refetch.afterVote()}>After Vote</button>
     </div>
   )
 }
@@ -134,7 +140,7 @@ Use in API routes:
 
 ```typescript
 // app/api/stats/route.ts
-import { project, Stake } from 'levr-sdk'
+import { getProject, Stake } from 'levr-sdk'
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -147,15 +153,19 @@ export async function GET(request: Request) {
     transport: http(),
   })
 
-  const projectData = await project({
+  const projectData = await getProject({
     publicClient,
-    factoryAddress: process.env.FACTORY_ADDRESS as `0x${string}`,
     clankerToken: token,
   })
 
+  if (!projectData) {
+    return Response.json({ error: 'Project not found' }, { status: 404 })
+  }
+
   return Response.json({
     name: projectData.token.name,
-    treasury: projectData.treasuryStats.balance.formatted,
+    treasury: projectData.treasuryStats?.balance.formatted,
+    currentCycle: projectData.governanceStats?.currentCycleId.toString(),
   })
 }
 ```
@@ -203,16 +213,31 @@ function PricingDisplay() {
   const { data: project } = useProject()
   const { data: user } = useUser()
 
+  if (!project?.pricing) {
+    return <div>Pricing not available. Add oraclePublicClient to LevrProvider.</div>
+  }
+
   return (
     <div>
-      {project?.pricing && (
-        <>
-          <p>Token Price: ${project.pricing.tokenUsd}</p>
-          <p>WETH Price: ${project.pricing.wethUsd}</p>
-          <p>Your Balance: {user?.balances.token.formatted} (${user?.balances.token.usd})</p>
-          <p>Staked Value: ${user?.staking.stakedBalance.usd}</p>
-          <p>Treasury Value: ${project.treasuryStats?.balance.usd}</p>
-        </>
+      <h3>Pricing</h3>
+      <p>Token Price: ${project.pricing.tokenUsd}</p>
+      <p>WETH Price: ${project.pricing.wethUsd}</p>
+
+      <h3>Your Holdings</h3>
+      <p>Token Balance: {user?.balances.token.formatted}</p>
+      {user?.balances.token.usd && <p>USD Value: ${user.balances.token.usd}</p>}
+
+      <p>Staked: {user?.staking.stakedBalance.formatted}</p>
+      {user?.staking.stakedBalance.usd && <p>USD Value: ${user.staking.stakedBalance.usd}</p>}
+
+      <h3>Pool Stats</h3>
+      <p>Total Staked: {project.stakingStats?.totalStaked.formatted}</p>
+      {project.stakingStats?.totalStaked.usd && (
+        <p>Total USD Value: ${project.stakingStats.totalStaked.usd}</p>
+      )}
+      <p>Treasury: {project.treasuryStats?.balance.formatted}</p>
+      {project.treasuryStats?.balance.usd && (
+        <p>Treasury USD: ${project.treasuryStats.balance.usd}</p>
       )}
     </div>
   )
@@ -224,7 +249,7 @@ function PricingDisplay() {
 1. **Always use LevrProvider** - Wrap your app at the root
 2. **Set token early** - Call `useSetClankerToken` in route components
 3. **Trust automatic refetches** - Don't manually refetch after mutations
-4. **Use smart refetch methods** - `afterStake()`, `afterSwap()`, etc.
+4. **Use smart refetch methods** - `afterStake()`, `afterTrade()`, `afterClaim()`, etc.
 5. **Handle loading states** - Check `isLoading` before rendering data
 6. **Provide USD pricing** - Pass `oraclePublicClient` for better UX
 7. **Memoize calculations** - Use `useMemo` for expensive operations

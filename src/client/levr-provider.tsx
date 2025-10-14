@@ -166,7 +166,6 @@ export function LevrProvider({
       },
       afterAccrue: async () => {
         await Promise.all([
-          userQuery.refetch(), // Claimable rewards changed
           project.refetch(), // Outstanding rewards changed (pool-level)
         ])
       },

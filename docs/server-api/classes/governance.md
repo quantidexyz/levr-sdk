@@ -1,108 +1,50 @@
 # Governance Class
 
-Manage governance operations.
+Manage governance operations including proposals, voting, and airdrop claims.
 
 ## Constructor
 
 ```typescript
-import { Governance } from 'levr-sdk'
+import { Governance, getProject } from 'levr-sdk'
 
+// First get project data
+const projectData = await getProject({
+  publicClient,
+  clankerToken: '0x...',
+})
+
+// Then create governance instance
 const governance = new Governance({
   wallet: walletClient,
   publicClient,
-  governorAddress: '0x...',
-  tokenDecimals: 18,
-  clankerToken: '0x...',
+  project: projectData,
 })
 ```
 
 ## Methods
-
-### `getCurrentCycleId()`
-
-Get the current governance cycle ID.
-
-```typescript
-const cycleId = await governance.getCurrentCycleId()
-console.log('Current Cycle:', cycleId.toString())
-```
-
-### `getTreasury()`
-
-Get the treasury address.
-
-```typescript
-const treasury = await governance.getTreasury()
-console.log('Treasury:', treasury)
-```
-
-### `getAddresses(params?)`
-
-Get all governance-related addresses with optional USD values.
-
-```typescript
-const addresses = await governance.getAddresses({
-  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' },
-})
-
-console.log('Treasury:', addresses.treasury.address)
-console.log('Balance:', addresses.treasury.balance.formatted, 'Tokens')
-console.log('USD Value:', addresses.treasury.balance.usd, 'USD')
-```
-
-**Parameters:**
-
-- `pricing` (optional): USD pricing for balance calculations
-
-**Returns:**
-
-```typescript
-{
-  treasury: {
-    address: `0x${string}`
-    balance: {
-      raw: bigint
-      formatted: string
-      usd?: string
-    }
-  }
-  weth: `0x${string}`
-}
-```
-
-### `getAirdropStatus()`
-
-Check if airdrop is available for the user.
-
-```typescript
-const status = await governance.getAirdropStatus()
-console.log('Airdrop Available:', status.available)
-console.log('Amount:', status.amount ? formatUnits(status.amount, 18) : '0')
-```
-
-**Returns:**
-
-```typescript
-{
-  available: boolean
-  amount?: bigint
-}
-```
 
 ### `proposeTransfer(recipient, amount, description)`
 
 Propose a treasury transfer.
 
 ```typescript
+import { parseUnits } from 'viem'
+
 const { receipt, proposalId } = await governance.proposeTransfer(
   '0x...', // recipient
-  parseUnits('1000', 18), // amount
+  parseUnits('1000', 18), // amount (can also be string or number)
   'Fund development team' // description
 )
 
 console.log('Proposal ID:', proposalId.toString())
 console.log('Transaction:', receipt.transactionHash)
 ```
+
+**Parameters:**
+
+- `recipient` (required): Recipient address
+- `amount` (required): Amount in wei (bigint, string, or number)
+- `description` (required): Proposal description
 
 **Returns:**
 
@@ -113,18 +55,29 @@ console.log('Transaction:', receipt.transactionHash)
 }
 ```
 
-### `proposeBoost(rewardIndex, amount, description)`
+### `proposeBoost(amount)`
 
-Propose a staking reward boost.
+Propose a staking reward boost from treasury.
 
 ```typescript
 const { receipt, proposalId } = await governance.proposeBoost(
-  0, // rewardIndex (0 = WETH)
-  parseUnits('500', 18), // amount
-  'Boost WETH rewards' // description
+  parseUnits('500', 18) // amount to boost
 )
 
 console.log('Proposal ID:', proposalId.toString())
+```
+
+**Parameters:**
+
+- `amount` (required): Amount in wei (bigint, string, or number)
+
+**Returns:**
+
+```typescript
+{
+  receipt: TransactionReceipt
+  proposalId: bigint
+}
 ```
 
 ### `vote(proposalId, support)`
@@ -133,12 +86,19 @@ Vote on a proposal.
 
 ```typescript
 const receipt = await governance.vote(
-  123n, // proposalId
-  true // support (true = for, false = against)
+  123n, // proposalId (can be bigint or number)
+  true // support (true = yes, false = no)
 )
 
 console.log('Voted:', receipt.transactionHash)
 ```
+
+**Parameters:**
+
+- `proposalId` (required): Proposal ID (bigint or number)
+- `support` (required): Vote direction (true = yes, false = no)
+
+**Returns:** `TransactionReceipt`
 
 ### `executeProposal(proposalId)`
 
@@ -149,11 +109,55 @@ const receipt = await governance.executeProposal(123n)
 console.log('Executed:', receipt.transactionHash)
 ```
 
+**Parameters:**
+
+- `proposalId` (required): Proposal ID (bigint or number)
+
+**Returns:** `TransactionReceipt`
+
+### `getVoteReceipt(proposalId, voter?)`
+
+Get vote receipt for a user on a proposal.
+
+```typescript
+const receipt = await governance.getVoteReceipt(
+  123n, // proposalId
+  '0x...' // voter (optional, defaults to wallet address)
+)
+
+console.log('Has Voted:', receipt.hasVoted)
+console.log('Support:', receipt.support ? 'Yes' : 'No')
+console.log('Votes:', receipt.votes.toString())
+```
+
+**Parameters:**
+
+- `proposalId` (required): Proposal ID (bigint or number)
+- `voter` (optional): Voter address (defaults to wallet account address)
+
+**Returns:**
+
+```typescript
+{
+  hasVoted: boolean
+  support: boolean
+  votes: bigint
+}
+```
+
 ### `claimAirdrop()`
 
-Claim airdrop tokens.
+Claim treasury airdrop (uses airdrop data from project).
 
 ```typescript
 const receipt = await governance.claimAirdrop()
 console.log('Claimed airdrop:', receipt.transactionHash)
 ```
+
+**Returns:** `TransactionReceipt`
+
+**Notes:**
+
+- Uses airdrop data from `project.airdrop` (already fetched)
+- Validates airdrop availability before claiming
+- Throws error if no airdrop available or already claimed

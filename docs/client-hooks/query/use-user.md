@@ -23,24 +23,13 @@ function UserDashboard() {
       <h2>Staking</h2>
       <p>Staked: {user.staking.stakedBalance.formatted}</p>
       <p>Allowance: {user.staking.allowance.formatted}</p>
-      <p>Token APR: {user.staking.apr.token.percentage}%</p>
-      {user.staking.apr.weth && (
-        <p>WETH APR: {user.staking.apr.weth.percentage}%</p>
+      <p>Claimable Token Rewards: {user.staking.claimableRewards.staking.formatted}</p>
+      {user.staking.claimableRewards.weth && (
+        <p>Claimable WETH Rewards: {user.staking.claimableRewards.weth.formatted}</p>
       )}
 
-      <h3>Rewards</h3>
-      <p>Available: {user.staking.rewards.outstanding.staking.available.formatted}</p>
-      <p>Pending: {user.staking.rewards.outstanding.staking.pending.formatted}</p>
-      <p>Claimable: {user.staking.rewards.claimable.staking.formatted}</p>
-
-      <h2>Governance</h2>
-      <p>Voting Power: {user.governance.votingPower.formatted}</p>
-      {user.governance.airdrop && (
-        <div>
-          <p>Airdrop: {user.governance.airdrop.availableAmount.formatted}</p>
-          <p>Available: {user.governance.airdrop.isAvailable ? 'Yes' : 'No'}</p>
-        </div>
-      )}
+      <h2>Voting</h2>
+      <p>Voting Power: {user.votingPower.formatted}</p>
     </div>
   )
 }
@@ -60,31 +49,16 @@ The user data is hierarchically organized:
   staking: {
     stakedBalance: BalanceResult
     allowance: BalanceResult
-    rewards: {
-      outstanding: {
-        staking: { available: BalanceResult, pending: BalanceResult }
-        weth: { available: BalanceResult, pending: BalanceResult } | null
-      }
-      claimable: {
-        staking: BalanceResult
-        weth: BalanceResult | null
-      }
-    }
-    apr: {
-      token: { raw: bigint, percentage: number }
-      weth: { raw: bigint, percentage: number } | null
+    claimableRewards: {
+      staking: BalanceResult
+      weth: BalanceResult | null
     }
   }
-  governance: {
-    votingPower: BalanceResult
-    airdrop: {
-      availableAmount: BalanceResult
-      allocatedAmount: BalanceResult
-      isAvailable: boolean
-    } | null
-  }
+  votingPower: BalanceResult
 }
 ```
+
+**Note:** Pool-level staking stats (totalStaked, apr, outstandingRewards, rewardRates) are in `project.stakingStats`. Airdrop status is in `project.airdrop`.
 
 ## BalanceResult
 
@@ -109,3 +83,6 @@ All balance values follow this structure:
 - All data comes from a single multicall for maximum efficiency
 - Automatically refetches when user changes
 - USD values included when pricing is available from project
+- Pool-level stats (APR, outstanding rewards) are in `project.stakingStats`
+- Airdrop status is in `project.airdrop`
+- User query only contains user-specific data (balances, staking, voting power)

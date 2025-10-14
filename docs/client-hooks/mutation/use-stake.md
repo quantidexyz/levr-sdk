@@ -17,16 +17,7 @@ function StakingInterface() {
     accrueRewards,
     accrueAllRewards,
 
-    // Data from context
-    user,
-    project,
-
-    // Convenience accessors (from user.data)
-    tokenBalance,
-    stakedBalance,
-    allowance,
-    rewards,
-    apr,
+    // Helpers
     needsApproval,
 
     // Loading states
@@ -57,17 +48,23 @@ function StakingInterface() {
     }
   }
 
+  // Get data from context
+  const { data: user } = useUser()
+  const { data: project } = useProject()
+
   return (
     <div>
       <h2>Staking</h2>
-      <p>Your Balance: {tokenBalance?.formatted}</p>
-      <p>Staked: {stakedBalance?.formatted}</p>
-      <p>Token APR: {apr?.token.percentage}%</p>
-      {apr?.weth && <p>WETH APR: {apr.weth.percentage}%</p>}
+      <p>Your Balance: {user?.balances.token.formatted}</p>
+      <p>Staked: {user?.staking.stakedBalance.formatted}</p>
+      <p>Token APR: {project?.stakingStats?.apr.token.percentage}%</p>
+      {project?.stakingStats?.apr.weth && (
+        <p>WETH APR: {project.stakingStats.apr.weth.percentage}%</p>
+      )}
 
       <h3>Rewards</h3>
-      <p>Outstanding: {rewards?.outstanding.staking.available.formatted}</p>
-      <p>Claimable: {rewards?.claimable.staking.formatted}</p>
+      <p>Outstanding: {project?.stakingStats?.outstandingRewards.staking.available.formatted}</p>
+      <p>Claimable: {user?.staking.claimableRewards.staking.formatted}</p>
 
       <button onClick={handleStake} disabled={isStaking}>
         {needsApproval('1000') ? 'Approve' : 'Stake'}
@@ -79,6 +76,10 @@ function StakingInterface() {
 
       <button onClick={() => claim.mutate()} disabled={isClaiming}>
         Claim Rewards
+      </button>
+
+      <button onClick={() => accrueAllRewards.mutate()} disabled={isAccruing}>
+        Accrue Rewards
       </button>
     </div>
   )
@@ -109,20 +110,27 @@ function StakingInterface() {
 All staking data comes from `user` and `project` context queries:
 
 ```typescript
-// Access via context queries
-user.data?.balances.token // Token balance
-user.data?.balances.weth // WETH balance
-user.data?.staking.stakedBalance // Staked amount
-user.data?.staking.allowance // Current allowance
-user.data?.staking.rewards // Reward information
-user.data?.staking.apr // APR information
+import { useUser, useProject } from 'levr-sdk/client'
 
-// Or use convenience accessors
-tokenBalance // = user.data?.balances.token
-stakedBalance // = user.data?.staking.stakedBalance
-allowance // = user.data?.staking.allowance
-rewards // = user.data?.staking.rewards
-apr // = user.data?.staking.apr
+const { data: user } = useUser()
+const { data: project } = useProject()
+
+// User-specific data
+user?.balances.token // Token balance
+user?.balances.weth // WETH balance
+user?.staking.stakedBalance // User's staked amount
+user?.staking.allowance // User's spending allowance
+user?.staking.claimableRewards.staking // User's claimable token rewards
+user?.staking.claimableRewards.weth // User's claimable WETH rewards
+user?.votingPower // User's voting power
+
+// Pool-level stats (from project)
+project?.stakingStats?.totalStaked // Total tokens staked by all users
+project?.stakingStats?.apr.token // Token APR
+project?.stakingStats?.apr.weth // WETH APR
+project?.stakingStats?.outstandingRewards.staking.available // Available pool rewards
+project?.stakingStats?.outstandingRewards.staking.pending // Pending pool rewards
+project?.stakingStats?.rewardRates.token // Token reward rate per second
 ```
 
 ::: tip Protocol Fees

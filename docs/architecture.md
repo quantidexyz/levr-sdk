@@ -32,9 +32,15 @@ LevrProvider
 All queries created in `LevrProvider`:
 
 ```typescript
-const projectQuery = useQuery({
-  queryKey: queryKeys.project(clankerToken, chainId),
-  queryFn: () => project({ publicClient, clankerToken }),
+const project = useProjectQuery({
+  clankerToken,
+  oraclePublicClient,
+  enabled,
+})
+
+const user = useUserQuery({
+  project: project.data,
+  enabled,
 })
 ```
 
@@ -43,9 +49,36 @@ const projectQuery = useQuery({
 Queries shared via context:
 
 ```typescript
-const LevrContext = createContext({
-  queries: { project: projectQuery, balance: balanceQuery, ... },
-  refetch: { all, staking, afterStake, ... },
+const LevrContext = createContext<LevrContextValue>({
+  // Core data
+  clankerToken,
+  setClankerToken,
+  chainId,
+  userAddress,
+
+  // Data queries (hierarchical)
+  user: userQuery,
+  project,
+  pool: poolQuery,
+  proposals: proposalsQuery,
+  tokenData,
+
+  // Action-based refetch methods
+  refetch: {
+    all,
+    user,
+    project,
+    pool,
+    proposals,
+    afterTrade,
+    afterStake,
+    afterClaim,
+    afterAccrue,
+    afterVote,
+    afterProposal,
+    afterExecute,
+    afterAirdrop,
+  },
 })
 ```
 
@@ -54,10 +87,11 @@ const LevrContext = createContext({
 Components access shared queries:
 
 ```typescript
-export function useProject() {
-  const context = useContext(LevrContext)
-  return context.queries.project
-}
+// Simple one-liner hooks
+export const useProject = () => useLevrContext().project
+export const useUser = () => useLevrContext().user
+export const usePool = () => useLevrContext().pool
+export const useProposals = () => useLevrContext().proposals
 ```
 
 ## Benefits
@@ -88,23 +122,36 @@ function ComponentB() {
 
 Mutations automatically trigger appropriate refetches:
 
-| Action                   | Auto-Refetches                           |
-| ------------------------ | ---------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, Staking Data, Project, Rewards |
-| **Swap**                 | Balances, Project                        |
-| **Propose/Vote/Execute** | Governance, Proposals, Project, Staking  |
-| **Wallet/Chain Change**  | All Queries                              |
+| Action                  | Auto-Refetches                                                      |
+| ----------------------- | ------------------------------------------------------------------- |
+| **Trade**               | User (balances), Pool (state)                                       |
+| **Stake/Unstake**       | User (balances, staking, voting), Project (treasury, staking stats) |
+| **Claim**               | User only (balances, claimable rewards)                             |
+| **Accrue**              | Project only (outstanding rewards)                                  |
+| **Vote**                | User, Proposals (vote receipts)                                     |
+| **Propose**             | Proposals, Project (active count)                                   |
+| **Execute**             | Project, Proposals, User (all may change)                           |
+| **Airdrop**             | Project (treasury balance, airdrop status)                          |
+| **Wallet/Chain Change** | All Queries                                                         |
 
 ### Smart Cross-Domain Refetches
 
 ```typescript
 // After staking:
 await refetch.afterStake()
-// Refetches: balances, staking data, project (treasury), rewards
+// Refetches: user (balances, staking, voting power), project (treasury stats, staking stats)
 
-// After swap:
-await refetch.afterSwap()
-// Refetches: balances, project (pool data)
+// After trade:
+await refetch.afterTrade()
+// Refetches: user (balances), pool (price, liquidity)
+
+// After claim:
+await refetch.afterClaim()
+// Refetches: user only (balances, claimable rewards)
+
+// After accrue:
+await refetch.afterAccrue()
+// Refetches: project only (outstanding rewards from LP locker)
 ```
 
 ### Better Performance
@@ -133,27 +180,50 @@ export const queryKeys = {
 
 ```typescript
 const refetch = {
+  // Core refetches
   all: async () => {
     // Refetch all queries
   },
-
-  staking: async () => {
-    // Refetch all staking queries
+  user: async () => {
+    // Refetch user query only
+  },
+  project: async () => {
+    // Refetch project query only
+  },
+  pool: async () => {
+    // Refetch pool query only
+  },
+  proposals: async () => {
+    // Refetch proposals query only
   },
 
+  // Action-based refetches
+  afterTrade: async () => {
+    // Refetches: user (balances), pool (state)
+  },
   afterStake: async () => {
-    // Smart refetch after stake operations
-    // Includes: balances, staking, project, rewards
+    // Refetches: user (balances, staking, voting), project (treasury, staking stats)
   },
-
-  afterSwap: async () => {
-    // Smart refetch after swap operations
-    // Includes: balances, project
+  afterUnstake: async () => {
+    // Refetches: user (balances, staking, voting), project (treasury, staking stats)
   },
-
-  afterGovernance: async () => {
-    // Smart refetch after governance operations
-    // Includes: governance, proposals, project, staking
+  afterClaim: async () => {
+    // Refetches: user only (balances, claimable rewards)
+  },
+  afterAccrue: async () => {
+    // Refetches: project only (outstanding rewards)
+  },
+  afterVote: async () => {
+    // Refetches: user, proposals (vote receipts)
+  },
+  afterProposal: async () => {
+    // Refetches: proposals, project (active count)
+  },
+  afterExecute: async () => {
+    // Refetches: project, proposals, user (all may change)
+  },
+  afterAirdrop: async () => {
+    // Refetches: project (treasury, airdrop status)
   },
 }
 ```

@@ -16,27 +16,17 @@ function GovernanceInterface() {
     executeProposal,
     claimAirdrop,
 
-    // Data from context
-    user,
-    project,
-    currentCycleId,
-    addresses,
-
-    // Dynamic queries (optional)
-    proposal, // Pass proposalId to params
-    proposalsForCycle, // Pass cycleId to params
-
-    // Convenience accessors
-    userVotingPower,
-    airdropStatusData,
-    availableAirdropAmount,
-    treasuryAddress,
-    factoryAddress,
+    // Helpers
+    buildProposeTransferConfig,
+    buildProposeBoostConfig,
+    buildExecuteProposalConfig,
 
     // Loading states
+    isReady,
     isProposing,
     isVoting,
     isExecuting,
+    isClaiming,
   } = useGovernance({
     proposalId: 123n, // Optional: for dynamic proposal query
     cycleId: 5n, // Optional: for cycle proposals
@@ -61,16 +51,20 @@ function GovernanceInterface() {
     vote.mutate({ proposalId, support })
   }
 
+  // Get data from context
+  const { data: user } = useUser()
+  const { data: project } = useProject()
+
   return (
     <div>
       <h2>Governance</h2>
-      <p>Current Cycle: {currentCycleId?.data?.toString()}</p>
-      <p>Treasury: {treasuryAddress}</p>
-      <p>Your Voting Power: {userVotingPower?.formatted}</p>
+      <p>Current Cycle: {project?.governanceStats?.currentCycleId.toString()}</p>
+      <p>Treasury: {project?.treasury}</p>
+      <p>Your Voting Power: {user?.votingPower.formatted}</p>
 
-      {airdropStatusData?.isAvailable && (
-        <button onClick={() => claimAirdrop.mutate()}>
-          Claim {availableAirdropAmount?.formatted} Tokens
+      {project?.airdrop?.isAvailable && (
+        <button onClick={() => claimAirdrop.mutate()} disabled={isClaiming}>
+          Claim {project.airdrop.availableAmount.formatted} Tokens
         </button>
       )}
 
@@ -111,13 +105,20 @@ function GovernanceInterface() {
 All governance data comes from `user` and `project` context:
 
 ```typescript
+import { useUser, useProject } from 'levr-sdk/client'
+
+const { data: user } = useUser()
+const { data: project } = useProject()
+
 // From project context
-project.data?.currentCycleId // Current governance cycle
-project.data?.governor // Governor contract address
-project.data?.treasury // Treasury contract address
-project.data?.factory // Factory contract address
+project?.governanceStats?.currentCycleId // Current governance cycle
+project?.governanceStats?.activeProposalCount.transfer // Active transfers
+project?.governanceStats?.activeProposalCount.boost // Active boosts
+project?.governor // Governor contract address
+project?.treasury // Treasury contract address
+project?.factory // Factory contract address
+project?.airdrop // Treasury airdrop status
 
 // From user context
-user.data?.governance.votingPower // User's voting power
-user.data?.governance.airdrop // Airdrop status
+user?.votingPower // User's voting power (token-days)
 ```
