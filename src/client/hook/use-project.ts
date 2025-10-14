@@ -46,28 +46,22 @@ export function useProjectQuery({
 
 export type UseProjectsParams = {
   enabled?: boolean
-} & Omit<ProjectsParams, 'publicClient' | 'factoryAddress' | 'chainId'>
+} & Omit<ProjectsParams, 'publicClient'>
 
-export function useProjects({
-  enabled: e = true,
-  fromBlock,
-  pageSize,
-  toBlock,
-}: UseProjectsParams = {}) {
+export function useProjects({ enabled: e = true, offset, limit }: UseProjectsParams = {}) {
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain.id
 
   const enabled = !!publicClient && !!chainId && e
 
   return useQuery<ProjectsResult>({
-    queryKey: ['projects', chainId, fromBlock, pageSize, toBlock],
+    queryKey: ['projects', chainId, offset, limit],
     enabled,
     queryFn: () =>
       getProjects({
         publicClient: publicClient!,
-        fromBlock,
-        pageSize,
-        toBlock,
+        offset,
+        limit,
       }),
     staleTime: 30_000,
   })

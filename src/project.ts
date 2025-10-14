@@ -1,4 +1,3 @@
-import type { ExtractAbiItem, Log } from 'viem'
 import { erc20Abi, zeroAddress } from 'viem'
 
 import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from './abis'
@@ -475,9 +474,8 @@ function parseStakingStats(
 
 export type ProjectsParams = {
   publicClient: PopPublicClient
-  fromBlock?: bigint
-  toBlock?: bigint | 'latest'
-  pageSize?: number
+  offset?: number
+  limit?: number
 }
 
 export type ProjectsResult = {
@@ -491,26 +489,16 @@ export type ProjectsResult = {
     | 'feeReceivers'
     | 'airdrop'
   >[]
-  fromBlock: bigint
-  toBlock: bigint
+  total: number
 }
 
-type RegisteredEvent = Log<
-  bigint,
-  number,
-  false,
-  ExtractAbiItem<typeof LevrFactory_v1, 'Registered'>,
-  false
->
-
 /**
- * Get multiple projects data
+ * Get multiple projects data using factory's paginated getProjects()
  */
 export async function getProjects({
   publicClient,
-  fromBlock,
-  toBlock = 'latest',
-  pageSize = 100,
+  offset = 0,
+  limit = 50,
 }: ProjectsParams): Promise<ProjectsResult> {
   if (Object.values({ publicClient }).some((value) => !value)) {
     throw new Error('Invalid projects params')
@@ -522,103 +510,32 @@ export async function getProjects({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
 
-  // Determine block range
-  const latestBlock = await publicClient.getBlockNumber()
-  // Default to last 10,000 blocks (reasonable for most chains)
-  // This covers ~2 hours on Base (2s blocks) or ~33 hours on Ethereum (12s blocks)
-  const defaultBlockRange = 10_000n
-  const from = fromBlock ?? (latestBlock > defaultBlockRange ? latestBlock - defaultBlockRange : 0n)
-  const to = toBlock === 'latest' ? latestBlock : toBlock
-
-  // Get the Registered event
-  const registeredEvent = LevrFactory_v1.find(
-    (item) => item.type === 'event' && item.name === 'Registered'
-  )
-
-  // Fetch Registered events - indexed events are efficient even across large ranges
-  const allLogs = (await publicClient.getLogs({
-    address: factoryAddress,
-    event: registeredEvent,
-    fromBlock: from,
-    toBlock: to,
-  })) as RegisteredEvent[]
-
-  // Sort by block number descending (most recent first)
-  const logs = allLogs.sort((a, b) => {
-    if (a.blockNumber > b.blockNumber) return -1
-    if (a.blockNumber < b.blockNumber) return 1
-    return 0
-  })
-
-  // Limit to pageSize
-  const limitedLogs = logs.slice(0, pageSize)
-
-  if (limitedLogs.length === 0) {
-    return {
-      projects: [],
-      fromBlock: from,
-      toBlock: to,
-    }
-  }
-
-  // Extract unique clanker tokens
-  const clankerTokens = limitedLogs.map((log) => log.args.clankerToken!)
-
-  // First pass: get factory contracts to check if projects exist
-  const factoryContractsOnly = clankerTokens.map((token) => ({
+  // Get projects from factory using paginated view function
+  const [projectsData, total] = await publicClient.readContract({
     address: factoryAddress,
     abi: LevrFactory_v1,
-    functionName: 'getProjectContracts' as const,
-    args: [token],
-  }))
+    functionName: 'getProjects',
+    args: [BigInt(offset), BigInt(limit)],
+  })
 
-  const factoryResults = await publicClient.multicall({ contracts: factoryContractsOnly })
-
-  // Filter out unregistered projects and prepare valid tokens with their contracts
-  const validTokensWithContracts = clankerTokens
-    .map((token, index) => {
-      const result = factoryResults[index].result as {
-        treasury: `0x${string}`
-        governor: `0x${string}`
-        staking: `0x${string}`
-        stakedToken: `0x${string}`
-      }
-
-      if (
-        [result.treasury, result.governor, result.staking, result.stakedToken].some(
-          (a) => a === zeroAddress
-        )
-      ) {
-        return null
-      }
-
-      return { token, contracts: result }
-    })
-    .filter(Boolean) as Array<{
-    token: `0x${string}`
-    contracts: {
-      treasury: `0x${string}`
-      governor: `0x${string}`
-      staking: `0x${string}`
-      stakedToken: `0x${string}`
-    }
-  }>
-
-  if (validTokensWithContracts.length === 0) {
+  if (projectsData.length === 0) {
     return {
       projects: [],
-      fromBlock: from,
-      toBlock: to,
+      total: Number(total),
     }
   }
 
-  // Build contract calls for valid tokens only (no governance for list view)
-  const validContracts = validTokensWithContracts.flatMap(({ token, contracts }) => [
-    ...getTokenContracts(token),
-    ...getTreasuryContracts(token, contracts.treasury, contracts.staking),
+  // Build contract calls for all projects (token data + treasury balances)
+  const contracts = projectsData.flatMap((projectInfo) => [
+    ...getTokenContracts(projectInfo.clankerToken),
+    ...getTreasuryContracts(
+      projectInfo.clankerToken,
+      projectInfo.project.treasury,
+      projectInfo.project.staking
+    ),
   ])
 
-  const results = await publicClient.multicall({ contracts: validContracts })
+  const results = await publicClient.multicall({ contracts })
 
   // Parse results into Project objects
   const projects: Omit<
@@ -633,8 +550,8 @@ export async function getProjects({
   >[] = []
   const callsPerProject = 8 // 6 token + 2 treasury (no governance for list view)
 
-  for (let i = 0; i < validTokensWithContracts.length; i++) {
-    const { token, contracts: projectContracts } = validTokensWithContracts[i]
+  for (let i = 0; i < projectsData.length; i++) {
+    const projectInfo = projectsData[i]
     const offset = i * callsPerProject
 
     // Extract results for this project
@@ -642,7 +559,7 @@ export async function getProjects({
     const treasuryResults = results.slice(offset + 6, offset + 8) as TreasuryContractsResult
 
     // Parse using our type-safe parsers
-    const tokenData = parseTokenData(tokenResults, token)
+    const tokenData = parseTokenData(tokenResults, projectInfo.clankerToken)
     const treasuryStats = parseTreasuryStats(
       treasuryResults,
       tokenData.decimals,
@@ -652,10 +569,10 @@ export async function getProjects({
 
     projects.push({
       chainId,
-      treasury: projectContracts.treasury,
-      governor: projectContracts.governor,
-      staking: projectContracts.staking,
-      stakedToken: projectContracts.stakedToken,
+      treasury: projectInfo.project.treasury,
+      governor: projectInfo.project.governor,
+      staking: projectInfo.project.staking,
+      stakedToken: projectInfo.project.stakedToken,
       factory: factoryAddress,
       token: tokenData,
       treasuryStats,
@@ -664,8 +581,7 @@ export async function getProjects({
 
   return {
     projects,
-    fromBlock: from,
-    toBlock: to,
+    total: Number(total),
   }
 }
 

@@ -187,6 +187,69 @@ export default [
   },
   {
     type: 'function',
+    name: 'getProjects',
+    inputs: [
+      {
+        name: 'offset',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'limit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [
+      {
+        name: 'projects',
+        type: 'tuple[]',
+        internalType: 'struct ILevrFactory_v1.ProjectInfo[]',
+        components: [
+          {
+            name: 'clankerToken',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'project',
+            type: 'tuple',
+            internalType: 'struct ILevrFactory_v1.Project',
+            components: [
+              {
+                name: 'treasury',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'governor',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'staking',
+                type: 'address',
+                internalType: 'address',
+              },
+              {
+                name: 'stakedToken',
+                type: 'address',
+                internalType: 'address',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'total',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'isTrustedForwarder',
     inputs: [
       {

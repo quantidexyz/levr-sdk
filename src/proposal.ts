@@ -33,7 +33,7 @@ export type EnrichedProposalDetails = FormattedProposalDetails & {
 
 /**
  * Get call data contracts for a single proposal
- * Returns 4-5 contract configs: getProposal, meetsQuorum, meetsApproval, state, [getVoteReceipt]
+ * Returns 1-2 contract configs: getProposal (includes state, meetsQuorum, meetsApproval), [getVoteReceipt]
  */
 export function proposalCallData(
   governorAddress: `0x${string}`,
@@ -45,24 +45,6 @@ export function proposalCallData(
       address: governorAddress,
       abi: LevrGovernor_v1,
       functionName: 'getProposal' as const,
-      args: [proposalId],
-    },
-    {
-      address: governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'meetsQuorum' as const,
-      args: [proposalId],
-    },
-    {
-      address: governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'meetsApproval' as const,
-      args: [proposalId],
-    },
-    {
-      address: governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'state' as const,
       args: [proposalId],
     },
   ]
@@ -85,7 +67,7 @@ export function proposalCallData(
 
 /**
  * Parse proposal data from multicall results
- * Expects 4-5 results: [getProposal, meetsQuorum, meetsApproval, state, [getVoteReceipt]]
+ * Expects 1-2 results: [getProposal (includes state, meetsQuorum, meetsApproval), [getVoteReceipt]]
  */
 export function parseProposalData(
   results: readonly any[],
@@ -93,10 +75,11 @@ export function parseProposalData(
   pricing?: PricingResult
 ): EnrichedProposalDetails {
   const proposalData = results[0] as any
-  const meetsQuorum = results[1] as boolean
-  const meetsApproval = results[2] as boolean
-  const state = results[3] as number
-  const voteReceiptData = results[4] as
+  // State, meetsQuorum, and meetsApproval are now included in the proposal data
+  const state = proposalData.state as number
+  const meetsQuorum = proposalData.meetsQuorum as boolean
+  const meetsApproval = proposalData.meetsApproval as boolean
+  const voteReceiptData = results[1] as
     | { hasVoted: boolean; support: boolean; votes: bigint }
     | undefined
 
@@ -202,16 +185,13 @@ export async function proposals({
 
   // Parse results using parseProposalData utility
   const parsedProposals: EnrichedProposalDetails[] = []
-  const contractsPerProposal = userAddress ? 5 : 4 // 5 if including vote receipt, 4 otherwise
+  const contractsPerProposal = userAddress ? 2 : 1 // 2 if including vote receipt, 1 otherwise
 
   for (let i = 0; i < limitedIds.length; i++) {
     const baseIndex = i * contractsPerProposal
     const proposalResults = [
       results[baseIndex].result,
-      results[baseIndex + 1].result,
-      results[baseIndex + 2].result,
-      results[baseIndex + 3].result,
-      userAddress ? results[baseIndex + 4].result : undefined,
+      userAddress ? results[baseIndex + 1].result : undefined,
     ]
 
     // Skip if proposal data is invalid

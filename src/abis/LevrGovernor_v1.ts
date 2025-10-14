@@ -179,6 +179,21 @@ export default [
             type: 'uint256',
             internalType: 'uint256',
           },
+          {
+            name: 'state',
+            type: 'uint8',
+            internalType: 'enum ILevrGovernor_v1.ProposalState',
+          },
+          {
+            name: 'meetsQuorum',
+            type: 'bool',
+            internalType: 'bool',
+          },
+          {
+            name: 'meetsApproval',
+            type: 'bool',
+            internalType: 'bool',
+          },
         ],
       },
     ],
