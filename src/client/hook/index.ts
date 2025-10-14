@@ -40,19 +40,12 @@ export * from './use-stake'
 export * from './use-swap'
 
 // ========================================
-// INTERNAL HOOKS (used by LevrProvider)
-// ========================================
-
-export { usePoolQuery } from './use-pool'
-export { useProposalsQuery } from './use-proposal'
-export { useUserQuery } from './use-user'
-
-// ========================================
 // OTHER HOOKS (not part of Levr context)
 // ========================================
 
 export * from './use-deploy'
+export * from './use-pool'
 export * from './use-prepare'
 export * from './use-project'
-export { useProposal } from './use-proposal'
+export * from './use-proposal'
 export * from './use-register'
