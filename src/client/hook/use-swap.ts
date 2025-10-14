@@ -91,10 +91,8 @@ export function useSwap({
         zeroForOne: quoteParams!.zeroForOne,
         amountIn: amountInBigInt,
         hookData: quoteParams!.hookData,
-        pricing: project.data?.pricing,
         currency0Decimals,
         currency1Decimals,
-        tokenAddress: project.data?.token.address,
       })
 
       return {

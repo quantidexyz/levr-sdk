@@ -36,8 +36,8 @@
  *   poolKey,
  *   zeroForOne: true,
  *   amountIn: parseEther('1'),
- *   pricing,
- *   tokenAddress: '0x...',
+ *   currency0Decimals: 18,
+ *   currency1Decimals: 18,
  * })
  * console.log(`Output: ${formatEther(v4Quote.amountOut)}`)
  * console.log(`Price Impact: ${v4Quote.priceImpactBps}%`)

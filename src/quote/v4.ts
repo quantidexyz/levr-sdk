@@ -1,9 +1,10 @@
 import type { PublicClient } from 'viem'
-import { encodeAbiParameters, encodeFunctionData, formatUnits, keccak256 } from 'viem'
+import { encodeFunctionData, formatUnits } from 'viem'
 
-import { IClankerHookDynamicFee, IClankerHookStaticFee, V4Quoter } from '../abis'
-import { UNISWAP_V4_QUOTER } from '../constants'
-import type { PoolKey, PricingResult } from '../types'
+import { IClankerHookDynamicFee, IClankerHookStaticFee, StateView, V4Quoter } from '../abis'
+import { UNISWAP_V4_QUOTER, UNISWAP_V4_STATE_VIEW } from '../constants'
+import { getPoolId } from '../pool-key'
+import type { PoolKey } from '../types'
 
 // ============================================================================
 // V4 Quote Types
@@ -31,10 +32,6 @@ export type QuoteV4Params = {
    */
   hookData?: `0x${string}`
   /**
-   * Optional pricing data for price impact calculation
-   */
-  pricing?: PricingResult
-  /**
    * Decimals for currency0 (default: 18)
    */
   currency0Decimals?: number
@@ -43,9 +40,10 @@ export type QuoteV4Params = {
    */
   currency1Decimals?: number
   /**
-   * Project token address to determine which currency is token vs WETH
+   * Whether to calculate price impact (requires fetching pool state)
+   * @default true
    */
-  tokenAddress?: `0x${string}`
+  calculatePriceImpact?: boolean
 }
 
 export type QuoteV4ReadReturnType = {
@@ -96,170 +94,90 @@ export type QuoteV4BytecodeReturnType = {
 // ============================================================================
 
 /**
- * @description Try to get static fees from a Clanker hook using multicall
+ * @description Convert sqrtPriceX96 to a decimal price (token1/token0)
+ * Uses the standard Uniswap formula: price = (sqrtPriceX96 / 2^96)^2
+ * Adjusted for token decimals
  */
-const tryGetStaticFees = async (
-  publicClient: PublicClient,
-  hookAddress: `0x${string}`,
-  poolId: `0x${string}`
-): Promise<{ clankerFee: number; pairedFee: number } | undefined> => {
-  try {
-    const results = await publicClient.multicall({
-      contracts: [
-        {
-          address: hookAddress,
-          abi: IClankerHookStaticFee,
-          functionName: 'clankerFee',
-          args: [poolId],
-        },
-        {
-          address: hookAddress,
-          abi: IClankerHookStaticFee,
-          functionName: 'pairedFee',
-          args: [poolId],
-        },
-      ],
-    })
+const sqrtPriceX96ToPrice = (
+  sqrtPriceX96: bigint,
+  decimals0: number,
+  decimals1: number
+): number => {
+  // Convert sqrtPriceX96 to a decimal number
+  // price = (sqrtPriceX96 / 2^96)^2
+  const Q96 = 2n ** 96n
+  const numerator = sqrtPriceX96 * sqrtPriceX96
+  const denominator = Q96 * Q96
 
-    if (results[0].status === 'success' && results[1].status === 'success') {
-      return {
-        clankerFee: Number(results[0].result),
-        pairedFee: Number(results[1].result),
-      }
-    }
-    return undefined
-  } catch {
-    return undefined
+  // Get the price as a float
+  let price = Number(numerator) / Number(denominator)
+
+  // Adjust for token decimals: price represents token1/token0
+  // If token0 has more decimals, we need to scale up the price
+  if (decimals0 !== decimals1) {
+    const decimalAdjustment = 10 ** (decimals0 - decimals1)
+    price = price * decimalAdjustment
   }
+
+  return price
 }
 
 /**
- * @description Try to get dynamic fee configuration from a Clanker hook
- */
-const tryGetDynamicFees = async (
-  publicClient: PublicClient,
-  hookAddress: `0x${string}`,
-  poolId: `0x${string}`
-): Promise<{ baseFee: number; maxLpFee: number } | undefined> => {
-  try {
-    const config = await publicClient.readContract({
-      address: hookAddress,
-      abi: IClankerHookDynamicFee,
-      functionName: 'poolConfigVars',
-      args: [poolId],
-    })
-    return {
-      baseFee: Number(config.baseFee),
-      maxLpFee: Number(config.maxLpFee),
-    }
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * @description Get hook fee information from Clanker hooks
- */
-const getHookFees = async (
-  publicClient: PublicClient,
-  poolKey: PoolKey
-): Promise<QuoteV4ReadReturnType['hookFees']> => {
-  // Generate pool ID for hook queries (keccak256 of abi.encode(PoolKey))
-  const poolId = keccak256(
-    encodeAbiParameters(
-      [
-        {
-          type: 'tuple',
-          components: [
-            { name: 'currency0', type: 'address' },
-            { name: 'currency1', type: 'address' },
-            { name: 'fee', type: 'uint24' },
-            { name: 'tickSpacing', type: 'int24' },
-            { name: 'hooks', type: 'address' },
-          ],
-        },
-      ],
-      [poolKey]
-    )
-  )
-
-  // Try static fees first
-  const staticFees = await tryGetStaticFees(publicClient, poolKey.hooks, poolId)
-  if (staticFees) {
-    return {
-      type: 'static',
-      clankerFee: staticFees.clankerFee,
-      pairedFee: staticFees.pairedFee,
-    }
-  }
-
-  // Try dynamic fees
-  const dynamicFees = await tryGetDynamicFees(publicClient, poolKey.hooks, poolId)
-  if (dynamicFees) {
-    return {
-      type: 'dynamic',
-      baseFee: dynamicFees.baseFee,
-      maxLpFee: dynamicFees.maxLpFee,
-    }
-  }
-
-  return undefined
-}
-
-/**
- * @description Calculate price impact using USD pricing
- * Compares the execution price to the market spot price
+ * @description Calculate price impact using the actual pool state
+ * Compares the execution price from the quote to the spot price before the swap
+ *
+ * This is the standard AMM price impact calculation:
+ * - Spot price (before swap): derived from sqrtPriceX96
+ * - Execution price: actual rate from quote (amountOut / amountIn)
+ * - Price impact: % difference between spot and execution price
+ *
+ * The execution price inherently accounts for price movement during the swap,
+ * as it represents the average price across the entire trade.
  */
 const calculatePriceImpact = (
+  sqrtPriceX96: bigint,
   amountIn: bigint,
   amountOut: bigint,
-  currency0: `0x${string}`,
-  currency1: `0x${string}`,
   currency0Decimals: number,
   currency1Decimals: number,
-  tokenAddress: `0x${string}`,
-  pricing: PricingResult,
   zeroForOne: boolean
 ): number | undefined => {
   try {
-    // Determine which currency is the token and which is WETH
-    const currency0IsToken = currency0.toLowerCase() === tokenAddress.toLowerCase()
+    // Get spot price from sqrtPriceX96 (token1/token0)
+    const spotPrice = sqrtPriceX96ToPrice(sqrtPriceX96, currency0Decimals, currency1Decimals)
 
-    // Format amounts to decimal strings
-    const amountInFormatted = parseFloat(
+    if (spotPrice === 0) return undefined
+
+    // Calculate execution price from the quote
+    // Format amounts to decimals
+    const amountInFloat = parseFloat(
       formatUnits(amountIn, zeroForOne ? currency0Decimals : currency1Decimals)
     )
-    const amountOutFormatted = parseFloat(
+    const amountOutFloat = parseFloat(
       formatUnits(amountOut, zeroForOne ? currency1Decimals : currency0Decimals)
     )
 
-    if (amountInFormatted === 0 || amountOutFormatted === 0) return undefined
+    if (amountInFloat === 0 || amountOutFloat === 0) return undefined
 
-    // Get market spot prices
-    const wethPrice = parseFloat(pricing.wethUsd)
-    const tokenPrice = parseFloat(pricing.tokenUsd)
-
-    if (tokenPrice === 0 || wethPrice === 0) return undefined
-
-    // Calculate execution rate (how many output per input)
-    const executionRate = amountOutFormatted / amountInFormatted
-
-    // Determine swap direction and calculate market rate
-    const inputIsToken = zeroForOne ? currency0IsToken : !currency0IsToken
-
-    // Calculate market spot rate (output per input at market prices)
-    const marketRate = inputIsToken
-      ? tokenPrice / wethPrice // Token → WETH
-      : wethPrice / tokenPrice // WETH → Token
-
-    // Getting better or equal rate than market - minimal impact
-    if (executionRate >= marketRate) {
-      return 0.1
+    // Execution price depends on swap direction
+    let executionPrice: number
+    if (zeroForOne) {
+      // Swapping token0 -> token1
+      // Execution price = token1 received / token0 given = token1/token0
+      executionPrice = amountOutFloat / amountInFloat
+    } else {
+      // Swapping token1 -> token0
+      // Execution price = token0 received / token1 given = token0/token1
+      // Convert to token1/token0 to compare with spot price
+      executionPrice = 1 / (amountOutFloat / amountInFloat)
     }
 
-    // Getting worse rate than market - calculate actual slippage
-    const impact = (1 - executionRate / marketRate) * 100
+    // Calculate price impact: |spotPrice - executionPrice| / spotPrice * 100
+    // For zeroForOne: we're buying token1, so price moves up -> execution > spot
+    // For oneForZero: we're buying token0, so price (token1/token0) moves down -> execution < spot
+    const impact = Math.abs((spotPrice - executionPrice) / spotPrice) * 100
 
+    // Return impact in basis points-like format (as percentage)
     return impact
   } catch (error) {
     console.warn('Price impact calculation failed:', error)
@@ -273,6 +191,7 @@ const calculatePriceImpact = (
 
 /**
  * @description Quote a swap on Uniswap V4 by reading from the quoter contract
+ * Uses a single multicall for optimal performance when fetching quote, pool state, and hook fees
  * @param params Quote parameters including pool key and amount
  * @returns Quote result with output amount, gas estimate, price impact, and hook fees
  */
@@ -287,10 +206,9 @@ export const quoteV4Read = async (params: QuoteV4Params): Promise<QuoteV4ReadRet
     zeroForOne,
     amountIn,
     hookData = '0x',
-    pricing,
     currency0Decimals = 18,
     currency1Decimals = 18,
-    tokenAddress,
+    calculatePriceImpact: shouldCalculatePriceImpact = true,
   } = params
 
   const chainId = publicClient.chain?.id
@@ -299,12 +217,19 @@ export const quoteV4Read = async (params: QuoteV4Params): Promise<QuoteV4ReadRet
   const quoterAddress = UNISWAP_V4_QUOTER(chainId)
   if (!quoterAddress) throw new Error(`V4 Quoter address not found for chain ID ${chainId}`)
 
-  // Fetch hook fees and quote in parallel
-  const [{ result }, hookFees] = await Promise.all([
-    publicClient.simulateContract({
+  const stateViewAddress = UNISWAP_V4_STATE_VIEW(chainId)
+  if (!stateViewAddress) throw new Error(`V4 StateView address not found for chain ID ${chainId}`)
+
+  // Prepare pool ID for pool state and hook fee queries
+  const poolId = getPoolId(poolKey)
+
+  // Build multicall contracts array
+  const contracts = [
+    // Contract 0: Quote
+    {
       address: quoterAddress,
       abi: V4Quoter,
-      functionName: 'quoteExactInputSingle',
+      functionName: 'quoteExactInputSingle' as const,
       args: [
         {
           poolKey: {
@@ -319,28 +244,100 @@ export const quoteV4Read = async (params: QuoteV4Params): Promise<QuoteV4ReadRet
           hookData,
         },
       ],
-    }),
-    getHookFees(publicClient, poolKey),
-  ])
+    },
+    // Contract 1: Pool state (sqrtPriceX96) - only if calculating price impact
+    ...(shouldCalculatePriceImpact
+      ? [
+          {
+            address: stateViewAddress,
+            abi: StateView,
+            functionName: 'getSlot0' as const,
+            args: [poolId],
+          },
+        ]
+      : []),
+    // Contracts 2-3: Static hook fees
+    {
+      address: poolKey.hooks,
+      abi: IClankerHookStaticFee,
+      functionName: 'clankerFee' as const,
+      args: [poolId],
+    },
+    {
+      address: poolKey.hooks,
+      abi: IClankerHookStaticFee,
+      functionName: 'pairedFee' as const,
+      args: [poolId],
+    },
+    // Contract 4: Dynamic hook fees
+    {
+      address: poolKey.hooks,
+      abi: IClankerHookDynamicFee,
+      functionName: 'poolConfigVars' as const,
+      args: [poolId],
+    },
+  ]
 
-  // The quoter returns [amountOut: bigint, gasEstimate: bigint]
-  const [amountOut, gasEstimate] = result
+  // Execute single multicall
+  const results = await publicClient.multicall({ contracts })
 
-  // Calculate price impact if pricing and token address are available
-  const priceImpactBps =
-    pricing && tokenAddress
-      ? calculatePriceImpact(
-          amountIn,
-          amountOut,
-          poolKey.currency0,
-          poolKey.currency1,
-          currency0Decimals,
-          currency1Decimals,
-          tokenAddress,
-          pricing,
-          zeroForOne
-        )
-      : undefined
+  // Parse quote result (always at index 0)
+  const quoteResult = results[0]
+  if (quoteResult.status !== 'success') {
+    throw new Error('Quote failed')
+  }
+  const [amountOut, gasEstimate] = quoteResult.result as [bigint, bigint]
+
+  // Parse pool state result (at index 1 if price impact calculation is enabled)
+  let priceImpactBps: number | undefined
+  const poolStateIndex = shouldCalculatePriceImpact ? 1 : -1
+  if (shouldCalculatePriceImpact && results[poolStateIndex]?.status === 'success') {
+    const poolState = results[poolStateIndex].result as [bigint, number, number, number]
+    priceImpactBps = calculatePriceImpact(
+      poolState[0], // sqrtPriceX96
+      amountIn,
+      amountOut,
+      currency0Decimals,
+      currency1Decimals,
+      zeroForOne
+    )
+  }
+
+  // Parse hook fees (indices adjust based on whether pool state was fetched)
+  const hookFeeBaseIndex = shouldCalculatePriceImpact ? 2 : 1
+  const staticFeeResults = [
+    results[hookFeeBaseIndex], // clankerFee
+    results[hookFeeBaseIndex + 1], // pairedFee
+  ]
+  const dynamicFeeResult = results[hookFeeBaseIndex + 2] // poolConfigVars
+
+  let hookFees: QuoteV4ReadReturnType['hookFees']
+
+  // Try static fees first
+  if (staticFeeResults[0]?.status === 'success' && staticFeeResults[1]?.status === 'success') {
+    hookFees = {
+      type: 'static',
+      clankerFee: Number(staticFeeResults[0].result),
+      pairedFee: Number(staticFeeResults[1].result),
+    }
+  }
+  // Try dynamic fees
+  else if (dynamicFeeResult?.status === 'success') {
+    const config = dynamicFeeResult.result as unknown as {
+      baseFee: number
+      maxLpFee: number
+      referenceTickFilterPeriod: bigint
+      resetPeriod: bigint
+      resetTickFilter: number
+      feeControlNumerator: bigint
+      decayFilterBps: number
+    }
+    hookFees = {
+      type: 'dynamic',
+      baseFee: Number(config.baseFee),
+      maxLpFee: Number(config.maxLpFee),
+    }
+  }
 
   return {
     amountOut,
