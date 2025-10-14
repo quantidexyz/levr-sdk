@@ -15,14 +15,14 @@ TypeScript SDK for interacting with Levr protocol - a decentralized governance, 
 ## Features
 
 - 🎯 **Type-Safe** - Full TypeScript support with comprehensive types
-- 🔄 **Centralized Refetch** - 100% coverage with smart cross-domain awareness
-- ⚡ **Zero Duplication** - Optimized query management via React Context
+- 🔄 **Zero Duplication** - Single multicalls per data group (37-53% fewer RPC calls)
+- ⚡ **Centralized Provider** - All queries in one place with smart refetch management
 - 🪝 **React Hooks** - Easy integration with React applications
 - 🔌 **Server & Client** - Works in both server and client environments
 - 📦 **Tree-Shakeable** - Import only what you need
 - 💰 **USD Pricing** - Integrated USD price calculations for tokens, balances, and APR
 - 📊 **Price Impact** - Real-time price impact calculation for swaps
-- ⚙️ **Hook Fees** - Automatic extraction of Clanker hook fees (static and dynamic)
+- ⚙️ **Manual Accrual** - Explicit reward accrual system for security and predictability
 
 ## Installation
 
@@ -60,12 +60,10 @@ export function App() {
 import { useSetClankerToken, useProject } from 'levr-sdk/client'
 
 export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
-  const setClankerToken = useSetClankerToken()
   const { data: project, isLoading } = useProject()
 
-  useEffect(() => {
-    setClankerToken(clankerToken) // Updates global context
-  }, [clankerToken, setClankerToken])
+  // Automatically sets and updates when clankerToken prop changes
+  useSetClankerToken(clankerToken)
 
   if (isLoading) return <div>Loading...</div>
   if (!project) return <div>Project not found</div>
@@ -73,6 +71,7 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
   return (
     <div>
       <h1>{project.token.name}</h1>
+      <p>Treasury: {project.treasuryStats?.balance.formatted}</p>
       <StakeComponent />
       <SwapComponent />
       <GovernanceComponent />
@@ -81,15 +80,11 @@ export function ProjectPage({ clankerToken }: { clankerToken: `0x${string}` }) {
 }
 
 // 3. Use hooks in child components - they automatically share queries!
-import { useStake, useBalance } from 'levr-sdk/client'
+import { useStake, useUser } from 'levr-sdk/client'
 
 function StakeComponent() {
-  const { data: balances } = useBalance()
-  const {
-    stake,
-    stakedBalance,
-    needsApproval,
-  } = useStake({
+  const { data: user } = useUser()
+  const { stake, needsApproval } = useStake({
     onStakeSuccess: () => {
       toast.success('Staked successfully!')
       // All related data automatically refetches
@@ -98,8 +93,8 @@ function StakeComponent() {
 
   return (
     <div>
-      <p>Balance: {balances?.token?.formatted}</p>
-      <p>Staked: {stakedBalance?.formatted}</p>
+      <p>Balance: {user?.balances.token.formatted}</p>
+      <p>Staked: {user?.staking.stakedBalance.formatted}</p>
       <button onClick={() => stake.mutate(amount)}>
         Stake
       </button>
@@ -113,9 +108,10 @@ function StakeComponent() {
 For server-side operations or scripts:
 
 ```typescript
-import { project, balance, Stake, Governance } from 'levr-sdk'
+import { getProject, getUser, Stake, Governance } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
 
 // Initialize clients
 const publicClient = createPublicClient({
@@ -130,44 +126,37 @@ const walletClient = createWalletClient({
 })
 
 // Get project data
-const projectData = await project({
+const projectData = await getProject({
   publicClient,
-  factoryAddress: '0x...',
-  chainId: base.id,
   clankerToken: '0x...',
 })
 
-// Get balances
-const balances = await balance({
+// Get user data (includes balances, staking, voting power)
+const userData = await getUser({
   publicClient,
-  address: '0x...',
-  tokens: [
-    { address: projectData.token.address, decimals: 18, key: 'token' },
-    { address: '0x...', decimals: 18, key: 'weth' },
-  ],
+  userAddress: '0x...',
+  project: projectData,
 })
+
+console.log('Balance:', userData.balances.token.formatted)
+console.log('Staked:', userData.staking.stakedBalance.formatted)
 
 // Stake tokens
 const stake = new Stake({
   wallet: walletClient,
   publicClient,
-  stakingAddress: projectData.staking,
-  tokenAddress: projectData.token.address,
-  tokenDecimals: 18,
-  trustedForwarder: projectData.forwarder,
+  project: projectData,
 })
 
 // Approve and stake
-await stake.approve(1000)
-const receipt = await stake.stake(1000)
+await stake.approve(1000) // Or '1000' or 1000n
+await stake.stake(1000)
 
 // Governance operations
 const governance = new Governance({
   wallet: walletClient,
   publicClient,
-  governorAddress: projectData.governor,
-  tokenDecimals: 18,
-  clankerToken: projectData.token.address,
+  project: projectData,
 })
 
 // Propose a transfer
@@ -180,20 +169,22 @@ const { receipt, proposalId } = await governance.proposeTransfer(
 
 ## Available Hooks (Client)
 
-### Simple Query Hooks
+### Query Hooks
 
 Direct context accessors for read-only data:
 
 ```typescript
 import {
-  useProject, // Project data (token, contracts, pool info)
-  useBalance, // Token balances (token, WETH, ETH)
-  useProposals, // Proposals list
+  useProject, // Project data (token, contracts, treasury, staking stats, governance stats)
+  useUser, // User data (balances, staking, voting power)
+  usePool, // Pool state (liquidity, price, fees)
+  useProposals, // Proposals with vote receipts
   useClankerToken, // Token metadata (admin, image, etc.)
 } from 'levr-sdk/client'
 
 const { data: project } = useProject()
-const { data: balances } = useBalance()
+const { data: user } = useUser()
+const { data: pool } = usePool()
 const { data: proposals } = useProposals()
 const { data: tokenData } = useClankerToken()
 ```
@@ -223,50 +214,50 @@ const {
   accrueRewards,
   accrueAllRewards,
 
-  // Queries
-  allowance,
-  poolData,
-  userData,
-  balances,
-  wethRewardRate,
-  aprBpsWeth,
-
-  // Convenience accessors
-  stakedBalance,
-  totalStaked,
-  tokenBalance,
+  // Helper
   needsApproval,
 
   // Loading states
-  isLoadingPoolData,
-  isLoadingUserData,
+  isApproving,
+  isStaking,
+  isUnstaking,
+  isClaiming,
 } = useStake({
   onStakeSuccess: (receipt) => console.log('Staked!', receipt),
   onUnstakeSuccess: (receipt) => console.log('Unstaked!', receipt),
   onClaimSuccess: (receipt) => console.log('Claimed!', receipt),
 })
 
-// Use mutations
-stake.mutate(1000) // Automatically refetches balances, staking data, project
+// Get data from context
+const { data: user } = useUser()
+const { data: project } = useProject()
+
+// Access staking data
+user?.balances.token // Token balance
+user?.staking.stakedBalance // User's staked amount
+user?.staking.claimableRewards // User's claimable rewards
+project?.stakingStats?.totalStaked // Total staked by all users
+project?.stakingStats?.apr // APR percentages
+
+// Use mutations - automatically refetches related data
+stake.mutate(1000) // Or '1000' or 1000n
 ```
 
 #### `useSwap()`
 
 ```typescript
 const {
-  // Mutations
+  // Mutation
   swap,
 
-  // Queries
+  // Quote query
   quote,
-  balances,
-  poolKey,
-  pricing, // USD pricing data
 
-  // Convenience
-  tokenBalance,
-  wethBalance,
+  // Helper
   buildSwapConfig,
+
+  // Loading
+  isSwapping,
 } = useSwap({
   quoteParams: {
     zeroForOne: true, // true = token -> WETH, false = WETH -> token
@@ -277,17 +268,27 @@ const {
   onSwapSuccess: (receipt) => console.log('Swapped!', receipt),
 })
 
-// Access quote with price impact
+// Get data from context
+const { data: user } = useUser()
+const { data: project } = useProject()
+
+// Access balances and pool
+user?.balances.token // Token balance
+user?.balances.weth // WETH balance
+project?.pool?.poolKey // Pool key for swaps
+
+// Access quote with price impact and hook fees
 console.log(quote.data?.priceImpactBps) // 0.5 (0.5% impact)
 console.log(quote.data?.hookFees) // { type: 'static', clankerFee: 500, ... }
 
-// Build swap config (poolKey from context)
+// Build and execute swap
 const config = buildSwapConfig({
   zeroForOne: true,
-  amountIn: 100,
+  amountIn: 100, // Accepts number, string, or bigint
   amountInDecimals: 18,
-  minAmountOut: '95',
+  minAmountOut: ((quote.data.amountOut * 99n) / 100n).toString(), // 1% slippage
 })
+swap.mutate(config)
 ```
 
 #### `useGovernance()`
@@ -301,41 +302,56 @@ const {
   executeProposal,
   claimAirdrop,
 
-  // Queries
-  currentCycleId,
-  addresses,
-  airdropStatus,
-  proposal,
-
-  // Convenience accessors
-  treasuryAddress,
-  isAirdropAvailable,
+  // Helpers
+  buildProposeTransferConfig,
+  buildProposeBoostConfig,
 
   // Loading states
   isProposing,
   isVoting,
   isExecuting,
+  isClaiming,
 } = useGovernance({
-  governorAddress: project.governor,
-  clankerToken: project.token.address,
   onVoteSuccess: (receipt) => console.log('Voted!', receipt),
   onExecuteProposalSuccess: (receipt) => console.log('Executed!', receipt),
 })
+
+// Get data from context
+const { data: user } = useUser()
+const { data: project } = useProject()
+const { data: proposals } = useProposals()
+
+// Access governance data
+project?.governanceStats?.currentCycleId // Current cycle
+project?.treasury // Treasury address
+project?.governor // Governor address
+project?.airdrop // Airdrop status
+user?.votingPower // User's voting power
+proposals?.proposals // List of proposals with vote receipts
+
+// Use mutations
+const config = buildProposeTransferConfig({
+  recipient: '0x...',
+  amount: '1000',
+  description: 'Fund development',
+})
+proposeTransfer.mutate(config)
 ```
 
 #### `useFeeReceivers()`
 
 ```typescript
-const {
-  query, // Fee receivers data
-  mutate, // Update mutation
-} = useFeeReceivers({
+const { mutate } = useFeeReceivers({
   onSuccess: (hash) => console.log('Updated fee receiver', hash),
 })
 
-// Use mutation
+// Get fee receiver data from project context
+const { data: project } = useProject()
+const feeReceivers = project?.feeReceivers
+
+// Update a fee receiver
 mutate.mutate({
-  clankerToken: '0x...',
+  clankerToken: project.token.address,
   rewardIndex: 0,
   newRecipient: '0x...',
 })
@@ -350,15 +366,16 @@ import {
   useClanker, // Clanker SDK instance
 } from 'levr-sdk/client'
 
-// Update active token
-const setClankerToken = useSetClankerToken()
-setClankerToken('0x...')
+// Automatically update active token (in page/route components)
+useSetClankerToken('0x...')
 
 // Manual refetch control
 const refetch = useLevrRefetch()
 await refetch.all() // Refetch everything
-await refetch.staking() // Refetch staking data
-await refetch.afterStake() // Smart cross-domain refetch after stake
+await refetch.user() // Refetch user data
+await refetch.project() // Refetch project data
+await refetch.afterStake() // Smart refetch after stake
+await refetch.afterTrade() // Smart refetch after swap
 
 // Get Clanker SDK instance
 const clanker = useClanker()
@@ -368,12 +385,17 @@ const clanker = useClanker()
 
 The SDK provides **100% refetch coverage** with smart cross-domain awareness:
 
-| Action                   | Auto-Refetches                                                    |
-| ------------------------ | ----------------------------------------------------------------- |
-| **Stake/Unstake/Claim**  | Balances, All Staking Data, Project (treasury), WETH Rewards      |
-| **Swap**                 | Balances, Project (pool data)                                     |
-| **Propose/Vote/Execute** | Governance, Proposals, Project (treasury), Staking (voting power) |
-| **Wallet/Chain Change**  | All Queries                                                       |
+| Action                  | Auto-Refetches                                    |
+| ----------------------- | ------------------------------------------------- |
+| **Trade (Swap)**        | User (balances), Pool (state)                     |
+| **Stake/Unstake**       | User (balances, staking, voting), Project (stats) |
+| **Claim**               | User only (balances, claimable rewards)           |
+| **Accrue**              | Project only (outstanding rewards)                |
+| **Vote**                | User, Proposals (vote receipts)                   |
+| **Propose**             | Proposals, Project (active count)                 |
+| **Execute**             | Project, Proposals, User (all may change)         |
+| **Airdrop**             | Project (treasury, airdrop status)                |
+| **Wallet/Chain Change** | All Queries                                       |
 
 All mutations automatically trigger appropriate refetches - no manual coordination needed!
 
@@ -381,163 +403,170 @@ All mutations automatically trigger appropriate refetches - no manual coordinati
 
 ### Server-Side APIs
 
-#### `project()`
+#### `getProject()`
 
-Get project data including token, contracts, pool information, and optional USD pricing:
+Get complete project data including token, contracts, pool, treasury, staking stats, governance stats, and optional USD pricing:
 
 ```typescript
-import { project } from 'levr-sdk'
+import { getProject } from 'levr-sdk'
 
-const projectData = await project({
+const projectData = await getProject({
   publicClient,
-  factoryAddress: '0x...',
   clankerToken: '0x...',
   // Optional: Provide oracle client for USD pricing
   oraclePublicClient: mainnetClient, // For WETH/USD and token/USD prices
+  userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
 })
 
-// Access USD-denominated values
-console.log(projectData.pricing) // { wethUsd: "2543.21", tokenUsd: "0.05" }
-console.log(projectData.treasuryStats.balance.usd) // "50000.00"
-console.log(projectData.treasuryStats.totalAllocated.usd) // "150000.00"
+// Access project data
+console.log(projectData.token.name) // "MyToken"
+console.log(projectData.treasuryStats?.balance.formatted) // "50000.00"
+console.log(projectData.stakingStats?.apr.token.percentage) // 15.5
+console.log(projectData.governanceStats?.currentCycleId) // 5n
+
+// Access USD pricing (if oracle provided)
+console.log(projectData.pricing?.tokenUsd) // "0.05"
+console.log(projectData.treasuryStats?.balance.usd) // "$2500.00"
 ```
 
-**Note**: `chainId` parameter is no longer required - it's automatically derived from `publicClient.chain.id`.
+#### `getUser()`
 
-#### `balance()`
-
-Get token balances for multiple tokens:
+Get user-specific data including balances, staking, and voting power:
 
 ```typescript
-import { balance } from 'levr-sdk'
+import { getUser, getProject } from 'levr-sdk'
 
-const balances = await balance({
+// First get project data (user query needs it)
+const projectData = await getProject({
   publicClient,
-  address: '0x...',
-  tokens: [
-    { address: '0x...', decimals: 18, key: 'token' },
-    { address: '0x...', decimals: 18, key: 'weth' },
-    { address: zeroAddress, decimals: 18, key: 'eth' }, // Native ETH
-  ],
+  clankerToken: '0x...',
 })
 
-console.log(balances.token?.formatted) // "1000.0"
-console.log(balances.weth?.formatted) // "5.5"
-console.log(balances.eth?.formatted) // "0.1"
+// Then get user data
+const userData = await getUser({
+  publicClient,
+  userAddress: '0x...',
+  project: projectData,
+})
+
+// Access user data
+console.log(userData.balances.token.formatted) // "1000.0"
+console.log(userData.balances.weth.formatted) // "5.5"
+console.log(userData.staking.stakedBalance.formatted) // "500.0"
+console.log(userData.staking.claimableRewards.staking.formatted) // "10.5"
+console.log(userData.votingPower.formatted) // "15000.0"
 ```
 
 #### `Stake` Class
 
-Manage staking operations with optional USD pricing:
+Manage staking operations:
 
 ```typescript
-import { Stake } from 'levr-sdk'
+import { Stake, getProject } from 'levr-sdk'
 
+// Get project data first
+const projectData = await getProject({
+  publicClient,
+  clankerToken: '0x...',
+})
+
+// Create stake instance with project data
 const stake = new Stake({
   wallet: walletClient,
   publicClient,
-  stakingAddress: '0x...',
-  tokenAddress: '0x...',
-  tokenDecimals: 18,
-  trustedForwarder: '0x...',
+  project: projectData, // All fields from project
 })
-
-// Get staking data
-const poolData = await stake.getPoolData()
-const userData = await stake.getUserData()
-const allowance = await stake.getAllowance()
-
-// Get APR with USD pricing
-const aprData = await stake.getWethRewardRate({
-  totalStaked: poolData.totalStaked,
-  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' }, // Optional USD prices
-})
-console.log(aprData.aprBps) // 1500 (15% APR)
 
 // Perform operations
-await stake.approve(amount)
-await stake.stake(amount)
-await stake.unstake({ amount, to: '0x...' })
+await stake.approve(1000) // Accepts number, string, or bigint
+await stake.stake(1000)
+
+// Unstake (returns new voting power)
+const { receipt, newVotingPower } = await stake.unstake({
+  amount: 500, // Accepts number, string, or bigint
+  to: '0x...', // Optional
+})
+
+// Accrue rewards before claiming
+await stake.accrueAllRewards([
+  projectData.token.address,
+  wethAddress, // Optional: if WETH rewards exist
+])
+
+// Claim rewards
 await stake.claimRewards()
-await stake.accrueRewards(tokenAddress)
 ```
 
 #### `Governance` Class
 
-Manage governance operations with optional USD pricing:
+Manage governance operations:
 
 ```typescript
-import { Governance } from 'levr-sdk'
+import { Governance, getProject } from 'levr-sdk'
 
-const governance = new Governance({
-  wallet: walletClient,
+// Get project data first
+const projectData = await getProject({
   publicClient,
-  governorAddress: '0x...',
-  tokenDecimals: 18,
   clankerToken: '0x...',
 })
 
-// Get governance data
-const cycleId = await governance.getCurrentCycleId()
-const treasury = await governance.getTreasury()
-
-// Get addresses with USD values
-const addresses = await governance.getAddresses({
-  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' },
+// Create governance instance with project data
+const governance = new Governance({
+  wallet: walletClient,
+  publicClient,
+  project: projectData, // All fields from project
 })
-console.log(addresses.treasury.balance.usd) // "50000.00"
-
-// Get airdrop status
-const airdropStatus = await governance.getAirdropStatus()
 
 // Propose actions
 const { receipt, proposalId } = await governance.proposeTransfer(
   '0x...', // recipient
-  parseUnits('1000', 18), // amount
+  1000, // amount (accepts number, string, or bigint)
   'Fund development' // description
 )
 
+// Or with parseUnits for precise amounts
+await governance.proposeTransfer('0x...', parseUnits('1000', 18), 'Fund development')
+
+// Propose boost
+await governance.proposeBoost(500) // Accepts number, string, or bigint
+
 // Vote on proposals
-await governance.vote(proposalId, true) // true = support
+await governance.vote(proposalId, true) // true = yes, false = no
 
 // Execute proposals
 await governance.executeProposal(proposalId)
+
+// Claim airdrop (if available)
+await governance.claimAirdrop()
+
+// Get vote receipt
+const receipt = await governance.getVoteReceipt(proposalId, '0x...')
+console.log(receipt.hasVoted) // true/false
 ```
 
-#### `quoteV3()`
+#### `quote` API
 
-Quote swaps on Uniswap V3:
+Unified quote API for V3 and V4 swaps:
 
 ```typescript
-import { quoteV3, UNISWAP_V3_QUOTER_V2, WETH, GET_USDC_ADDRESS } from 'levr-sdk'
+import { quote, UNISWAP_V3_QUOTER_V2, WETH } from 'levr-sdk'
 
-const chainId = 8453 // Base
+const chainId = publicClient.chain.id
 const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
 const wethData = WETH(chainId)
-const usdcAddress = GET_USDC_ADDRESS(chainId)
 
-// Get V3 quote
-const quote = await quoteV3({
+// V3 quote
+const v3Quote = await quote.v3.read({
   publicClient,
   quoterAddress,
   tokenIn: wethData.address,
-  tokenOut: usdcAddress,
+  tokenOut: '0x...', // USDC
   amountIn: parseUnits('1', 18),
   fee: 3000, // 0.3%
 })
 
-console.log(formatUnits(quote.amountOut, 6)) // "2543.21"
-```
-
-#### `quoteV4()`
-
-Get swap quotes on Uniswap V4 with price impact and hook fees:
-
-```typescript
-import { quoteV4 } from 'levr-sdk'
-
-// Get V4 quote with price impact
-const quote = await quoteV4({
+// V4 quote with price impact and hook fees
+const v4Quote = await quote.v4.read({
   publicClient,
   poolKey: {
     currency0: '0x...',
@@ -547,24 +576,17 @@ const quote = await quoteV4({
     hooks: '0x...',
   },
   zeroForOne: true,
-  amountIn: parseUnits('100', 18),
-  // Optional: Provide pricing data for price impact calculation
-  pricing: {
-    wethUsd: '2543.21',
-    tokenUsd: '0.05',
-  },
-  tokenAddress: '0x...', // Project token address
+  amountIn: parseUnits('100', 18), // Or use bigint directly
+  // Optional: Provide pricing for price impact calculation
+  pricing: { wethUsd: '2543.21', tokenUsd: '0.05' },
+  tokenAddress: '0x...',
   currency0Decimals: 18,
   currency1Decimals: 18,
 })
 
-console.log(formatUnits(quote.amountOut, 18)) // "95.5"
-console.log(quote.priceImpactBps) // 0.5 (0.5% price impact)
-console.log(quote.hookFees) // { type: 'static', clankerFee: 500, pairedFee: 100 }
-console.log(quote.gasEstimate) // 150000n
+console.log(v4Quote.priceImpactBps) // 0.5 (0.5% impact)
+console.log(v4Quote.hookFees) // { type: 'static', clankerFee: 500 }
 ```
-
-**Note**: `chainId` parameter is no longer required - it's automatically derived from `publicClient.chain.id`.
 
 #### `swapV4()`
 
@@ -573,13 +595,12 @@ Execute swaps on Uniswap V4:
 ```typescript
 import { swapV4 } from 'levr-sdk'
 
-// Execute swap
 const receipt = await swapV4({
   publicClient,
   wallet: walletClient,
   poolKey,
   zeroForOne: true,
-  amountIn: parseUnits('100', 18),
+  amountIn: parseUnits('100', 18), // Or use number/string
   amountOutMinimum: parseUnits('95', 18),
 })
 ```
@@ -613,34 +634,42 @@ The SDK uses a centralized provider pattern that eliminates query duplication an
 │                                                 │
 │  ┌───────────────────────────────────────────┐ │
 │  │ Centralized Queries (created once)        │ │
-│  │ • Project data                            │ │
-│  │ • Token balances (token + WETH + ETH)     │ │
-│  │ • Staking (all queries)                   │ │
-│  │ • Governance (global queries)             │ │
-│  │ • Proposals                               │ │
-│  │ • Fee receivers                           │ │
+│  │ • Project (token, contracts, treasury,    │ │
+│  │   staking stats, governance stats)        │ │
+│  │ • User (balances, staking, voting power)  │ │
+│  │ • Pool (real-time state)                  │ │
+│  │ • Proposals (with vote receipts)          │ │
+│  │ • Token Data (metadata)                   │ │
 │  └───────────────────────────────────────────┘ │
 │                                                 │
 │  ┌───────────────────────────────────────────┐ │
 │  │ Smart Refetch Methods                     │ │
-│  │ • afterStake()  → Balances, Staking, etc. │ │
-│  │ • afterSwap()   → Balances, Project       │ │
-│  │ • afterGovernance() → Gov, Proposals, etc.│ │
+│  │ • afterTrade()   → User + Pool            │ │
+│  │ • afterStake()   → User + Project         │ │
+│  │ • afterClaim()   → User only              │ │
+│  │ • afterAccrue()  → Project only           │ │
+│  │ • afterVote()    → User + Proposals       │ │
+│  │ • afterProposal() → Proposals + Project   │ │
+│  │ • afterExecute() → Project + Proposals +  │ │
+│  │                    User                   │ │
 │  └───────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────┘
             ↓ Context shared via hooks
 ┌─────────────────────────────────────────────────┐
 │  Components consume without duplication         │
 │  • useProject()  → Shared query                 │
-│  • useBalance()  → Shared query                 │
-│  • useStake()    → Shared queries + mutations   │
+│  • useUser()     → Shared query                 │
+│  • usePool()     → Shared query                 │
+│  • useProposals() → Shared query                │
+│  • useStake()    → Mutations only               │
 └─────────────────────────────────────────────────┘
 ```
 
 ### Benefits
 
 ✅ **Zero Duplication** - Each query created once, shared across all components  
-✅ **100% Refetch Coverage** - Smart cross-domain refetches after mutations  
+✅ **37-53% Fewer RPC Calls** - Single multicalls per data group  
+✅ **100% Refetch Coverage** - Smart action-based refetches after mutations  
 ✅ **Better Performance** - Fewer network requests, better caching  
 ✅ **Type Safety** - Full TypeScript throughout  
 ✅ **Easy to Use** - Simple hook API, automatic coordination
@@ -679,9 +708,18 @@ function RefreshButton() {
 
   return (
     <div>
+      {/* Core refetches */}
       <button onClick={() => refetch.all()}>Refresh All</button>
-      <button onClick={() => refetch.staking()}>Refresh Staking</button>
-      <button onClick={() => refetch.governance()}>Refresh Governance</button>
+      <button onClick={() => refetch.user()}>Refresh User</button>
+      <button onClick={() => refetch.project()}>Refresh Project</button>
+      <button onClick={() => refetch.pool()}>Refresh Pool</button>
+      <button onClick={() => refetch.proposals()}>Refresh Proposals</button>
+
+      {/* Action-based smart refetches */}
+      <button onClick={() => refetch.afterStake()}>After Stake</button>
+      <button onClick={() => refetch.afterTrade()}>After Trade</button>
+      <button onClick={() => refetch.afterClaim()}>After Claim</button>
+      <button onClick={() => refetch.afterVote()}>After Vote</button>
     </div>
   )
 }
@@ -758,33 +796,16 @@ bun test
 bun run build
 ```
 
-## Architecture
+## Documentation
 
-```
-levr-sdk/
-├── src/
-│   ├── index.ts              # Server-safe exports
-│   ├── project.ts            # Project queries
-│   ├── balance.ts            # Balance queries
-│   ├── stake.ts              # Stake class
-│   ├── governance.ts         # Governance class
-│   ├── swap-v4.ts            # V4 swap functions
-│   ├── quote-v3.ts           # V3 quote functions
-│   ├── quote-v4.ts           # V4 quote functions with price impact
-│   ├── usd-price.ts          # USD pricing utilities
-│   └── client/
-│       ├── index.ts          # Client-only exports
-│       ├── levr-provider.tsx # Centralized provider
-│       ├── query-keys.ts     # Query key registry
-│       └── hook/
-│           ├── index.ts      # Public hook exports
-│           ├── use-project.ts
-│           ├── use-balance.ts
-│           ├── use-stake.ts
-│           ├── use-swap.ts
-│           ├── use-governance.ts
-│           └── ... (other hooks)
-```
+For comprehensive documentation:
+
+- **[Getting Started](./docs/getting-started.md)** - Installation and setup
+- **[Quick Reference](./docs/QUICK-REFERENCE.md)** - Fast lookup for common patterns
+- **[Architecture](./docs/architecture.md)** - Understanding the design
+- **[Client Hooks](./docs/client-hooks/)** - Complete React hooks reference
+- **[Server API](./docs/server-api/)** - Server-side API reference
+- **[Migration Guide](./docs/MIGRATION-GUIDE.md)** - Upgrade guide
 
 ## License
 
