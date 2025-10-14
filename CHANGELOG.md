@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.1.0](https://github.com/quantidexyz/levr-sdk/compare/v0.0.2...v0.1.0) (2025-10-14)
+
+
+### Features
+
+* add pool and user data modules, enhancing project structure with new hooks for efficient data retrieval ([1181c51](https://github.com/quantidexyz/levr-sdk/commit/1181c5105f918bfc9df2ad4f5cd7a73b5f5fff3d))
+* add voting power calculations to staking module, including methods for retrieving current voting power and simulating voting power after unstaking ([9f7e66f](https://github.com/quantidexyz/levr-sdk/commit/9f7e66f83b7bb5a3b9b7014a829582e15baa9f31))
+* enhance user and project data retrieval by introducing useUser hook and consolidating staking statistics into project queries, improving efficiency and reducing redundant API calls ([5dffda7](https://github.com/quantidexyz/levr-sdk/commit/5dffda7e3c622c920a439d4cce2ea10cea751af9))
+* implement zero-duplicate data architecture by consolidating governance data into project queries, reducing RPC calls by 74% and enhancing data retrieval efficiency ([359fff6](https://github.com/quantidexyz/levr-sdk/commit/359fff6ec1cfaabcb15ac0fe380d0302fc608dd4))
+* introduce comprehensive data flow cleanup report and test summary, ensuring zero duplicate queries and enhancing architecture verification across server functions, query hooks, and provider layers ([b1a7b55](https://github.com/quantidexyz/levr-sdk/commit/b1a7b55e1bb6111bb229d0e1cec0bd0cf2f18c07))
+
+
+### Bug Fixes
+
+* update baseSepolia factory address in constants for accurate deployment reference ([0684117](https://github.com/quantidexyz/levr-sdk/commit/06841174b8cbcb3f5a3f85a49c8dcdd8227088b4))
+
 ### [0.0.2](https://github.com/quantidexyz/levr-sdk/compare/v0.0.1...v0.0.2) (2025-10-12)
 
 ### Features
