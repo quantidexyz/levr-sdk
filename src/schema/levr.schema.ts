@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { STAKING_REWARDS, STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from '../constants'
-import { EthereumAddress } from './base.schema'
+import { EthereumAddress, NonEmptyString } from './base.schema'
 import { ClankerDeploymentSchema } from './clanker.schema'
 
 const LevrMetadata = Schema.Struct({
@@ -106,7 +106,10 @@ const MAX_TOTAL_ALLOCATION = 90_000_000_000 // 90B tokens
 const MAX_TOTAL_REWARDS = 10_000 // 100% of rewards are distributed to the staking contract
 
 export const LevrClankerDeploymentSchema = Schema.Struct({
-  ...ClankerDeploymentSchema.pick('name', 'symbol', 'image').fields,
+  ...ClankerDeploymentSchema.pick('name', 'symbol').fields,
+  image: NonEmptyString('Image is required').annotations({
+    description: 'Token image URL (IPFS or HTTP)',
+  }),
   metadata: Schema.optional(LevrMetadata),
   devBuy: Schema.optional(LevrDevBuy),
   airdrop: Schema.optional(LevrAirdrop),
