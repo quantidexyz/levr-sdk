@@ -70,7 +70,7 @@ function StakingInterface() {
         {needsApproval('1000') ? 'Approve' : 'Stake'}
       </button>
 
-      <button onClick={() => unstake.mutate({ amount: 500n })} disabled={isUnstaking}>
+      <button onClick={() => unstake.mutate({ amount: 500 })} disabled={isUnstaking}>
         Unstake
       </button>
 

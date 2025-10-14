@@ -138,14 +138,14 @@ const { approve, stake, unstake, claim, accrueRewards, accrueAllRewards, needsAp
 
 // Check if approval needed
 if (needsApproval('1000')) {
-  await approve.mutateAsync(1000n)
+  await approve.mutateAsync(1000)
 }
 
 // Stake
-await stake.mutateAsync(1000n)
+await stake.mutateAsync(1000)
 
 // Unstake
-await unstake.mutateAsync({ amount: 500n, to: '0x...' })
+await unstake.mutateAsync({ amount: 500, to: '0x...' })
 
 // Accrue rewards (required before claiming)
 await accrueAllRewards.mutateAsync()
@@ -283,9 +283,9 @@ const stake = new Stake({ wallet: walletClient, publicClient, project })
 const governance = new Governance({ wallet: walletClient, publicClient, project })
 
 // 4. Execute actions
-await stake.approve(1000n)
-await stake.stake(1000n)
-await governance.vote(123n, true)
+await stake.approve(1000)
+await stake.stake(1000)
+await governance.vote(123n, true) // Note: proposalId is an ID, not an amount
 ```
 
 ## Common Patterns

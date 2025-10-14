@@ -67,6 +67,6 @@ const stake = new Stake({
   project: projectData,
 })
 
-await stake.approve(1000n)
-await stake.stake(1000n)
+await stake.approve(1000)
+await stake.stake(1000)
 ```

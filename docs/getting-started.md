@@ -108,7 +108,7 @@ function StakeComponent() {
       <p>Balance: {user?.balances.token.formatted}</p>
       <p>Staked: {user?.staking.stakedBalance.formatted}</p>
       <p>Voting Power: {user?.votingPower.formatted}</p>
-      <button onClick={() => stake.mutate(1000n)}>
+      <button onClick={() => stake.mutate(1000)}>
         Stake
       </button>
     </div>
@@ -149,8 +149,8 @@ const stake = new Stake({
   project: projectData,
 })
 
-await stake.approve(1000n)
-await stake.stake(1000n)
+await stake.approve(1000) // Accepts number, string, or parseUnits() bigint
+await stake.stake(1000)
 ```
 
 ## Key Concepts
