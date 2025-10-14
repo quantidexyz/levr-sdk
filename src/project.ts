@@ -55,6 +55,12 @@ export type StakingStats = {
     token: BalanceResult
     weth: BalanceResult | null
   }
+  streamParams: {
+    windowSeconds: number
+    streamStart: bigint
+    streamEnd: bigint
+    isActive: boolean
+  }
 }
 
 export type GovernanceStats = {
@@ -135,6 +141,9 @@ type StakingContractsResult = [
   MulticallResult<bigint>, // aprBps
   MulticallResult<[bigint, bigint]>, // outstandingRewards (token)
   MulticallResult<bigint>, // rewardRatePerSecond (token)
+  MulticallResult<number>, // streamWindowSeconds
+  MulticallResult<bigint>, // streamStart
+  MulticallResult<bigint>, // streamEnd
   MulticallResult<[bigint, bigint]>?, // outstandingRewards (weth) - optional
   MulticallResult<bigint>?, // rewardRatePerSecond (weth) - optional
 ]
@@ -290,6 +299,21 @@ function getStakingContracts(
       functionName: 'rewardRatePerSecond' as const,
       args: [clankerToken],
     },
+    {
+      address: staking,
+      abi: LevrStaking_v1,
+      functionName: 'streamWindowSeconds' as const,
+    },
+    {
+      address: staking,
+      abi: LevrStaking_v1,
+      functionName: 'streamStart' as const,
+    },
+    {
+      address: staking,
+      abi: LevrStaking_v1,
+      functionName: 'streamEnd' as const,
+    },
   ]
 
   const wethContracts = wethAddress
@@ -399,11 +423,14 @@ function parseStakingStats(
   const aprBpsRaw = results[1].result
   const outstandingRewardsTokenRaw = results[2].result
   const tokenRewardRateRaw = results[3].result
+  const streamWindowSecondsRaw = results[4].result
+  const streamStartRaw = results[5].result
+  const streamEndRaw = results[6].result
 
   // Check if WETH data is present
-  const hasWethData = results.length > 4
-  const outstandingRewardsWethRaw = hasWethData && results[4] ? results[4].result : null
-  const wethRewardRateRaw = hasWethData && results[5] ? results[5].result : null
+  const hasWethData = results.length > 7
+  const outstandingRewardsWethRaw = hasWethData && results[7] ? results[7].result : null
+  const wethRewardRateRaw = hasWethData && results[8] ? results[8].result : null
 
   // Calculate WETH APR if available
   let wethApr: { raw: bigint; percentage: number } | null = null
@@ -434,6 +461,10 @@ function parseStakingStats(
       }
     }
   }
+
+  // Calculate if stream is active
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  const isStreamActive = streamStartRaw <= now && now <= streamEndRaw
 
   return {
     totalStaked: formatBalanceWithUsd(totalStakedRaw, tokenDecimals, tokenUsdPrice),
@@ -466,6 +497,12 @@ function parseStakingStats(
         wethRewardRateRaw !== null && wethRewardRateRaw !== undefined
           ? formatBalanceWithUsd(wethRewardRateRaw, 18, wethUsdPrice)
           : null,
+    },
+    streamParams: {
+      windowSeconds: Number(streamWindowSecondsRaw),
+      streamStart: streamStartRaw,
+      streamEnd: streamEndRaw,
+      isActive: isStreamActive,
     },
   }
 }
@@ -645,7 +682,7 @@ export async function getProject({
   // Calculate slice indices for additional data
   const treasuryCount = 2
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
-  const stakingCount = wethAddress ? 6 : 4
+  const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
 
   let idx2 = 0
   const treasuryResults = additionalResults.slice(
