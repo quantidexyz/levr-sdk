@@ -8,11 +8,13 @@ Complete reference for server-side APIs provided by Levr SDK.
 
 Core data fetching functions:
 
-- [getProject()](./queries/project.md) - Get complete project data
+- [getProject()](./queries/project.md) - Get project data (static + dynamic)
+- [getStaticProject()](./queries/static-project.md) - Get static project data only
 - [getProjects()](./queries/projects.md) - Get multiple projects data
 - [getUser()](./queries/user.md) - Get user data (balances, staking, voting power)
 - [proposals()](./queries/proposals.md) - Get governance proposals with vote receipts
 - [proposal()](./queries/proposal.md) - Get single proposal by ID
+- [getTreasuryAirdropStatus()](./queries/airdrop-status.md) - Get airdrop status (separate query)
 - [balance()](./queries/balance.md) - Get token balances (used internally by getUser)
 - [feeReceivers()](./queries/fee-receivers.md) - Get fee receiver information
 

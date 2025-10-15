@@ -153,19 +153,11 @@ Project data contains ALL project-level information:
     percentage: number
   }>
 
-  // Pricing (if oracle provided)
+  // Pricing (dynamic data, if oraclePublicClient provided to LevrProvider)
   pricing?: {
     wethUsd: string
     tokenUsd: string
   }
-
-  // Airdrop Status (treasury)
-  airdrop?: {
-    availableAmount: BalanceResult
-    allocatedAmount: BalanceResult
-    isAvailable: boolean
-    error?: string
-  } | null
 }
 ```
 
@@ -175,9 +167,36 @@ Project data contains ALL project-level information:
 - `isLoading`: Loading state
 - `error`: Error if query failed
 
+## What's Included
+
+`useProject()` returns **static + dynamic** data:
+
+**Static data** (cached indefinitely):
+- Contract addresses
+- Token info
+- Pool info
+- Fee receivers
+
+**Dynamic data** (refetches every 30s):
+- Treasury stats
+- Staking stats
+- Governance stats
+- Pricing (if oracle provided)
+
+**Not included:**
+- ❌ Airdrop status - Use `useAirdropStatus()` hook separately
+
 ## Notes
 
-- All data comes from a single optimized multicall
+- Internally uses `useStaticProjectQuery()` + `useProjectQuery()`
+- Static data cached with `staleTime: Infinity` (only refetches on token change)
+- Dynamic data refetches every 30 seconds
 - Includes fee receivers with `areYouAnAdmin` calculated automatically
 - Pricing requires `oraclePublicClient` in LevrProvider
-- Automatically refetches when token changes
+- Automatically refetches when token or chain changes
+
+## Related
+
+- [useAirdropStatus](./use-airdrop-status.md) - Get airdrop status separately
+- [useUser](./use-user.md) - Get user-specific data
+- [usePool](./use-pool.md) - Get real-time pool state

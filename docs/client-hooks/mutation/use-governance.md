@@ -55,6 +55,14 @@ function GovernanceInterface() {
   const { data: user } = useUser()
   const { data: project } = useProject()
 
+  // Get airdrop status separately
+  const { data: airdrop } = useAirdropStatus({
+    clankerToken: project?.token.address ?? null,
+    treasury: project?.treasury ?? null,
+    tokenDecimals: project?.token.decimals ?? null,
+    tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
+  })
+
   return (
     <div>
       <h2>Governance</h2>
@@ -62,9 +70,9 @@ function GovernanceInterface() {
       <p>Treasury: {project?.treasury}</p>
       <p>Your Voting Power: {user?.votingPower.formatted}</p>
 
-      {project?.airdrop?.isAvailable && (
-        <button onClick={() => claimAirdrop.mutate()} disabled={isClaiming}>
-          Claim {project.airdrop.availableAmount.formatted} Tokens
+      {airdrop?.isAvailable && (
+        <button onClick={() => claimAirdrop.mutate(airdrop)} disabled={isClaiming}>
+          Claim {airdrop.availableAmount.formatted} Tokens
         </button>
       )}
 
@@ -98,17 +106,25 @@ function GovernanceInterface() {
 - `proposeBoost.mutate(config)`: Propose staking boost
 - `vote.mutate({ proposalId, support })`: Vote on a proposal
 - `executeProposal.mutate(config)`: Execute a passed proposal
-- `claimAirdrop.mutate()`: Claim airdrop tokens
+- `claimAirdrop.mutate(airdropStatus)`: Claim airdrop tokens (requires airdrop status)
 
 ## Data Access
 
-All governance data comes from `user` and `project` context:
+All governance data comes from `user`, `project`, and `airdrop` queries:
 
 ```typescript
-import { useUser, useProject } from 'levr-sdk/client'
+import { useUser, useProject, useAirdropStatus } from 'levr-sdk/client'
 
 const { data: user } = useUser()
 const { data: project } = useProject()
+
+// Airdrop status (separate query)
+const { data: airdrop } = useAirdropStatus({
+  clankerToken: project?.token.address ?? null,
+  treasury: project?.treasury ?? null,
+  tokenDecimals: project?.token.decimals ?? null,
+  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
+})
 
 // From project context
 project?.governanceStats?.currentCycleId // Current governance cycle
@@ -117,8 +133,11 @@ project?.governanceStats?.activeProposalCount.boost // Active boosts
 project?.governor // Governor contract address
 project?.treasury // Treasury contract address
 project?.factory // Factory contract address
-project?.airdrop // Treasury airdrop status
 
 // From user context
 user?.votingPower // User's voting power (token-days)
+
+// From airdrop query
+airdrop?.isAvailable // Is airdrop available
+airdrop?.availableAmount // Available amount to claim
 ```

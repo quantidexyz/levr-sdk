@@ -76,13 +76,9 @@ project?.feeReceivers?.[0].recipient
 project?.feeReceivers?.[0].percentage
 project?.feeReceivers?.[0].areYouAnAdmin
 
-// Pricing
+// Pricing (dynamic data)
 project?.pricing?.tokenUsd
 project?.pricing?.wethUsd
-
-// Airdrop (treasury)
-project?.airdrop?.availableAmount.formatted
-project?.airdrop?.isAvailable
 ```
 
 ### Pool Data (real-time state)
@@ -97,6 +93,24 @@ pool?.liquidity.formatted // Current liquidity
 pool?.protocolFee // Protocol fee
 pool?.lpFee // LP fee
 pool?.feeDisplay // Fee display string
+```
+
+### Airdrop Data (separate query)
+
+```typescript
+import { useAirdropStatus } from 'levr-sdk/client'
+const { data: project } = useProject()
+
+const { data: airdrop } = useAirdropStatus({
+  clankerToken: project?.token.address,
+  treasury: project?.treasury,
+  tokenDecimals: project?.token.decimals,
+  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
+})
+
+airdrop?.availableAmount.formatted
+airdrop?.allocatedAmount.formatted
+airdrop?.isAvailable
 ```
 
 ### Proposals Data
@@ -300,8 +314,13 @@ const hasVotingPower = user && parseFloat(user.votingPower.formatted) > 0
 ### Check if Airdrop Available
 
 ```typescript
-const { data: project } = useProject()
-const canClaimAirdrop = project?.airdrop?.isAvailable === true
+const { data: airdrop } = useAirdropStatus({
+  clankerToken: project?.token.address,
+  treasury: project?.treasury,
+  tokenDecimals: project?.token.decimals,
+  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
+})
+const canClaimAirdrop = airdrop?.isAvailable === true
 ```
 
 ### Check if Rewards Available

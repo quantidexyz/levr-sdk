@@ -4,6 +4,7 @@ import { decodeEventLog, parseUnits } from 'viem'
 import type { Project } from '.'
 import { IClankerAirdrop, LevrGovernor_v1 } from './abis'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
+import type { AirdropStatus } from './treasury'
 import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type GovernanceConfig = {
@@ -252,21 +253,14 @@ export class Governance {
 
   /**
    * Claim airdrop for treasury
-   * Uses airdrop data from project that was already fetched
+   * Requires airdrop status to be fetched beforehand
    */
-  async claimAirdrop(): Promise<TransactionReceipt> {
+  async claimAirdrop(airdropStatus: AirdropStatus): Promise<TransactionReceipt> {
     const chainId = this.publicClient.chain?.id
     const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
 
     if (!airdropAddress) {
       throw new Error(`No airdrop address found for chain ID ${chainId}`)
-    }
-
-    // Use airdrop status from project data
-    const airdropStatus = this.project.airdrop
-
-    if (!airdropStatus) {
-      throw new Error('No treasury airdrop found')
     }
 
     if (airdropStatus.error) {

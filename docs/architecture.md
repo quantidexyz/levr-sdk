@@ -32,6 +32,13 @@ LevrProvider
 All queries created in `LevrProvider`:
 
 ```typescript
+// Static data (cached indefinitely, only refetches on token change)
+const staticProject = useStaticProjectQuery({
+  clankerToken,
+  enabled,
+})
+
+// Dynamic data (refetches every 30s, includes pricing)
 const project = useProjectQuery({
   clankerToken,
   oraclePublicClient,

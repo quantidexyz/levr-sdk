@@ -9,6 +9,7 @@ import { Governance } from '../src/governance'
 import { proposal, proposals } from '../src/proposal'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
+import { getTreasuryAirdropStatus } from '../src/treasury'
 import { setupTest, type SetupTestReturnType } from './helper'
 import { getBlockTimestamp, warpAnvil } from './util'
 
@@ -181,12 +182,14 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('\n🎁 Checking airdrop for treasury...')
 
       try {
-        // Refetch project to get airdrop status
-        const updatedProject = await getFullProject({
+        // Get airdrop status separately
+        const status = await getTreasuryAirdropStatus(
           publicClient,
-          clankerToken: deployedTokenAddress,
-        })
-        const status = updatedProject?.airdrop
+          deployedTokenAddress,
+          project.treasury,
+          project.token.decimals,
+          null
+        )
 
         if (!status) {
           throw new Error('No airdrop found for this treasury')
@@ -203,14 +206,24 @@ describe('#GOVERNANCE_TEST', () => {
         if (status.allocatedAmount.raw > 0n) {
           console.log('\n🎯 Treasury airdrop found! Attempting to claim...')
 
+          let currentStatus = status
           if (status.availableAmount.raw === 0n) {
             console.log('⏰ Airdrop may be locked, warping 1 day forward to pass lockup period...')
             const { warpAnvil } = await import('./util')
             await warpAnvil(86400 + 1) // 1 day + 1 second
+
+            // Refetch status after warping
+            currentStatus = (await getTreasuryAirdropStatus(
+              publicClient,
+              deployedTokenAddress,
+              project.treasury,
+              project.token.decimals,
+              null
+            ))!
           }
 
           console.log('📥 Claiming airdrop for treasury...')
-          const claimReceipt = await governance.claimAirdrop()
+          const claimReceipt = await governance.claimAirdrop(currentStatus)
           expect(claimReceipt.status).toBe('success')
 
           const treasuryBalance = await publicClient.readContract({
@@ -974,14 +987,20 @@ describe('#GOVERNANCE_TEST', () => {
       expect(executedProposalData.state).toBe(4) // Executed
       console.log('  ✅ Winner executed successfully')
 
-      // 13. Test airdrop status from project
-      console.log('\n🎁 Checking airdrop status from project data...')
+      // 13. Test airdrop status
+      console.log('\n🎁 Checking airdrop status...')
       project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
-      const airdropStatus = project.airdrop
+      const airdropStatus = await getTreasuryAirdropStatus(
+        publicClient,
+        deployedTokenAddress,
+        project.treasury,
+        project.token.decimals,
+        null
+      )
       if (airdropStatus) {
         console.log(`  Available airdrop: ${airdropStatus.availableAmount.formatted} tokens`)
         expect(typeof airdropStatus.availableAmount.raw).toBe('bigint')
-        console.log('  ✅ Airdrop status available in project data')
+        console.log('  ✅ Airdrop status fetched successfully')
       } else {
         console.log('  ℹ️ No airdrop configured for this project')
       }
@@ -1029,9 +1048,15 @@ describe('#GOVERNANCE_TEST', () => {
         '   This verifies that underflow errors from checking wrong amounts are handled correctly'
       )
 
-      // Get current airdrop status from project
+      // Get current airdrop status
       project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
-      const statusBefore = project.airdrop
+      const statusBefore = await getTreasuryAirdropStatus(
+        publicClient,
+        deployedTokenAddress,
+        project.treasury,
+        project.token.decimals,
+        null
+      )
 
       if (!statusBefore) {
         console.log('⏭️ No airdrop configured for this project - skipping test')

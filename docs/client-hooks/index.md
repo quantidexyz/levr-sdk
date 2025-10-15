@@ -8,12 +8,13 @@ Complete reference for all React hooks provided by Levr SDK.
 
 Read-only data access hooks:
 
-- [useProject](./query/use-project.md) - Project data (token, contracts, pool, treasury, staking stats, governance stats)
+- [useProject](./query/use-project.md) - Project data (static + dynamic: token, contracts, pool, treasury, staking stats, governance stats, pricing)
 - [useProjects](./query/use-projects.md) - List of all registered projects
 - [useUser](./query/use-user.md) - User data (balances, staking, voting power)
 - [usePool](./query/use-pool.md) - Pool state (liquidity, price, fees)
 - [useProposals](./query/use-proposals.md) - Governance proposals with vote receipts
 - [useProposal](./query/use-proposal.md) - Single proposal by ID
+- [useAirdropStatus](./query/use-airdrop-status.md) - Treasury airdrop status (separate query)
 - [useClankerToken](./query/use-clanker-token.md) - Token metadata
 
 ### Mutation Hooks

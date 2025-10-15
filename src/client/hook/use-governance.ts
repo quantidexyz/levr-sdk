@@ -12,6 +12,7 @@ import type {
   ProposeTransferConfig,
 } from '../../governance'
 import { Governance } from '../../governance'
+import type { AirdropStatus } from '../../treasury'
 import { useLevrContext } from '../levr-provider'
 
 // ========================================
@@ -153,11 +154,11 @@ export function useGovernance({
   })
 
   const claimAirdrop = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (airdropStatus: AirdropStatus) => {
       if (!governance) throw new Error('Governance not initialized')
       if (!wallet.data) throw new Error('Wallet is not connected')
 
-      return await governance.claimAirdrop()
+      return await governance.claimAirdrop(airdropStatus)
     },
     onSuccess: async (receipt) => {
       await refetch.afterAirdrop()

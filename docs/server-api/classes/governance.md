@@ -145,19 +145,36 @@ console.log('Votes:', receipt.votes.toString())
 }
 ```
 
-### `claimAirdrop()`
+### `claimAirdrop(airdropStatus)`
 
-Claim treasury airdrop (uses airdrop data from project).
+Claim treasury airdrop.
 
 ```typescript
-const receipt = await governance.claimAirdrop()
-console.log('Claimed airdrop:', receipt.transactionHash)
+import { getTreasuryAirdropStatus } from 'levr-sdk'
+
+// First fetch airdrop status
+const airdropStatus = await getTreasuryAirdropStatus(
+  publicClient,
+  projectData.token.address,
+  projectData.treasury,
+  projectData.token.decimals,
+  null // or tokenUsdPrice
+)
+
+if (airdropStatus?.isAvailable) {
+  const receipt = await governance.claimAirdrop(airdropStatus)
+  console.log('Claimed airdrop:', receipt.transactionHash)
+}
 ```
+
+**Parameters:**
+
+- `airdropStatus` (required): Airdrop status from `getTreasuryAirdropStatus()`
 
 **Returns:** `TransactionReceipt`
 
 **Notes:**
 
-- Uses airdrop data from `project.airdrop` (already fetched)
+- Requires airdrop status to be fetched first using `getTreasuryAirdropStatus()`
 - Validates airdrop availability before claiming
-- Throws error if no airdrop available or already claimed
+- Throws error if airdrop has errors or is not available

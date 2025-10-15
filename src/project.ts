@@ -5,7 +5,6 @@ import { formatBalanceWithUsd } from './balance'
 import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin } from './fee-receivers'
 import { getTokenRewards, parseFeeReceivers } from './fee-receivers'
-import type { AirdropStatus } from './treasury'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -98,7 +97,6 @@ export type Project = {
   governanceStats?: GovernanceStats
   feeReceivers?: FeeReceiverAdmin[]
   pricing?: PricingResult
-  airdrop?: AirdropStatus | null
 }
 
 export type StaticProject = Pick<
@@ -535,13 +533,7 @@ export type ProjectsParams = {
 export type ProjectsResult = {
   projects: Omit<
     Project,
-    | 'forwarder'
-    | 'pool'
-    | 'pricing'
-    | 'stakingStats'
-    | 'governanceStats'
-    | 'feeReceivers'
-    | 'airdrop'
+    'forwarder' | 'pool' | 'pricing' | 'stakingStats' | 'governanceStats' | 'feeReceivers'
   >[]
   total: number
 }

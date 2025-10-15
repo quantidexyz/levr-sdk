@@ -1,11 +1,13 @@
 # getProject()
 
-Get complete project data including token info, contracts, pool details, treasury stats, staking stats, governance stats, and optional USD pricing.
+Get complete project data including treasury stats, staking stats, governance stats, and USD pricing. Requires static project data.
 
 ## Usage
 
+### With Static Data (Recommended)
+
 ```typescript
-import { getProject } from 'levr-sdk'
+import { getProject, getStaticProject } from 'levr-sdk'
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -19,15 +21,27 @@ const oracleClient = createPublicClient({
   transport: http(),
 })
 
-const projectData = await getProject({
+// 1. Get static data (cache this!)
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
-  oraclePublicClient: oracleClient, // Optional: for USD pricing
   userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
 })
 
-if (!projectData) {
+if (!staticProject) {
   console.log('Project not found or not registered')
+  return
+}
+
+// 2. Get dynamic data (refetch this regularly)
+const projectData = await getProject({
+  publicClient,
+  staticProject,
+  oraclePublicClient: oracleClient, // Optional: for USD pricing
+})
+
+if (!projectData) {
+  console.log('Error fetching dynamic data')
   return
 }
 
@@ -41,9 +55,8 @@ console.log('Total Staked:', projectData.stakingStats?.totalStaked.formatted)
 ## Parameters
 
 - `publicClient` (required): Viem public client
-- `clankerToken` (required): Clanker token address
+- `staticProject` (required): Static project data from `getStaticProject()`
 - `oraclePublicClient` (optional): Client for USD pricing oracle
-- `userAddress` (optional): User address for admin status in fee receivers
 
 ## Returns
 
@@ -120,18 +133,36 @@ Returns `Project | null` (null if project not registered)
     percentage: number
   }>
 
-  // Pricing (if oraclePublicClient provided)
+  // Pricing (dynamic data, fetched if oraclePublicClient provided)
   pricing?: {
     wethUsd: string
     tokenUsd: string
   }
-
-  // Airdrop Status (treasury)
-  airdrop?: {
-    availableAmount: BalanceResult
-    allocatedAmount: BalanceResult
-    isAvailable: boolean
-    error?: string
-  } | null
 }
 ```
+
+## What's Included
+
+`getProject()` returns **static + dynamic** data:
+
+**Static data** (from `staticProject`):
+- Contract addresses (treasury, governor, staking, etc.)
+- Token info (name, symbol, decimals, total supply)
+- Pool info (poolKey, fee display, positions)
+- Fee receivers
+
+**Dynamic data** (fetched fresh):
+- Treasury stats (balance, utilization)
+- Staking stats (total staked, APR, rewards)
+- Governance stats (cycle ID, active proposals)
+- Pricing (USD prices if oracle client provided)
+
+**Not included:**
+- ❌ Airdrop status - Use `getTreasuryAirdropStatus()` separately
+
+## Related
+
+- [getStaticProject()](./static-project.md) - Get static data only
+- [getTreasuryAirdropStatus()](./airdrop-status.md) - Get airdrop status
+- [getUser()](./user.md) - Get user data
+

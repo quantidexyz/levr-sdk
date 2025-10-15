@@ -18,12 +18,13 @@ Complete reference for all React hooks:
 
 **Query Hooks:**
 
-- [useProject](./client-hooks/query/use-project.md) - Project data
+- [useProject](./client-hooks/query/use-project.md) - Project data (dynamic + static)
 - [useProjects](./client-hooks/query/use-projects.md) - List of projects
 - [useUser](./client-hooks/query/use-user.md) - User data
 - [usePool](./client-hooks/query/use-pool.md) - Pool state
 - [useProposals](./client-hooks/query/use-proposals.md) - Proposals list
 - [useProposal](./client-hooks/query/use-proposal.md) - Single proposal
+- [useAirdropStatus](./client-hooks/query/use-airdrop-status.md) - Airdrop status
 - [useClankerToken](./client-hooks/query/use-clanker-token.md) - Token metadata
 
 **Mutation Hooks:**
@@ -48,13 +49,15 @@ Server-side functions and classes:
 
 **Query Functions:**
 
-- [getProject()](./server-api/queries/project.md) - Get project data
+- [getProject()](./server-api/queries/project.md) - Get project data (dynamic + static)
+- [getStaticProject()](./server-api/queries/static-project.md) - Get static project data only
 - [getProjects()](./server-api/queries/projects.md) - Get multiple projects
 - [getUser()](./server-api/queries/user.md) - Get user data
 - [proposals()](./server-api/queries/proposals.md) - Get proposals
 - [proposal()](./server-api/queries/proposal.md) - Get single proposal
 - [balance()](./server-api/queries/balance.md) - Get token balances
 - [feeReceivers()](./server-api/queries/fee-receivers.md) - Get fee receivers
+- [getTreasuryAirdropStatus()](./server-api/queries/airdrop-status.md) - Get airdrop status
 
 **Classes:**
 
@@ -99,7 +102,7 @@ PROJECT (Single Multicall)
 | Staking stats (pool) | `project`   | `project.data.stakingStats`                  |
 | Governance stats     | `project`   | `project.data.governanceStats`               |
 | Fee receivers        | `project`   | `project.data.feeReceivers`                  |
-| Airdrop status       | `project`   | `project.data.airdrop`                       |
+| Pricing (USD)        | `project`   | `project.data.pricing` (dynamic)             |
 | User balances        | `user`      | `user.data.balances`                         |
 | User staking         | `user`      | `user.data.staking`                          |
 | User voting power    | `user`      | `user.data.votingPower`                      |
