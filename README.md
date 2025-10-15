@@ -326,7 +326,7 @@ project?.governanceStats?.currentCycleId // Current cycle
 project?.treasury // Treasury address
 project?.governor // Governor address
 project?.airdrop // Airdrop status
-user?.votingPower // User's voting power
+user?.votingPower // User's voting power in Token Days (string)
 proposals?.proposals // List of proposals with vote receipts
 
 // Use mutations
@@ -454,7 +454,7 @@ console.log(userData.balances.token.formatted) // "1000.0"
 console.log(userData.balances.weth.formatted) // "5.5"
 console.log(userData.staking.stakedBalance.formatted) // "500.0"
 console.log(userData.staking.claimableRewards.staking.formatted) // "10.5"
-console.log(userData.votingPower.formatted) // "15000.0"
+console.log(userData.votingPower) // "15000" (Token Days as string)
 ```
 
 #### `Stake` Class

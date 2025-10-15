@@ -29,7 +29,7 @@ function UserDashboard() {
       )}
 
       <h2>Voting</h2>
-      <p>Voting Power: {user.votingPower.formatted}</p>
+      <p>Voting Power: {user.votingPower} Token Days</p>
     </div>
   )
 }
@@ -54,7 +54,7 @@ The user data is hierarchically organized:
       weth: BalanceResult | null
     }
   }
-  votingPower: BalanceResult
+  votingPower: string
 }
 ```
 

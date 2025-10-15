@@ -51,7 +51,7 @@ function Component() {
       <h1>{project?.token.name}</h1>
       <p>Balance: {user?.balances.token.formatted}</p>
       <p>Staked: {user?.staking.stakedBalance.formatted}</p>
-      <p>Voting Power: {user?.votingPower.formatted}</p>
+      <p>Voting Power: {user?.votingPower} Token Days</p>
       <button onClick={() => stake.mutate(1000)}>Stake</button>
     </div>
   )

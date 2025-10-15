@@ -33,7 +33,7 @@ const userData = await getUser({
 
 console.log('Token Balance:', userData.balances.token.formatted)
 console.log('Staked:', userData.staking.stakedBalance.formatted)
-console.log('Voting Power:', userData.votingPower.formatted)
+console.log('Voting Power (Token Days):', userData.votingPower)
 console.log('Claimable Rewards:', userData.staking.claimableRewards.staking.formatted)
 ```
 
@@ -60,7 +60,7 @@ console.log('Claimable Rewards:', userData.staking.claimableRewards.staking.form
       weth: BalanceResult | null
     }
   }
-  votingPower: BalanceResult
+  votingPower: string
 }
 ```
 
@@ -70,4 +70,3 @@ console.log('Claimable Rewards:', userData.staking.claimableRewards.staking.form
 - USD values included if pricing is available in project
 - Requires project data for token decimals, addresses, and pricing
 - Pool-level stats (APR, total staked, outstanding rewards) are in `project.stakingStats`
-

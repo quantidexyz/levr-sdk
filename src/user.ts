@@ -30,7 +30,7 @@ export type UserStaking = {
 export type User = {
   balances: UserBalances
   staking: UserStaking
-  votingPower: BalanceResult
+  votingPower: string
 }
 
 // ========================================
@@ -208,6 +208,6 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
             : null,
       },
     },
-    votingPower: formatBalanceWithUsd(votingPower, tokenDecimals, tokenPrice),
+    votingPower: votingPower.toString(),
   }
 }

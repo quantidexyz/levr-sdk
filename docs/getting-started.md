@@ -107,7 +107,7 @@ function StakeComponent() {
     <div>
       <p>Balance: {user?.balances.token.formatted}</p>
       <p>Staked: {user?.staking.stakedBalance.formatted}</p>
-      <p>Voting Power: {user?.votingPower.formatted}</p>
+      <p>Voting Power: {user?.votingPower} Token Days</p>
       <button onClick={() => stake.mutate(1000)}>
         Stake
       </button>

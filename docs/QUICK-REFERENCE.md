@@ -23,7 +23,7 @@ user?.staking.claimableRewards.staking.formatted // Your claimable token rewards
 user?.staking.claimableRewards.weth?.formatted // Your claimable WETH rewards
 
 // Voting
-user?.votingPower.formatted // Your voting power (token-days)
+user?.votingPower // Your voting power in Token Days (string)
 ```
 
 ### Project Data (pool-level)
@@ -313,7 +313,7 @@ await governance.vote(123n, true) // Note: proposalId is an ID, not an amount
 
 ```typescript
 const { data: user } = useUser()
-const hasVotingPower = user && parseFloat(user.votingPower.formatted) > 0
+const hasVotingPower = user && parseFloat(user.votingPower) > 0
 ```
 
 ### Check if Airdrop Available

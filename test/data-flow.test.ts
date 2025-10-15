@@ -130,14 +130,13 @@ function createMockPublicClient(tracker: RpcCallTracker) {
 
     if (contracts.length === 8 && isTokenMulticall) {
       // First project multicall (8 contracts)
-      // 6 token + 2 factory
+      // 5 token + 2 factory + 1 tokenRewards
       results[0] = { result: 18, status: 'success' } // decimals - must be regular number (uint8)
       results[1] = { result: 'Test Token', status: 'success' } // name
       results[2] = { result: 'TEST', status: 'success' } // symbol
       results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
-      results[4] = { result: JSON.stringify({ description: 'Test' }), status: 'success' } // metadata
-      results[5] = { result: 'https://example.com/image.png', status: 'success' } // imageUrl
-      results[6] = {
+      results[4] = { result: 'https://example.com/image.png', status: 'success' } // imageUrl
+      results[5] = {
         result: {
           treasury: MOCK_TREASURY_ADDRESS,
           governor: MOCK_GOVERNOR_ADDRESS,
@@ -146,10 +145,20 @@ function createMockPublicClient(tracker: RpcCallTracker) {
         },
         status: 'success',
       } // getProjectContracts
-      results[7] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
-    } else if (contracts.length === 11) {
-      // Second project multicall with WETH (11 contracts)
-      // 2 treasury + 3 governance + 6 staking (with weth)
+      results[6] = { result: MOCK_FORWARDER_ADDRESS, status: 'success' } // forwarder
+      results[7] = {
+        result: {
+          poolKey: MOCK_POOL_KEY,
+          numPositions: 10n,
+          rewardAdmins: [MOCK_TREASURY_ADDRESS],
+          rewardRecipients: [MOCK_TREASURY_ADDRESS],
+          rewardBps: [5000],
+        },
+        status: 'success',
+      } // tokenRewards
+    } else if (contracts.length === 14) {
+      // Second project multicall with WETH (14 contracts)
+      // 2 treasury + 3 governance + 9 staking (7 base + 2 weth)
       results[0] = { result: 500000000000000000000n, status: 'success' } // treasury balance
       results[1] = { result: 200000000000000000000n, status: 'success' } // staking balance
       results[2] = { result: 5n, status: 'success' } // currentCycleId
@@ -159,11 +168,14 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[6] = { result: 500n, status: 'success' } // APR bps
       results[7] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
       results[8] = { result: 50000000000000000n, status: 'success' } // token reward rate
-      results[9] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
-      results[10] = { result: 100000000000000000n, status: 'success' } // weth reward rate
-    } else if (contracts.length === 9) {
-      // Second project multicall without WETH (9 contracts)
-      // 2 treasury + 3 governance + 4 staking (no weth)
+      results[9] = { result: 86400n, status: 'success' } // streamWindowSeconds
+      results[10] = { result: 1700000000n, status: 'success' } // streamStart
+      results[11] = { result: 1800000000n, status: 'success' } // streamEnd
+      results[12] = { result: [3000000000000000000n, 500000000000000000n], status: 'success' } // outstanding rewards weth - TUPLE!
+      results[13] = { result: 100000000000000000n, status: 'success' } // weth reward rate
+    } else if (contracts.length === 12) {
+      // Second project multicall without WETH (12 contracts)
+      // 2 treasury + 3 governance + 7 staking (no weth)
       results[0] = { result: 500000000000000000000n, status: 'success' } // treasury balance
       results[1] = { result: 200000000000000000000n, status: 'success' } // staking balance
       results[2] = { result: 5n, status: 'success' } // currentCycleId
@@ -173,6 +185,9 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[6] = { result: 500n, status: 'success' } // APR bps
       results[7] = { result: [5000000000000000000n, 1000000000000000000n], status: 'success' } // outstanding rewards (token) - TUPLE!
       results[8] = { result: 50000000000000000n, status: 'success' } // token reward rate
+      results[9] = { result: 86400n, status: 'success' } // streamWindowSeconds
+      results[10] = { result: 1700000000n, status: 'success' } // streamStart
+      results[11] = { result: 1800000000n, status: 'success' } // streamEnd
     } else if (contracts.length === 7) {
       // User multicall with WETH (7 contracts)
       // 2 balances + 4 staking user-specific + 1 weth claimable
@@ -395,9 +410,11 @@ describe('#data-flow', () => {
 
         const projectCalls = tracker.getTotalCalls()
 
-        // Project should make: 3 multicalls (token+factory, treasury+governance+staking, airdrop) + 1 readContract (tokenRewards)
-        // Total: 4 calls (without oracle pricing)
-        expect(projectCalls).toBe(4)
+        // Project should make: 2 multicalls (getStaticProject + getProject)
+        // 1. getStaticProject: token+factory+tokenRewards (8 contracts)
+        // 2. getProject: treasury+governance+staking (12 or 14 contracts depending on WETH)
+        // Total: 2 calls (without oracle pricing)
+        expect(projectCalls).toBe(2)
 
         // Fetch user data (shares project data)
         if (projectData) {
@@ -441,10 +458,10 @@ describe('#data-flow', () => {
         }
 
         // Verify total calls
-        // Project: 4, User: 2, Pool: 1, Proposals: 2-3 = 9-10 total (without oracle)
+        // Project: 2, User: 2, Pool: 1, Proposals: 2-3 = 7-8 total (without oracle)
         const totalCalls = tracker.getTotalCalls()
-        expect(totalCalls).toBeGreaterThanOrEqual(9)
-        expect(totalCalls).toBeLessThanOrEqual(10) // Exact range - any more would be duplicates!
+        expect(totalCalls).toBeGreaterThanOrEqual(7)
+        expect(totalCalls).toBeLessThanOrEqual(8) // Exact range - any more would be duplicates!
       })
 
       it('should not call the same contract function twice', async () => {
@@ -470,8 +487,8 @@ describe('#data-flow', () => {
 
         // Verify multicall was called but not excessively
         const multicallCount = tracker.getCallCount('multicall')
-        expect(multicallCount).toBeGreaterThanOrEqual(2) // project + user
-        expect(multicallCount).toBeLessThanOrEqual(4) // not excessive
+        expect(multicallCount).toBeGreaterThanOrEqual(2) // project (static+dynamic) + user
+        expect(multicallCount).toBeLessThanOrEqual(3) // not excessive
       })
     })
 
@@ -853,11 +870,12 @@ describe('#data-flow', () => {
         expect(userData.balances.eth.formatted).toBeDefined()
         expect(userData.staking.stakedBalance.formatted).toBeDefined()
         expect(userData.staking.allowance.formatted).toBeDefined()
-        expect(userData.votingPower.formatted).toBeDefined()
+        expect(userData.votingPower).toBeDefined()
 
         // All should be formatted the same way (using shared utility)
         // The formatted values should be strings, not numbers
         expect(typeof userData.balances.token.formatted).toBe('string')
+        expect(typeof userData.votingPower).toBe('string')
         expect(typeof projectData.treasuryStats?.balance.formatted).toBe('string')
       })
 

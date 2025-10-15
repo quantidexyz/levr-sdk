@@ -68,7 +68,7 @@ function GovernanceInterface() {
       <h2>Governance</h2>
       <p>Current Cycle: {project?.governanceStats?.currentCycleId.toString()}</p>
       <p>Treasury: {project?.treasury}</p>
-      <p>Your Voting Power: {user?.votingPower.formatted}</p>
+      <p>Your Voting Power: {user?.votingPower} Token Days</p>
 
       {airdrop?.isAvailable && (
         <button onClick={() => claimAirdrop.mutate(airdrop)} disabled={isClaiming}>
@@ -135,7 +135,7 @@ project?.treasury // Treasury contract address
 project?.factory // Factory contract address
 
 // From user context
-user?.votingPower // User's voting power (token-days)
+user?.votingPower // User's voting power in Token Days (string)
 
 // From airdrop query
 airdrop?.isAvailable // Is airdrop available
