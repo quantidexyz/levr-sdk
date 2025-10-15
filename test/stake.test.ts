@@ -4,13 +4,24 @@ import { erc20Abi, formatEther, parseEther } from 'viem'
 import { LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
 import type { Project } from '../src/project'
-import { getProject } from '../src/project'
+import { getProject, getStaticProject } from '../src/project'
 import { quote } from '../src/quote'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
 import { swapV4 } from '../src/swap-v4'
 import { getTokenRewards, setupTest, type SetupTestReturnType } from './helper'
 import { warpAnvil } from './util'
+
+// Helper function to get full project data (static + dynamic)
+async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
+  const staticProject = await getStaticProject(params)
+  if (!staticProject) return null
+  return getProject({
+    publicClient: params.publicClient,
+    staticProject,
+    oraclePublicClient: params.oraclePublicClient,
+  })
+}
 
 /**
  * Deploy, Quote, and Swap Tests
@@ -86,7 +97,7 @@ describe('#STAKE_TEST', () => {
       await warpAnvil(120)
 
       console.log('\n📋 Getting project data...')
-      const projectData = await getProject({
+      const projectData = await getFullProject({
         publicClient,
         clankerToken: deployedTokenAddress,
       })
@@ -300,7 +311,7 @@ describe('#STAKE_TEST', () => {
 
         // First, check what rewards are outstanding from project data
         console.log('\n📊 Checking outstanding rewards...')
-        const currentProject = await getProject({
+        const currentProject = await getFullProject({
           publicClient,
           clankerToken: deployedTokenAddress,
         })
@@ -324,7 +335,7 @@ describe('#STAKE_TEST', () => {
             console.log('  ✅ accrueRewards succeeded!')
 
             // Check rewards again after accrual from project data
-            const projectAfterAccrue = await getProject({
+            const projectAfterAccrue = await getFullProject({
               publicClient,
               clankerToken: deployedTokenAddress,
             })

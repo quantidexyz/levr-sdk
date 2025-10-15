@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatEther } from 'viem'
 
 import type { Project } from '../src'
-import { getProject } from '../src'
+import { getProject, getStaticProject } from '../src'
 import { LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
 import { Governance } from '../src/governance'
@@ -11,6 +11,17 @@ import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
 import { setupTest, type SetupTestReturnType } from './helper'
 import { getBlockTimestamp, warpAnvil } from './util'
+
+// Helper function to get full project data (static + dynamic)
+async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
+  const staticProject = await getStaticProject(params)
+  if (!staticProject) return null
+  return getProject({
+    publicClient: params.publicClient,
+    staticProject,
+    oraclePublicClient: params.oraclePublicClient,
+  })
+}
 
 /**
  * Governance Tests - Time-Weighted Voting System with Auto-Cycle Management
@@ -101,7 +112,7 @@ describe('#GOVERNANCE_TEST', () => {
       await warpAnvil(120)
 
       console.log('\n📋 Getting project...')
-      const projectResult = await getProject({
+      const projectResult = await getFullProject({
         publicClient,
         clankerToken: deployedTokenAddress,
       })
@@ -166,7 +177,7 @@ describe('#GOVERNANCE_TEST', () => {
 
       try {
         // Refetch project to get airdrop status
-        const updatedProject = await getProject({
+        const updatedProject = await getFullProject({
           publicClient,
           clankerToken: deployedTokenAddress,
         })
@@ -298,7 +309,7 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('✅ Transfer proposal created:', proposalId.toString())
 
       // Refetch project to get updated governance stats
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
@@ -465,7 +476,7 @@ describe('#GOVERNANCE_TEST', () => {
       console.log('✅ Boost proposal created:', proposalId.toString())
 
       // Refetch project to get updated governance stats
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ Governance cycle auto-started, Cycle ID:', cycleId.toString())
 
@@ -596,7 +607,7 @@ describe('#GOVERNANCE_TEST', () => {
       )
 
       // Refetch project to get updated governance stats
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const cycleId = project.governanceStats!.currentCycleId
       console.log('✅ New cycle auto-started, Cycle ID:', cycleId.toString())
 
@@ -749,7 +760,7 @@ describe('#GOVERNANCE_TEST', () => {
     async () => {
       console.log('\n📊 Verifying treasury stats after governance actions...')
 
-      const finalProjectData = await getProject({
+      const finalProjectData = await getFullProject({
         publicClient,
         clankerToken: deployedTokenAddress,
       })
@@ -809,7 +820,7 @@ describe('#GOVERNANCE_TEST', () => {
       console.log(`  ✅ Boost proposal created: ${boostId.toString()}`)
 
       // Refetch project to get updated governance stats
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const cycleId = project.governanceStats!.currentCycleId
       console.log(`  ✅ Fresh cycle ${cycleId.toString()} auto-started`)
 
@@ -825,7 +836,7 @@ describe('#GOVERNANCE_TEST', () => {
 
       // 3. Refetch project to get active proposal counts after creating proposals
       console.log('\n📊 Checking active proposal counts after proposals...')
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const boostCountAfter = project.governanceStats!.activeProposalCount.boost
       const transferCountAfter = project.governanceStats!.activeProposalCount.transfer
       console.log(`  Boost proposals active: ${boostCountAfter.toString()}`)
@@ -960,7 +971,7 @@ describe('#GOVERNANCE_TEST', () => {
 
       // 13. Test airdrop status from project
       console.log('\n🎁 Checking airdrop status from project data...')
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const airdropStatus = project.airdrop
       if (airdropStatus) {
         console.log(`  Available airdrop: ${airdropStatus.availableAmount.formatted} tokens`)
@@ -1014,7 +1025,7 @@ describe('#GOVERNANCE_TEST', () => {
       )
 
       // Get current airdrop status from project
-      project = (await getProject({ publicClient, clankerToken: deployedTokenAddress }))!
+      project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
       const statusBefore = project.airdrop
 
       if (!statusBefore) {

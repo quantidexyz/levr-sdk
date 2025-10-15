@@ -4,10 +4,45 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import type { ProjectsParams, ProjectsResult } from '../..'
-import { getProject, getProjects } from '../../project'
+import type { ProjectsParams, ProjectsResult, StaticProject } from '../..'
+import { getProject, getProjects, getStaticProject } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
+
+export type UseStaticProjectQueryParams = {
+  clankerToken: Address | null
+  oraclePublicClient: PopPublicClient
+  enabled?: boolean
+}
+
+/**
+ * Internal: Fetches static project data that doesn't change frequently
+ * Only refetches when the token address changes
+ */
+export function useStaticProjectQuery({
+  clankerToken,
+  oraclePublicClient,
+  enabled: e = true,
+}: UseStaticProjectQueryParams) {
+  const publicClient = usePublicClient()
+  const { address: userAddress } = useAccount()
+  const chainId = publicClient?.chain?.id
+
+  const enabled = !!publicClient && !!clankerToken && !!chainId && e
+
+  return useQuery<StaticProject | null>({
+    queryKey: ['static-project', clankerToken, chainId],
+    enabled,
+    queryFn: () =>
+      getStaticProject({
+        publicClient: publicClient!,
+        clankerToken: clankerToken!,
+        oraclePublicClient: oraclePublicClient,
+        userAddress, // Pass userAddress so areYouAnAdmin works out of the box
+      }),
+    staleTime: Infinity, // Static data never goes stale automatically
+  })
+}
 
 export type UseProjectQueryParams = {
   clankerToken: Address | null
@@ -18,6 +53,7 @@ export type UseProjectQueryParams = {
 /**
  * Internal: Creates project query with all logic
  * Used by LevrProvider
+ * Fetches dynamic stats (treasury, staking, governance) using static data from useStaticProjectQuery
  */
 export function useProjectQuery({
   clankerToken,
@@ -25,10 +61,16 @@ export function useProjectQuery({
   enabled: e = true,
 }: UseProjectQueryParams) {
   const publicClient = usePublicClient()
-  const { address: userAddress } = useAccount()
   const chainId = publicClient?.chain?.id
 
-  const enabled = !!publicClient && !!clankerToken && !!chainId && e
+  // Fetch static data (only refetches when token changes)
+  const { data: staticProject } = useStaticProjectQuery({
+    clankerToken,
+    oraclePublicClient,
+    enabled: e,
+  })
+
+  const enabled = !!publicClient && !!clankerToken && !!chainId && !!staticProject && e
 
   return useQuery({
     queryKey: queryKeys.project(clankerToken!, chainId!),
@@ -36,11 +78,10 @@ export function useProjectQuery({
     queryFn: () =>
       getProject({
         publicClient: publicClient!,
-        clankerToken: clankerToken!,
+        staticProject: staticProject!,
         oraclePublicClient: oraclePublicClient,
-        userAddress, // Pass userAddress so areYouAnAdmin works out of the box
       }),
-    staleTime: 300_000, // 5 minutes cache for pricing data
+    staleTime: 30_000, // 30 seconds cache for dynamic data
   })
 }
 

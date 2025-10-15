@@ -1,9 +1,20 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 
 import { GET_FACTORY_ADDRESS } from '../src/constants'
-import { getProject } from '../src/project'
+import { getProject, getStaticProject } from '../src/project'
 import { type SetupTestReturnType } from './helper'
 import { getPublicClient } from './util'
+
+// Helper function to get full project data (static + dynamic)
+async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
+  const staticProject = await getStaticProject(params)
+  if (!staticProject) return null
+  return getProject({
+    publicClient: params.publicClient,
+    staticProject,
+    oraclePublicClient: params.oraclePublicClient,
+  })
+}
 
 /**
  * USD Price Tests
@@ -71,7 +82,7 @@ describe('#USD_PRICE_TEST', () => {
 
       // Fetch project data WITH oracle client (should include pricing)
       console.log('\n💵 Fetching project with USD pricing...')
-      const projectData = await getProject({
+      const projectData = await getFullProject({
         publicClient,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         oraclePublicClient, // Providing oracle client enables pricing
@@ -139,7 +150,7 @@ describe('#USD_PRICE_TEST', () => {
 
       // Fetch project data WITHOUT oracle client
       console.log('Fetching project without oracle client...')
-      const projectData = await getProject({
+      const projectData = await getFullProject({
         publicClient,
         clankerToken: DEPLOYED_TOKEN_ADDRESS,
         // No oraclePublicClient provided

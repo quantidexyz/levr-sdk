@@ -10,11 +10,17 @@ import { getTreasuryAirdropStatus } from './treasury'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
-export type ProjectParams = {
+export type StaticProjectParams = {
   publicClient: PopPublicClient
   clankerToken: `0x${string}`
   oraclePublicClient?: PopPublicClient
   userAddress?: `0x${string}`
+}
+
+export type ProjectParams = {
+  publicClient: PopPublicClient
+  staticProject: StaticProject
+  oraclePublicClient?: PopPublicClient
 }
 
 export type ProjectMetadata = {
@@ -96,6 +102,21 @@ export type Project = {
   pricing?: PricingResult
   airdrop?: AirdropStatus | null
 }
+
+export type StaticProject = Pick<
+  Project,
+  | 'treasury'
+  | 'governor'
+  | 'staking'
+  | 'stakedToken'
+  | 'forwarder'
+  | 'factory'
+  | 'token'
+  | 'pool'
+  | 'feeReceivers'
+  | 'pricing'
+  | 'airdrop'
+>
 
 // ---
 // Multicall Result Types
@@ -623,14 +644,15 @@ export async function getProjects({
 }
 
 /**
- * Get project data for a clanker token
+ * Get static project data that doesn't change frequently
+ * This includes contract addresses, token metadata, pool info, fee receivers, pricing, and airdrop status
  */
-export async function getProject({
+export async function getStaticProject({
   publicClient,
   clankerToken,
   oraclePublicClient,
   userAddress,
-}: ProjectParams): Promise<Project | null> {
+}: StaticProjectParams): Promise<StaticProject | null> {
   if (Object.values({ publicClient, clankerToken }).some((value) => !value)) {
     throw new Error('Invalid project params')
   }
@@ -640,8 +662,6 @@ export async function getProject({
 
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
-
-  const wethAddress = WETH(chainId)?.address
 
   // Build contract calls using individual getters
   const contracts = [
@@ -669,38 +689,6 @@ export async function getProject({
   // Check if project exists
   const { treasury, governor, staking, stakedToken } = factoryData
   if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
-
-  // Now fetch treasury, governance, and staking data
-  const additionalContracts = [
-    ...getTreasuryContracts(clankerToken, treasury, staking),
-    ...getGovernanceContracts(governor),
-    ...getStakingContracts(staking, clankerToken, wethAddress),
-  ]
-
-  const additionalResults = await publicClient.multicall({ contracts: additionalContracts })
-
-  // Calculate slice indices for additional data
-  const treasuryCount = 2
-  const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
-  const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
-
-  let idx2 = 0
-  const treasuryResults = additionalResults.slice(
-    idx2,
-    idx2 + treasuryCount
-  ) as TreasuryContractsResult
-  idx2 += treasuryCount
-
-  const governanceResults = additionalResults.slice(
-    idx2,
-    idx2 + governanceCount
-  ) as GovernanceContractsResult
-  idx2 += governanceCount
-
-  const stakingResults = additionalResults.slice(
-    idx2,
-    idx2 + stakingCount
-  ) as StakingContractsResult
 
   // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
@@ -753,23 +741,6 @@ export async function getProject({
 
   // Calculate USD values for stats if pricing is available
   const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
-  const wethUsdPrice = pricing ? parseFloat(pricing.wethUsd) : null
-
-  // Parse treasury and staking stats using individual parsers
-  const treasuryStats = parseTreasuryStats(
-    treasuryResults,
-    tokenData.decimals,
-    tokenData.totalSupply,
-    tokenUsdPrice
-  )
-
-  const stakingStats = parseStakingStats(
-    stakingResults,
-    tokenData.decimals,
-    tokenUsdPrice,
-    wethUsdPrice,
-    pricing
-  )
 
   // Get airdrop status
   const airdropStatus = await getTreasuryAirdropStatus(
@@ -780,10 +751,7 @@ export async function getProject({
     tokenUsdPrice
   )
 
-  const governanceStats = parseGovernanceData(governanceResults)
-
   return {
-    chainId,
     treasury: factoryData.treasury,
     governor: factoryData.governor,
     staking: factoryData.staking,
@@ -792,11 +760,81 @@ export async function getProject({
     factory: factoryAddress,
     token: tokenData,
     pool: poolInfo,
-    treasuryStats,
-    stakingStats,
-    governanceStats,
     feeReceivers,
     pricing,
     airdrop: airdropStatus,
+  }
+}
+
+/**
+ * Get project data for a clanker token
+ * Requires staticProject data to avoid refetching static information
+ */
+export async function getProject({
+  publicClient,
+  staticProject,
+  oraclePublicClient,
+}: ProjectParams): Promise<Project | null> {
+  if (Object.values({ publicClient, staticProject }).some((value) => !value)) {
+    throw new Error('Invalid project params')
+  }
+
+  const chainId = publicClient.chain?.id
+  if (!chainId) throw new Error('Chain ID not found on public client')
+
+  const wethAddress = WETH(chainId)?.address
+  const clankerToken = staticProject.token.address
+
+  // Fetch only dynamic data (treasury, governance, and staking stats)
+  const contracts = [
+    ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
+    ...getGovernanceContracts(staticProject.governor),
+    ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
+  ]
+
+  const results = await publicClient.multicall({ contracts })
+
+  // Calculate slice indices for dynamic data
+  const treasuryCount = 2
+  const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
+  const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
+
+  let idx = 0
+  const treasuryResults = results.slice(idx, idx + treasuryCount) as TreasuryContractsResult
+  idx += treasuryCount
+
+  const governanceResults = results.slice(idx, idx + governanceCount) as GovernanceContractsResult
+  idx += governanceCount
+
+  const stakingResults = results.slice(idx, idx + stakingCount) as StakingContractsResult
+
+  // Calculate USD values for stats if pricing is available
+  const tokenUsdPrice = staticProject.pricing ? parseFloat(staticProject.pricing.tokenUsd) : null
+  const wethUsdPrice = staticProject.pricing ? parseFloat(staticProject.pricing.wethUsd) : null
+
+  // Parse treasury and staking stats using individual parsers
+  const treasuryStats = parseTreasuryStats(
+    treasuryResults,
+    staticProject.token.decimals,
+    staticProject.token.totalSupply,
+    tokenUsdPrice
+  )
+
+  const stakingStats = parseStakingStats(
+    stakingResults,
+    staticProject.token.decimals,
+    tokenUsdPrice,
+    wethUsdPrice,
+    staticProject.pricing
+  )
+
+  const governanceStats = parseGovernanceData(governanceResults)
+
+  return {
+    chainId,
+    ...staticProject,
+    treasuryStats,
+    stakingStats,
+    governanceStats,
   }
 }

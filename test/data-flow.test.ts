@@ -25,9 +25,20 @@ mock.module('../src/util', () => ({
 
 import { LevrProvider, useLevrContext, useProject, useUser } from '../src/client'
 import { pool } from '../src/pool'
-import { getProject } from '../src/project'
+import { getProject, getStaticProject } from '../src/project'
 import { proposals } from '../src/proposal'
 import { getUser } from '../src/user'
+
+// Helper function to get full project data (static + dynamic)
+async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
+  const staticProject = await getStaticProject(params)
+  if (!staticProject) return null
+  return getProject({
+    publicClient: params.publicClient,
+    staticProject,
+    oraclePublicClient: params.oraclePublicClient,
+  })
+}
 
 // ========================================
 // MOCK DATA
@@ -368,7 +379,7 @@ describe('#data-flow', () => {
     describe('Zero Duplicate Fetches', () => {
       it('should make minimal RPC calls when fetching all data groups', async () => {
         // Fetch project data (skip oracle client to avoid pricing queries)
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
           // oraclePublicClient omitted to skip pricing
@@ -432,7 +443,7 @@ describe('#data-flow', () => {
       })
 
       it('should not call the same contract function twice', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -463,7 +474,7 @@ describe('#data-flow', () => {
       it('should fetch ALL project data items ONLY in project query', async () => {
         tracker.reset()
 
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -550,7 +561,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch token info only in project query', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -562,7 +573,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch fee receivers in project query (not separate)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -579,7 +590,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch factory and currentCycleId in project query (not governance)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -593,7 +604,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch user balances only in user query', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -614,7 +625,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch staking data only in user query', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -641,7 +652,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch voting power only in user query', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -659,7 +670,7 @@ describe('#data-flow', () => {
       })
 
       it('should fetch pool state only in pool query', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -681,7 +692,7 @@ describe('#data-flow', () => {
 
     describe('Data Sharing Patterns', () => {
       it('should share project data to user query (verify NO refetch of project items)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -731,7 +742,7 @@ describe('#data-flow', () => {
       })
 
       it('should share project.pool data to pool query (verify poolKey NOT refetched)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -761,7 +772,7 @@ describe('#data-flow', () => {
       })
 
       it('should share project.governor to proposals query (verify NOT refetched)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -802,7 +813,7 @@ describe('#data-flow', () => {
       })
 
       it('should use shared utilities (no logic duplication)', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
@@ -846,7 +857,7 @@ describe('#data-flow', () => {
       })
 
       it('should not re-fetch shared pricing data', async () => {
-        const projectData = await getProject({
+        const projectData = await getFullProject({
           publicClient: mockPublicClient as any,
           clankerToken: MOCK_CLANKER_TOKEN,
         })
