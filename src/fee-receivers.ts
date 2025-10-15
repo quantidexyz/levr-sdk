@@ -1,5 +1,3 @@
-import { encodeFunctionData } from 'viem'
-
 import { IClankerLpLockerMultiple } from './abis'
 import { GET_LP_LOCKER_ADDRESS } from './constants'
 import type { PopPublicClient, PopWalletClient } from './types'
@@ -31,12 +29,6 @@ export type TokenRewardsParams = {
   chainId?: number
 }
 
-export type TokenRewardsBytecodeReturnType = {
-  address: `0x${string}`
-  data: `0x${string}`
-  abi: typeof IClankerLpLockerMultiple
-}
-
 /**
  * Get tokenRewards from LP locker by reading the contract
  * Returns pool info and fee receiver data
@@ -63,30 +55,23 @@ export const tokenRewardsRead = async (params: TokenRewardsParams) => {
 }
 
 /**
- * Get bytecode for tokenRewards that can be used in multicalls
+ * Get fee receiver contract calls for multicall
+ * Returns contract call to fetch tokenRewards from LP locker
  */
-export const tokenRewardsBytecode = (
-  params: TokenRewardsParams
-): TokenRewardsBytecodeReturnType => {
-  const chainId = params.chainId ?? params.publicClient?.chain?.id
-  if (!chainId) throw new Error('Chain ID required for bytecode generation')
-
+export function getFeeReceiverContracts(clankerToken: `0x${string}`, chainId: number) {
   const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
   if (!lpLockerAddress) {
     throw new Error('LP locker address not found for chain')
   }
 
-  const data = encodeFunctionData({
-    abi: IClankerLpLockerMultiple,
-    functionName: 'tokenRewards',
-    args: [params.clankerToken],
-  })
-
-  return {
-    address: lpLockerAddress,
-    data,
-    abi: IClankerLpLockerMultiple,
-  }
+  return [
+    {
+      address: lpLockerAddress,
+      abi: IClankerLpLockerMultiple,
+      functionName: 'tokenRewards' as const,
+      args: [clankerToken],
+    },
+  ]
 }
 
 /**

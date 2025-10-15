@@ -4,7 +4,7 @@ import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from '
 import { formatBalanceWithUsd } from './balance'
 import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin } from './fee-receivers'
-import { parseFeeReceivers, tokenRewardsBytecode } from './fee-receivers'
+import { getFeeReceiverContracts, parseFeeReceivers } from './fee-receivers'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -651,15 +651,10 @@ export async function getStaticProject({
   if (!factoryAddress) throw new Error('Factory address not found')
 
   // Build contract calls including tokenRewards in the same multicall
-  const tokenRewardsBytecodeCall = tokenRewardsBytecode({ clankerToken, chainId })
-
   const contracts = [
     ...getTokenContracts(clankerToken),
     ...getFactoryContracts(factoryAddress, clankerToken),
-    {
-      ...tokenRewardsBytecodeCall,
-      functionName: 'tokenRewards' as const,
-    },
+    ...getFeeReceiverContracts(clankerToken, chainId),
   ]
 
   const multicallResults = await publicClient.multicall({ contracts })
