@@ -13,13 +13,18 @@ import { setupTest, type SetupTestReturnType } from './helper'
 import { getBlockTimestamp, warpAnvil } from './util'
 
 // Helper function to get full project data (static + dynamic)
-async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
-  const staticProject = await getStaticProject(params)
+async function getFullProject(
+  params: Parameters<typeof getStaticProject>[0] & {
+    oraclePublicClient?: Parameters<typeof getProject>[0]['oraclePublicClient']
+  }
+) {
+  const { oraclePublicClient, ...staticParams } = params
+  const staticProject = await getStaticProject(staticParams)
   if (!staticProject) return null
   return getProject({
     publicClient: params.publicClient,
     staticProject,
-    oraclePublicClient: params.oraclePublicClient,
+    oraclePublicClient,
   })
 }
 

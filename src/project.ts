@@ -6,14 +6,12 @@ import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin } from './fee-receivers'
 import { getTokenRewards, parseFeeReceivers } from './fee-receivers'
 import type { AirdropStatus } from './treasury'
-import { getTreasuryAirdropStatus } from './treasury'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
 export type StaticProjectParams = {
   publicClient: PopPublicClient
   clankerToken: `0x${string}`
-  oraclePublicClient?: PopPublicClient
   userAddress?: `0x${string}`
 }
 
@@ -114,8 +112,6 @@ export type StaticProject = Pick<
   | 'token'
   | 'pool'
   | 'feeReceivers'
-  | 'pricing'
-  | 'airdrop'
 >
 
 // ---
@@ -645,12 +641,11 @@ export async function getProjects({
 
 /**
  * Get static project data that doesn't change frequently
- * This includes contract addresses, token metadata, pool info, fee receivers, pricing, and airdrop status
+ * This includes contract addresses, token metadata, pool info, and fee receivers
  */
 export async function getStaticProject({
   publicClient,
   clankerToken,
-  oraclePublicClient,
   userAddress,
 }: StaticProjectParams): Promise<StaticProject | null> {
   if (Object.values({ publicClient, clankerToken }).some((value) => !value)) {
@@ -711,46 +706,6 @@ export async function getStaticProject({
     // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
   }
 
-  // Fetch pricing data if oracle client is provided and pool exists
-  let pricing: PricingResult | undefined
-
-  if (oraclePublicClient && poolInfo) {
-    try {
-      const [wethUsdData, tokenUsdData] = await Promise.all([
-        getWethUsdPrice({ publicClient: oraclePublicClient }),
-        getUsdPrice({
-          oraclePublicClient,
-          quotePublicClient: publicClient,
-          tokenAddress: clankerToken,
-          tokenDecimals: tokenData.decimals,
-          quoteFee: poolInfo.poolKey.fee,
-          quoteTickSpacing: poolInfo.poolKey.tickSpacing,
-          quoteHooks: poolInfo.poolKey.hooks,
-        }),
-      ])
-
-      pricing = {
-        wethUsd: wethUsdData.priceUsd,
-        tokenUsd: tokenUsdData.priceUsd,
-      }
-    } catch (error) {
-      // If pricing fails, continue without it (graceful degradation)
-      console.warn('Failed to fetch USD pricing:', error)
-    }
-  }
-
-  // Calculate USD values for stats if pricing is available
-  const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
-
-  // Get airdrop status
-  const airdropStatus = await getTreasuryAirdropStatus(
-    publicClient,
-    clankerToken,
-    treasury,
-    tokenData.decimals,
-    tokenUsdPrice
-  )
-
   return {
     treasury: factoryData.treasury,
     governor: factoryData.governor,
@@ -761,14 +716,13 @@ export async function getStaticProject({
     token: tokenData,
     pool: poolInfo,
     feeReceivers,
-    pricing,
-    airdrop: airdropStatus,
   }
 }
 
 /**
  * Get project data for a clanker token
  * Requires staticProject data to avoid refetching static information
+ * Fetches dynamic data including treasury, governance, staking stats, and pricing
  */
 export async function getProject({
   publicClient,
@@ -784,6 +738,34 @@ export async function getProject({
 
   const wethAddress = WETH(chainId)?.address
   const clankerToken = staticProject.token.address
+
+  // Fetch pricing data if oracle client is provided and pool exists
+  let pricing: PricingResult | undefined
+
+  if (oraclePublicClient && staticProject.pool) {
+    try {
+      const [wethUsdData, tokenUsdData] = await Promise.all([
+        getWethUsdPrice({ publicClient: oraclePublicClient }),
+        getUsdPrice({
+          oraclePublicClient,
+          quotePublicClient: publicClient,
+          tokenAddress: clankerToken,
+          tokenDecimals: staticProject.token.decimals,
+          quoteFee: staticProject.pool.poolKey.fee,
+          quoteTickSpacing: staticProject.pool.poolKey.tickSpacing,
+          quoteHooks: staticProject.pool.poolKey.hooks,
+        }),
+      ])
+
+      pricing = {
+        wethUsd: wethUsdData.priceUsd,
+        tokenUsd: tokenUsdData.priceUsd,
+      }
+    } catch (error) {
+      // If pricing fails, continue without it (graceful degradation)
+      console.warn('Failed to fetch USD pricing:', error)
+    }
+  }
 
   // Fetch only dynamic data (treasury, governance, and staking stats)
   const contracts = [
@@ -809,8 +791,8 @@ export async function getProject({
   const stakingResults = results.slice(idx, idx + stakingCount) as StakingContractsResult
 
   // Calculate USD values for stats if pricing is available
-  const tokenUsdPrice = staticProject.pricing ? parseFloat(staticProject.pricing.tokenUsd) : null
-  const wethUsdPrice = staticProject.pricing ? parseFloat(staticProject.pricing.wethUsd) : null
+  const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
+  const wethUsdPrice = pricing ? parseFloat(pricing.wethUsd) : null
 
   // Parse treasury and staking stats using individual parsers
   const treasuryStats = parseTreasuryStats(
@@ -825,7 +807,7 @@ export async function getProject({
     staticProject.token.decimals,
     tokenUsdPrice,
     wethUsdPrice,
-    staticProject.pricing
+    pricing
   )
 
   const governanceStats = parseGovernanceData(governanceResults)
@@ -836,5 +818,6 @@ export async function getProject({
     treasuryStats,
     stakingStats,
     governanceStats,
+    pricing,
   }
 }

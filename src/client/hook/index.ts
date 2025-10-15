@@ -43,6 +43,7 @@ export * from './use-swap'
 // OTHER HOOKS (not part of Levr context)
 // ========================================
 
+export * from './use-airdrop'
 export * from './use-deploy'
 export * from './use-pool'
 export * from './use-prepare'

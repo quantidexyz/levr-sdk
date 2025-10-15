@@ -11,7 +11,6 @@ import { queryKeys } from '../query-keys'
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
-  oraclePublicClient: PopPublicClient
   enabled?: boolean
 }
 
@@ -21,7 +20,6 @@ export type UseStaticProjectQueryParams = {
  */
 export function useStaticProjectQuery({
   clankerToken,
-  oraclePublicClient,
   enabled: e = true,
 }: UseStaticProjectQueryParams) {
   const publicClient = usePublicClient()
@@ -37,7 +35,6 @@ export function useStaticProjectQuery({
       getStaticProject({
         publicClient: publicClient!,
         clankerToken: clankerToken!,
-        oraclePublicClient: oraclePublicClient,
         userAddress, // Pass userAddress so areYouAnAdmin works out of the box
       }),
     staleTime: Infinity, // Static data never goes stale automatically
@@ -53,7 +50,7 @@ export type UseProjectQueryParams = {
 /**
  * Internal: Creates project query with all logic
  * Used by LevrProvider
- * Fetches dynamic stats (treasury, staking, governance) using static data from useStaticProjectQuery
+ * Fetches dynamic stats (treasury, staking, governance, pricing) using static data from useStaticProjectQuery
  */
 export function useProjectQuery({
   clankerToken,
@@ -66,7 +63,6 @@ export function useProjectQuery({
   // Fetch static data (only refetches when token changes)
   const { data: staticProject } = useStaticProjectQuery({
     clankerToken,
-    oraclePublicClient,
     enabled: e,
   })
 
