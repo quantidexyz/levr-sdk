@@ -4,7 +4,7 @@ import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from '
 import { formatBalanceWithUsd } from './balance'
 import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin } from './fee-receivers'
-import { getTokenRewards, parseFeeReceivers } from './fee-receivers'
+import { parseFeeReceivers, tokenRewardsBytecode } from './fee-receivers'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -650,10 +650,16 @@ export async function getStaticProject({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
 
-  // Build contract calls using individual getters
+  // Build contract calls including tokenRewards in the same multicall
+  const tokenRewardsBytecodeCall = tokenRewardsBytecode({ clankerToken, chainId })
+
   const contracts = [
     ...getTokenContracts(clankerToken),
     ...getFactoryContracts(factoryAddress, clankerToken),
+    {
+      ...tokenRewardsBytecodeCall,
+      functionName: 'tokenRewards' as const,
+    },
   ]
 
   const multicallResults = await publicClient.multicall({ contracts })
@@ -661,6 +667,7 @@ export async function getStaticProject({
   // Calculate slice indices for each data group
   const tokenCount = 6
   const factoryCount = 2
+  const tokenRewardsCount = 1
 
   let idx = 0
   const tokenResults = multicallResults.slice(idx, idx + tokenCount) as TokenContractsResult
@@ -668,6 +675,9 @@ export async function getStaticProject({
 
   const factoryResults = multicallResults.slice(idx, idx + factoryCount) as FactoryContractsResult
   idx += factoryCount
+
+  const tokenRewardsResult = multicallResults[idx]
+  idx += tokenRewardsCount
 
   // Parse results using individual parsers
   const tokenData = parseTokenData(tokenResults, clankerToken)
@@ -680,9 +690,15 @@ export async function getStaticProject({
   // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
   let feeReceivers: FeeReceiverAdmin[] | undefined
-  try {
-    // Use shared utility to get tokenRewards (no duplication)
-    const tokenRewards = await getTokenRewards(publicClient, clankerToken)
+
+  if (tokenRewardsResult.status === 'success') {
+    const tokenRewards = tokenRewardsResult.result as {
+      poolKey: PoolKey
+      numPositions: bigint
+      rewardAdmins?: readonly `0x${string}`[]
+      rewardRecipients?: readonly `0x${string}`[]
+      rewardBps?: readonly number[]
+    }
 
     const poolKey = tokenRewards.poolKey
     poolInfo = {
@@ -694,9 +710,8 @@ export async function getStaticProject({
     // Parse fee receivers using shared utility (no logic duplication)
     // Pass userAddress so areYouAnAdmin works out of the box
     feeReceivers = parseFeeReceivers(tokenRewards, userAddress)
-  } catch {
-    // If reading fails (e.g., token not deployed through Clanker), poolInfo remains undefined
   }
+  // If tokenRewards fails (e.g., token not deployed through Clanker), poolInfo remains undefined
 
   return {
     treasury: factoryData.treasury,
