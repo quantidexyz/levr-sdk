@@ -149,7 +149,7 @@ const stake = new Stake({
 })
 
 // Approve and stake
-await stake.approve(1000) // Or '1000' or 1000n
+await stake.approve(1000) // Or '1000' or parseUnits('1000', projectData.token.decimals)
 await stake.stake(1000)
 
 // Governance operations
@@ -240,7 +240,7 @@ project?.stakingStats?.totalStaked // Total staked by all users
 project?.stakingStats?.apr // APR percentages
 
 // Use mutations - automatically refetches related data
-stake.mutate(1000) // Or '1000' or 1000n
+stake.mutate(1000) // Or '1000' or parseUnits('1000', project.token.decimals)
 ```
 
 #### `useSwap()`

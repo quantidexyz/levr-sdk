@@ -40,7 +40,7 @@ function StakingInterface() {
   })
 
   const handleStake = () => {
-    const amount = 1000n
+    const amount = '1000'
     if (needsApproval('1000')) {
       approve.mutate(amount)
     } else {
