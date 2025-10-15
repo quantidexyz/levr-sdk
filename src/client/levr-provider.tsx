@@ -7,10 +7,12 @@ import type { Address } from 'viem'
 import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
+import type { AirdropStatus } from '..'
 import type { PoolData } from '../pool'
 import type { ProposalsResult } from '../proposal'
 import type { User } from '../user'
 import { getPublicClient } from '../util'
+import { useAirdropStatusQuery } from '.'
 import { useClankerTokenQuery } from './hook/use-clanker'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
@@ -42,6 +44,7 @@ export type LevrContextValue = {
     metadata: string
     context: string
   } | null>
+  airdropStatus: UseQueryResult<AirdropStatus | null>
 
   // Action-based refetch methods
   refetch: {
@@ -111,6 +114,7 @@ export function LevrProvider({
   // ========================================
 
   const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
+  const airdropStatus = useAirdropStatusQuery({ project: project.data, enabled })
   const tokenData = useClankerTokenQuery({ clankerToken, enabled })
   const userQuery = useUserQuery({ project: project.data, enabled })
   const poolQuery = usePoolQuery({ project: project.data, enabled })
@@ -189,7 +193,7 @@ export function LevrProvider({
         ])
       },
       afterAirdrop: async () => {
-        await project.refetch() // Treasury balance, airdrop status changed
+        await airdropStatus.refetch() // Treasury balance, airdrop status changed
       },
     }),
     [queryClient, project, userQuery, poolQuery, proposalsQuery]
@@ -215,6 +219,7 @@ export function LevrProvider({
       pool: poolQuery,
       proposals: proposalsQuery,
       tokenData,
+      airdropStatus,
 
       // Refetch methods
       refetch: refetchMethods,

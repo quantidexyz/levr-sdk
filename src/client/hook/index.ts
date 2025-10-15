@@ -29,6 +29,11 @@ export const useProposals = () => useLevrContext().proposals
  */
 export const useClankerToken = () => useLevrContext().tokenData
 
+/**
+ * Hook to access airdrop status from LevrProvider
+ */
+export const useAirdropStatus = () => useLevrContext().airdropStatus
+
 // ========================================
 // COMPLEX HOOKS (with mutations/callbacks)
 // ========================================
