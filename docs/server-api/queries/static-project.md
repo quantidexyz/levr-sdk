@@ -60,6 +60,9 @@ Returns `StaticProject | null` (null if project not registered)
     totalSupply: bigint
     metadata: ProjectMetadata | null
     imageUrl?: string
+    originalAdmin: `0x${string}`
+    admin: `0x${string}`
+    context: string
   }
 
   // Pool Info

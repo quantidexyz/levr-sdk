@@ -25,7 +25,6 @@ Complete reference for all React hooks:
 - [useProposals](./client-hooks/query/use-proposals.md) - Proposals list
 - [useProposal](./client-hooks/query/use-proposal.md) - Single proposal
 - [useAirdropStatus](./client-hooks/query/use-airdrop-status.md) - Airdrop status
-- [useClankerToken](./client-hooks/query/use-clanker-token.md) - Token metadata
 
 **Mutation Hooks:**
 

@@ -9,17 +9,15 @@ import { useAccount, useChainId } from 'wagmi'
 
 import type { AirdropStatus } from '..'
 import type { PoolData } from '../pool'
+import type { Project } from '../project'
 import type { ProposalsResult } from '../proposal'
 import type { User } from '../user'
 import { getPublicClient } from '../util'
 import { useAirdropStatusQuery } from '.'
-import { useClankerTokenQuery } from './hook/use-clanker'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposal'
 import { useUserQuery } from './hook/use-user'
-
-type Project = NonNullable<ReturnType<typeof useProjectQuery>['data']>
 
 /**
  * Context value provided by LevrProvider
@@ -37,13 +35,6 @@ export type LevrContextValue = {
   project: UseQueryResult<Project | null>
   pool: UseQueryResult<PoolData | null>
   proposals: UseQueryResult<ProposalsResult | null>
-  tokenData: UseQueryResult<{
-    originalAdmin: Address
-    admin: Address
-    image: string
-    metadata: string
-    context: string
-  } | null>
   airdropStatus: UseQueryResult<AirdropStatus | null>
 
   // Action-based refetch methods
@@ -115,7 +106,6 @@ export function LevrProvider({
 
   const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
   const airdropStatus = useAirdropStatusQuery({ project: project.data, enabled })
-  const tokenData = useClankerTokenQuery({ clankerToken, enabled })
   const userQuery = useUserQuery({ project: project.data, enabled })
   const poolQuery = usePoolQuery({ project: project.data, enabled })
   const proposalsQuery = useProposalsQuery({
@@ -151,6 +141,7 @@ export function LevrProvider({
         await Promise.all([
           userQuery.refetch(), // Balances changed
           poolQuery.refetch(), // Pool state changed (price impact)
+          project.refetch(), // Staking stats might have changed
         ])
       },
       afterStake: async () => {
@@ -189,14 +180,16 @@ export function LevrProvider({
         await Promise.all([
           project.refetch(), // Treasury changed + currentCycleId (new cycle starts)
           proposalsQuery.refetch(), // Proposal executed
-          userQuery.refetch(), // Staking rewards might have changed (if boost)
         ])
       },
       afterAirdrop: async () => {
-        await airdropStatus.refetch() // Treasury balance, airdrop status changed
+        await Promise.all([
+          project.refetch(), // Treasury changed
+          airdropStatus.refetch(), // Treasury balance, airdrop status changed
+        ])
       },
     }),
-    [queryClient, project, userQuery, poolQuery, proposalsQuery]
+    [queryClient, project, userQuery, poolQuery, proposalsQuery, airdropStatus]
   )
 
   // Auto-refetch on wallet/chain change
@@ -218,7 +211,6 @@ export function LevrProvider({
       project,
       pool: poolQuery,
       proposals: proposalsQuery,
-      tokenData,
       airdropStatus,
 
       // Refetch methods
@@ -233,7 +225,7 @@ export function LevrProvider({
       project,
       poolQuery,
       proposalsQuery,
-      tokenData,
+      airdropStatus,
       refetchMethods,
     ]
   )

@@ -15,7 +15,6 @@ Read-only data access hooks:
 - [useProposals](./query/use-proposals.md) - Governance proposals with vote receipts
 - [useProposal](./query/use-proposal.md) - Single proposal by ID
 - [useAirdropStatus](./query/use-airdrop-status.md) - Treasury airdrop status (separate query)
-- [useClankerToken](./query/use-clanker-token.md) - Token metadata
 
 ### Mutation Hooks
 

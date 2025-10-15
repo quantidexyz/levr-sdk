@@ -21,6 +21,10 @@ function ProjectInfo() {
       <h3>Token Info</h3>
       <p>Address: {project.token.address}</p>
       <p>Total Supply: {project.token.totalSupply.toString()}</p>
+      <p>Original Admin: {project.token.originalAdmin}</p>
+      <p>Admin: {project.token.admin}</p>
+      <p>Context: {project.token.context}</p>
+      {project.token.imageUrl && <img src={project.token.imageUrl} alt="Token" />}
 
       <h3>Contracts</h3>
       <p>Treasury: {project.treasury}</p>
@@ -103,6 +107,9 @@ Project data contains ALL project-level information:
     totalSupply: bigint
     metadata: ProjectMetadata | null
     imageUrl?: string
+    originalAdmin: `0x${string}`
+    admin: `0x${string}`
+    context: string
   }
 
   // Pool Info
@@ -172,18 +179,21 @@ Project data contains ALL project-level information:
 `useProject()` returns **static + dynamic** data:
 
 **Static data** (cached indefinitely):
+
 - Contract addresses
 - Token info
 - Pool info
 - Fee receivers
 
 **Dynamic data** (refetches every 30s):
+
 - Treasury stats
 - Staking stats
 - Governance stats
 - Pricing (if oracle provided)
 
 **Not included:**
+
 - ❌ Airdrop status - Use `useAirdropStatus()` hook separately
 
 ## Notes

@@ -68,7 +68,7 @@ const LevrContext = createContext<LevrContextValue>({
   project,
   pool: poolQuery,
   proposals: proposalsQuery,
-  tokenData,
+  airdropStatus,
 
   // Action-based refetch methods
   refetch: {

@@ -25,11 +25,6 @@ export const usePool = () => useLevrContext().pool
 export const useProposals = () => useLevrContext().proposals
 
 /**
- * Hook to access clanker token metadata from LevrProvider
- */
-export const useClankerToken = () => useLevrContext().tokenData
-
-/**
  * Hook to access airdrop status from LevrProvider
  */
 export const useAirdropStatus = () => useLevrContext().airdropStatus

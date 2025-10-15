@@ -38,6 +38,11 @@ project?.token.symbol
 project?.token.decimals
 project?.token.address
 project?.token.totalSupply
+project?.token.imageUrl
+project?.token.originalAdmin
+project?.token.admin
+project?.token.context
+project?.token.metadata
 
 // Contract addresses
 project?.treasury

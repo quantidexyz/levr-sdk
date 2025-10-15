@@ -90,6 +90,9 @@ export type Project = {
     totalSupply: bigint
     metadata: ProjectMetadata | null
     imageUrl?: string
+    originalAdmin: `0x${string}`
+    admin: `0x${string}`
+    context: string
   }
   pool?: PoolInfo
   treasuryStats?: TreasuryStats
@@ -126,8 +129,7 @@ type TokenContractsResult = [
   MulticallResult<string>, // name
   MulticallResult<string>, // symbol
   MulticallResult<bigint>, // totalSupply
-  MulticallResult<string>, // metadata
-  MulticallResult<string | undefined>, // imageUrl
+  MulticallResult<[`0x${string}`, `0x${string}`, string, string, string]>, // allData: [originalAdmin, admin, image, metadata, context]
 ]
 
 type FactoryContractsResult = [
@@ -171,6 +173,9 @@ type TokenData = {
   totalSupply: bigint
   metadata: ProjectMetadata | null
   imageUrl?: string
+  originalAdmin: `0x${string}`
+  admin: `0x${string}`
+  context: string
 }
 
 type FactoryData = {
@@ -217,12 +222,7 @@ function getTokenContracts(clankerToken: `0x${string}`) {
     {
       address: clankerToken,
       abi: IClankerToken,
-      functionName: 'metadata' as const,
-    },
-    {
-      address: clankerToken,
-      abi: IClankerToken,
-      functionName: 'imageUrl' as const,
+      functionName: 'allData' as const,
     },
   ]
 }
@@ -355,13 +355,16 @@ function getStakingContracts(
 // Parsers
 
 function parseTokenData(results: TokenContractsResult, clankerToken: `0x${string}`): TokenData {
-  const [decimals, name, symbol, totalSupply, metadata, imageUrl] = results
+  const [decimals, name, symbol, totalSupply, allData] = results
+
+  // Extract allData fields: [originalAdmin, admin, image, metadata, context]
+  const [originalAdmin, admin, image, metadata, context] = allData.result
 
   // Parse metadata JSON
   let parsedMetadata: ProjectMetadata | null = null
-  if (metadata.result && typeof metadata.result === 'string') {
+  if (metadata && typeof metadata === 'string') {
     try {
-      parsedMetadata = JSON.parse(metadata.result)
+      parsedMetadata = JSON.parse(metadata)
     } catch {
       // If parsing fails, leave as null
     }
@@ -374,7 +377,10 @@ function parseTokenData(results: TokenContractsResult, clankerToken: `0x${string
     symbol: symbol.result,
     totalSupply: totalSupply.result,
     metadata: parsedMetadata,
-    imageUrl: imageUrl.result,
+    imageUrl: image || undefined,
+    originalAdmin,
+    admin,
+    context,
   }
 }
 
@@ -594,15 +600,15 @@ export async function getProjects({
     | 'feeReceivers'
     | 'airdrop'
   >[] = []
-  const callsPerProject = 8 // 6 token + 2 treasury (no governance for list view)
+  const callsPerProject = 7 // 5 token + 2 treasury (no governance for list view)
 
   for (let i = 0; i < projectsData.length; i++) {
     const projectInfo = projectsData[i]
     const offset = i * callsPerProject
 
     // Extract results for this project
-    const tokenResults = results.slice(offset, offset + 6) as TokenContractsResult
-    const treasuryResults = results.slice(offset + 6, offset + 8) as TreasuryContractsResult
+    const tokenResults = results.slice(offset, offset + 5) as TokenContractsResult
+    const treasuryResults = results.slice(offset + 5, offset + 7) as TreasuryContractsResult
 
     // Parse using our type-safe parsers
     const tokenData = parseTokenData(tokenResults, projectInfo.clankerToken)
@@ -660,7 +666,7 @@ export async function getStaticProject({
   const multicallResults = await publicClient.multicall({ contracts })
 
   // Calculate slice indices for each data group
-  const tokenCount = 6
+  const tokenCount = 5
   const factoryCount = 2
   const tokenRewardsCount = 1
 

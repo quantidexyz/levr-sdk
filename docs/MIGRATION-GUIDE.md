@@ -12,19 +12,21 @@ The SDK has been refactored to achieve **zero duplicate queries** and a **cleane
 
 These hooks no longer exist:
 
-- ❌ `useBalance()` 
+- ❌ `useBalance()`
 - ❌ `useStakingData()`
 - ❌ `useGovernanceData()`
+- ❌ `useClankerToken()` - Token metadata now in `project.token`
 
 **Migration:**
 
 ```typescript
 // ❌ Old way
-import { useBalance, useStakingData, useGovernanceData } from 'levr-sdk/client'
+import { useBalance, useStakingData, useGovernanceData, useClankerToken } from 'levr-sdk/client'
 
 const { data: balances } = useBalance()
 const { data: stakingData } = useStakingData()
 const { data: governanceData } = useGovernanceData()
+const { data: tokenData } = useClankerToken()
 
 // ✅ New way
 import { useUser, useProject } from 'levr-sdk/client'
@@ -53,11 +55,19 @@ project?.stakingStats?.outstandingRewards
 // Access governance
 project?.governanceStats?.currentCycleId
 project?.governanceStats?.activeProposalCount
+
+// Access token metadata (previously from useClankerToken)
+project?.token.originalAdmin
+project?.token.admin
+project?.token.imageUrl
+project?.token.context
+project?.token.metadata
 ```
 
 ### 2. Context Structure Changed
 
 **Before:**
+
 ```typescript
 const context = useLevrContext()
 
@@ -67,6 +77,7 @@ context.governanceData.data.votingPower
 ```
 
 **After:**
+
 ```typescript
 const context = useLevrContext()
 
@@ -78,11 +89,13 @@ context.user.data?.votingPower
 ### 3. Refetch Methods Changed
 
 **Removed:**
+
 - ❌ `refetch.staking()`
 - ❌ `refetch.governance()`
 - ❌ `refetch.afterSwap()`
 
 **Added:**
+
 - ✅ `refetch.user()` - Refetch user query
 - ✅ `refetch.project()` - Refetch project query
 - ✅ `refetch.pool()` - Refetch pool query
@@ -109,6 +122,7 @@ await refetch.afterTrade() // Smart refetch after swap
 ### 4. Server Function Names
 
 **Changed:**
+
 - `project()` → `getProject()`
 - `projects()` → `getProjects()`
 - Added: `getUser()`
@@ -190,14 +204,7 @@ new Governance({
 
 ```typescript
 // ❌ Old way
-const {
-  stake,
-  tokenBalance,
-  stakedBalance,
-  allowance,
-  rewards,
-  apr,
-} = useStake()
+const { stake, tokenBalance, stakedBalance, allowance, rewards, apr } = useStake()
 
 // ✅ New way
 import { useStake, useUser, useProject } from 'levr-sdk/client'
@@ -223,7 +230,7 @@ Proposals now include vote receipts when user is connected:
 ```typescript
 const { data } = useProposals()
 
-data?.proposals.forEach(proposal => {
+data?.proposals.forEach((proposal) => {
   if (proposal.voteReceipt?.hasVoted) {
     console.log('You voted:', proposal.voteReceipt.support ? 'Yes' : 'No')
     console.log('Voting power used:', proposal.voteReceipt.votes)
@@ -236,12 +243,14 @@ data?.proposals.forEach(proposal => {
 Clear separation of concerns:
 
 **Pool-Level (in project):**
+
 - Total staked by all users
 - APR percentages
 - Outstanding rewards (available + pending)
 - Reward rates per second
 
 **User-Level (in user):**
+
 - User's balances
 - User's staked amount
 - User's allowance
@@ -266,19 +275,10 @@ refetch.afterVote() // Only user + proposals
 
 ```typescript
 // Before
-import {
-  useBalance,
-  useStakingData,
-  useGovernanceData,
-} from 'levr-sdk/client'
+import { useBalance, useStakingData, useGovernanceData } from 'levr-sdk/client'
 
 // After
-import {
-  useUser,
-  useProject,
-  usePool,
-  useProposals,
-} from 'levr-sdk/client'
+import { useUser, useProject, usePool, useProposals } from 'levr-sdk/client'
 ```
 
 ### 2. Update Data Access
@@ -356,4 +356,3 @@ const stake = new Stake({
 - See [Getting Started](./getting-started.md) for complete examples
 - Review [Client Hooks](./client-hooks/) for hook-specific documentation
 - Check [Server API](./server-api/) for server-side usage
-

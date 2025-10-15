@@ -83,6 +83,9 @@ Returns `Project | null` (null if project not registered)
     totalSupply: bigint
     metadata: ProjectMetadata | null
     imageUrl?: string
+    originalAdmin: `0x${string}`
+    admin: `0x${string}`
+    context: string
   }
 
   // Pool Info
@@ -146,18 +149,21 @@ Returns `Project | null` (null if project not registered)
 `getProject()` returns **static + dynamic** data:
 
 **Static data** (from `staticProject`):
+
 - Contract addresses (treasury, governor, staking, etc.)
 - Token info (name, symbol, decimals, total supply)
 - Pool info (poolKey, fee display, positions)
 - Fee receivers
 
 **Dynamic data** (fetched fresh):
+
 - Treasury stats (balance, utilization)
 - Staking stats (total staked, APR, rewards)
 - Governance stats (cycle ID, active proposals)
 - Pricing (USD prices if oracle client provided)
 
 **Not included:**
+
 - ❌ Airdrop status - Use `getTreasuryAirdropStatus()` separately
 
 ## Related
@@ -165,4 +171,3 @@ Returns `Project | null` (null if project not registered)
 - [getStaticProject()](./static-project.md) - Get static data only
 - [getTreasuryAirdropStatus()](./airdrop-status.md) - Get airdrop status
 - [getUser()](./user.md) - Get user data
-

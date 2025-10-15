@@ -54,6 +54,9 @@ for (const project of projects) {
       totalSupply: bigint
       metadata: ProjectMetadata | null
       imageUrl?: string
+      originalAdmin: `0x${string}`
+      admin: `0x${string}`
+      context: string
     }
     treasuryStats: {
       balance: {
