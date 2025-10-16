@@ -24,13 +24,13 @@ function ProposalDetails({ proposalId }: { proposalId: bigint }) {
       <p>Amount: {proposal.amount.formatted}</p>
       {proposal.amount.usd && <p>USD: ${proposal.amount.usd}</p>}
       <p>Description: {proposal.description}</p>
-      
+
       <h3>Voting</h3>
       <p>Yes: {proposal.yesVotes.formatted}</p>
       <p>No: {proposal.noVotes.formatted}</p>
       <p>Meets Quorum: {proposal.meetsQuorum ? 'Yes' : 'No'}</p>
       <p>Meets Approval: {proposal.meetsApproval ? 'Yes' : 'No'}</p>
-      
+
       {proposal.voteReceipt?.hasVoted && (
         <p>You voted: {proposal.voteReceipt.support ? 'Yes' : 'No'}</p>
       )}
@@ -56,4 +56,3 @@ function ProposalDetails({ proposalId }: { proposalId: bigint }) {
 - This hook is useful for dedicated proposal detail pages
 - Includes vote receipt if user is connected
 - Automatically refetches every 30 seconds
-

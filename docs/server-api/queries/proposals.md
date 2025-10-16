@@ -33,7 +33,7 @@ for (const proposal of result.proposals) {
   console.log('Meets Quorum:', proposal.meetsQuorum)
   console.log('Meets Approval:', proposal.meetsApproval)
   console.log('State:', proposal.state)
-  
+
   if (proposal.voteReceipt?.hasVoted) {
     console.log('You voted:', proposal.voteReceipt.support ? 'Yes' : 'No')
   }
@@ -61,9 +61,9 @@ for (const proposal of result.proposals) {
     amount: BalanceResult
     recipient: `0x${string}`
     description: string
-    createdAt: { timestamp: bigint, date: Date }
-    votingStartsAt: { timestamp: bigint, date: Date }
-    votingEndsAt: { timestamp: bigint, date: Date }
+    createdAt: { timestamp: bigint; date: Date }
+    votingStartsAt: { timestamp: bigint; date: Date }
+    votingEndsAt: { timestamp: bigint; date: Date }
     yesVotes: BalanceResult
     noVotes: BalanceResult
     totalBalanceVoted: bigint

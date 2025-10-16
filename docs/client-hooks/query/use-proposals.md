@@ -53,9 +53,9 @@ function ProposalsList() {
     amount: BalanceResult
     recipient: `0x${string}`
     description: string
-    createdAt: { timestamp: bigint, date: Date }
-    votingStartsAt: { timestamp: bigint, date: Date }
-    votingEndsAt: { timestamp: bigint, date: Date }
+    createdAt: { timestamp: bigint; date: Date }
+    votingStartsAt: { timestamp: bigint; date: Date }
+    votingEndsAt: { timestamp: bigint; date: Date }
     yesVotes: BalanceResult
     noVotes: BalanceResult
     totalBalanceVoted: bigint

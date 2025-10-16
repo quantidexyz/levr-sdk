@@ -75,4 +75,3 @@ if (proposalData.voteReceipt?.hasVoted) {
 - Fetches proposal data in a single multicall
 - Includes vote receipt if userAddress provided
 - Returns enriched data with quorum/approval checks
-

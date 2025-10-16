@@ -63,6 +63,7 @@ if (airdropStatus?.isAvailable) {
 ```
 
 Returns `null` if:
+
 - No airdrop contract found
 - Airdrop not allocated
 - Error fetching data
@@ -96,6 +97,7 @@ Returns `null` if:
 ## Why Separate?
 
 Airdrop status is fetched separately to:
+
 1. Reduce initial load time (most projects won't have airdrops)
 2. Allow conditional fetching (only fetch when UI needs it)
 3. Keep project query focused on core data
@@ -105,4 +107,3 @@ Airdrop status is fetched separately to:
 
 - [getProject()](./project.md) - Get full project data
 - [useAirdropStatus](../../client-hooks/query/use-airdrop-status.md) - React hook for airdrop status
-

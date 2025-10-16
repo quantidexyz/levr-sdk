@@ -4,19 +4,18 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.2.0](https://github.com/quantidexyz/levr-sdk/compare/v0.1.2...v0.2.0) (2025-10-15)
 
-
 ### Features
 
-* add stream parameters to staking stats for enhanced streaming functionality ([3992327](https://github.com/quantidexyz/levr-sdk/commit/3992327a8d943ffd9138ad70942b24d3ef258a32))
-* add tokenDecimals parameter to getUsdPrice function and update related documentation for accurate pricing ([d14d00a](https://github.com/quantidexyz/levr-sdk/commit/d14d00a0cb91d79601bab828c94133ec6086323b))
-* consolidate token metadata into project structure by removing useClankerToken hook and updating related documentation for improved efficiency ([ca99a6e](https://github.com/quantidexyz/levr-sdk/commit/ca99a6e95fbf95318f8f2b13f0ba2107c2a901d0))
-* enhance airdrop functionality by separating airdrop status retrieval from project data and updating related documentation ([b609299](https://github.com/quantidexyz/levr-sdk/commit/b609299a54d909c6386b7abc7da06a9e7d3390c2))
-* implement useAirdropStatus hook for fetching airdrop status and refactor project data fetching to streamline pricing retrieval ([10f773d](https://github.com/quantidexyz/levr-sdk/commit/10f773dcfe71e2c0d070ce7cd89c9c1096e8cf1b))
-* integrate airdrop status into LevrProvider and create useAirdropStatus hook for improved airdrop management ([29d9b88](https://github.com/quantidexyz/levr-sdk/commit/29d9b887d1c13bd73f2f530f538b5bcdcd5d818b))
-* refactor fee receiver functionality by replacing tokenRewardsBytecode with getFeeReceiverContracts for improved contract call structure and clarity ([1e9265e](https://github.com/quantidexyz/levr-sdk/commit/1e9265eb9a22a474da6c3de6770094573e51e2ce))
-* refactor project data fetching to separate static and dynamic data retrieval for improved efficiency ([7fd1f15](https://github.com/quantidexyz/levr-sdk/commit/7fd1f156662bc03e6a4fa36a16f31c128973dba7))
-* refactor token rewards functionality by introducing tokenRewardsRead and tokenRewardsBytecode methods for improved contract interaction and deprecating the old getTokenRewards method ([1526851](https://github.com/quantidexyz/levr-sdk/commit/15268512f09ffb4d08d8ee80391798c92be93fb0))
-* update V4 quote price impact calculation to use AMM methodology and optimize multicall for performance ([e0d2362](https://github.com/quantidexyz/levr-sdk/commit/e0d2362b7af6b97eb7656cbdf556135ab2637f6e))
+- add stream parameters to staking stats for enhanced streaming functionality ([3992327](https://github.com/quantidexyz/levr-sdk/commit/3992327a8d943ffd9138ad70942b24d3ef258a32))
+- add tokenDecimals parameter to getUsdPrice function and update related documentation for accurate pricing ([d14d00a](https://github.com/quantidexyz/levr-sdk/commit/d14d00a0cb91d79601bab828c94133ec6086323b))
+- consolidate token metadata into project structure by removing useClankerToken hook and updating related documentation for improved efficiency ([ca99a6e](https://github.com/quantidexyz/levr-sdk/commit/ca99a6e95fbf95318f8f2b13f0ba2107c2a901d0))
+- enhance airdrop functionality by separating airdrop status retrieval from project data and updating related documentation ([b609299](https://github.com/quantidexyz/levr-sdk/commit/b609299a54d909c6386b7abc7da06a9e7d3390c2))
+- implement useAirdropStatus hook for fetching airdrop status and refactor project data fetching to streamline pricing retrieval ([10f773d](https://github.com/quantidexyz/levr-sdk/commit/10f773dcfe71e2c0d070ce7cd89c9c1096e8cf1b))
+- integrate airdrop status into LevrProvider and create useAirdropStatus hook for improved airdrop management ([29d9b88](https://github.com/quantidexyz/levr-sdk/commit/29d9b887d1c13bd73f2f530f538b5bcdcd5d818b))
+- refactor fee receiver functionality by replacing tokenRewardsBytecode with getFeeReceiverContracts for improved contract call structure and clarity ([1e9265e](https://github.com/quantidexyz/levr-sdk/commit/1e9265eb9a22a474da6c3de6770094573e51e2ce))
+- refactor project data fetching to separate static and dynamic data retrieval for improved efficiency ([7fd1f15](https://github.com/quantidexyz/levr-sdk/commit/7fd1f156662bc03e6a4fa36a16f31c128973dba7))
+- refactor token rewards functionality by introducing tokenRewardsRead and tokenRewardsBytecode methods for improved contract interaction and deprecating the old getTokenRewards method ([1526851](https://github.com/quantidexyz/levr-sdk/commit/15268512f09ffb4d08d8ee80391798c92be93fb0))
+- update V4 quote price impact calculation to use AMM methodology and optimize multicall for performance ([e0d2362](https://github.com/quantidexyz/levr-sdk/commit/e0d2362b7af6b97eb7656cbdf556135ab2637f6e))
 
 ### [0.1.2](https://github.com/quantidexyz/levr-sdk/compare/v0.1.1...v0.1.2) (2025-10-14)
 
@@ -24,19 +23,17 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.1.0](https://github.com/quantidexyz/levr-sdk/compare/v0.0.2...v0.1.0) (2025-10-14)
 
-
 ### Features
 
-* add pool and user data modules, enhancing project structure with new hooks for efficient data retrieval ([1181c51](https://github.com/quantidexyz/levr-sdk/commit/1181c5105f918bfc9df2ad4f5cd7a73b5f5fff3d))
-* add voting power calculations to staking module, including methods for retrieving current voting power and simulating voting power after unstaking ([9f7e66f](https://github.com/quantidexyz/levr-sdk/commit/9f7e66f83b7bb5a3b9b7014a829582e15baa9f31))
-* enhance user and project data retrieval by introducing useUser hook and consolidating staking statistics into project queries, improving efficiency and reducing redundant API calls ([5dffda7](https://github.com/quantidexyz/levr-sdk/commit/5dffda7e3c622c920a439d4cce2ea10cea751af9))
-* implement zero-duplicate data architecture by consolidating governance data into project queries, reducing RPC calls by 74% and enhancing data retrieval efficiency ([359fff6](https://github.com/quantidexyz/levr-sdk/commit/359fff6ec1cfaabcb15ac0fe380d0302fc608dd4))
-* introduce comprehensive data flow cleanup report and test summary, ensuring zero duplicate queries and enhancing architecture verification across server functions, query hooks, and provider layers ([b1a7b55](https://github.com/quantidexyz/levr-sdk/commit/b1a7b55e1bb6111bb229d0e1cec0bd0cf2f18c07))
-
+- add pool and user data modules, enhancing project structure with new hooks for efficient data retrieval ([1181c51](https://github.com/quantidexyz/levr-sdk/commit/1181c5105f918bfc9df2ad4f5cd7a73b5f5fff3d))
+- add voting power calculations to staking module, including methods for retrieving current voting power and simulating voting power after unstaking ([9f7e66f](https://github.com/quantidexyz/levr-sdk/commit/9f7e66f83b7bb5a3b9b7014a829582e15baa9f31))
+- enhance user and project data retrieval by introducing useUser hook and consolidating staking statistics into project queries, improving efficiency and reducing redundant API calls ([5dffda7](https://github.com/quantidexyz/levr-sdk/commit/5dffda7e3c622c920a439d4cce2ea10cea751af9))
+- implement zero-duplicate data architecture by consolidating governance data into project queries, reducing RPC calls by 74% and enhancing data retrieval efficiency ([359fff6](https://github.com/quantidexyz/levr-sdk/commit/359fff6ec1cfaabcb15ac0fe380d0302fc608dd4))
+- introduce comprehensive data flow cleanup report and test summary, ensuring zero duplicate queries and enhancing architecture verification across server functions, query hooks, and provider layers ([b1a7b55](https://github.com/quantidexyz/levr-sdk/commit/b1a7b55e1bb6111bb229d0e1cec0bd0cf2f18c07))
 
 ### Bug Fixes
 
-* update baseSepolia factory address in constants for accurate deployment reference ([0684117](https://github.com/quantidexyz/levr-sdk/commit/06841174b8cbcb3f5a3f85a49c8dcdd8227088b4))
+- update baseSepolia factory address in constants for accurate deployment reference ([0684117](https://github.com/quantidexyz/levr-sdk/commit/06841174b8cbcb3f5a3f85a49c8dcdd8227088b4))
 
 ### [0.0.2](https://github.com/quantidexyz/levr-sdk/compare/v0.0.1...v0.0.2) (2025-10-12)
 

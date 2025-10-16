@@ -52,4 +52,3 @@ function PoolStats() {
 - Refreshes every 30 seconds automatically
 - Only fetches real-time state (price, liquidity, fees)
 - Static pool info (poolKey, feeDisplay) comes from project
-

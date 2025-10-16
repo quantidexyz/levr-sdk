@@ -51,4 +51,3 @@ function RegisterButton({ clankerToken }: { clankerToken: `0x${string}` }) {
 - Creates treasury, governor, staking, and staked token contracts
 - Use for tokens deployed outside of Levr (e.g., manually deployed Clanker tokens)
 - For standard deployment, use `useDeploy()` instead
-

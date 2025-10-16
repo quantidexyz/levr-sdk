@@ -7,6 +7,7 @@
 ## 🧹 Residue Code Removed (Bottom-Up)
 
 ### Layer 1: Server Functions (✅ Clean)
+
 - `src/user.ts` - Single multicall combining balances + staking + governance
 - `src/project.ts` - Single multicall with all project data
 - `src/pool.ts` - Single multicall for pool state only
@@ -16,17 +17,20 @@
 ### Layer 2: Query Hooks (🔧 Fixed)
 
 #### Deleted Entirely
-- ❌ `src/client/hook/use-balance.ts` 
+
+- ❌ `src/client/hook/use-balance.ts`
   - **Why**: Created duplicate balance queries
   - **Replacement**: Balance data comes from `user()` multicall
 
 #### Removed Query Functions
+
 - ❌ `useFeeReceiversQuery()` from `use-fee-receivers.ts`
   - **Why**: Created duplicate fee receiver queries
   - **Replacement**: Fee receivers come from `project()` multicall
   - **Kept**: `useFeeReceivers()` public hook for mutations (uses `project.data.feeReceivers`)
 
 - ❌ All 9 queries from `useStakingQueries()`:
+
   ```typescript
   // REMOVED (were duplicating user multicall):
   - allowance query
@@ -39,23 +43,27 @@
   - wethRewardRate query
   - aprBpsWeth query
   ```
+
   - **Why**: All this data comes from `user()` multicall
   - **Kept**: `stakeService` instance for mutations only
 
 #### Cleaned Parameters
+
 - ✅ `useStakingQueries()` now only takes `projectData` (removed `clankerToken`, `enabled`)
 
 #### Deduplicated Logic
 
 **Balance Formatting:**
+
 - ❌ Removed duplicate `formatWithUsd()` from `user.ts`
 - ❌ Removed duplicate balance formatting logic from `project.ts`
 - ✅ **Now using**: Shared `formatBalanceWithUsd()` and `calculateUsd()` from `balance.ts`
-- **Impact**: 
+- **Impact**:
   - `user.ts` uses `formatBalanceWithUsd()` for all 10+ balance formatting calls
   - `project.ts` uses `formatBalanceWithUsd()` for treasury stats formatting
 
 **Fee Receiver & LP Locker:**
+
 - ❌ Removed duplicate `readContract` call for `tokenRewards` from `project.ts`
 - ❌ Removed duplicate fee receiver parsing logic from `project.ts`
 - ✅ **Created**: Shared `getTokenRewards()` utility in `fee-receivers.ts`
@@ -70,6 +78,7 @@
 **Result**: Zero logic duplication across all server functions
 
 #### Removed Backwards Compatibility
+
 - ❌ Removed flat access from `LevrContextValue`:
   - `balances: { data, isLoading, error }` → Use `user.data.balances`
   - `stakingData: { data, isLoading, error }` → Use `user.data.staking`
@@ -91,6 +100,7 @@
 **Result**: Pure hierarchical structure. ZERO backwards compatibility code.
 
 ### Layer 3: Provider (✅ Verified Clean)
+
 - Uses only the correct query hooks:
   - `useProjectQuery()` ✅
   - `useUserQuery()` ✅
@@ -105,10 +115,11 @@
 ## 🏗️ Architecture Verification
 
 ### SERVER FUNCTIONS (Bottom Layer)
+
 ```typescript
 project()  → Single multicall (10 contracts)
   ├─ Token info
-  ├─ Addresses  
+  ├─ Addresses
   ├─ Pool data (poolKey, feeDisplay, numPositions)
   ├─ Fee receivers
   ├─ Treasury stats
@@ -131,6 +142,7 @@ proposals({ project })  → Event query + multicall
 **Test Result**: ✅ Exactly 10 RPC calls total (3 + 3 + 1 + 3)
 
 ### QUERY HOOKS (Middle Layer)
+
 ```typescript
 useProjectQuery()  → calls project()
 useUserQuery()     → calls user({ project })
@@ -142,6 +154,7 @@ useStakingQueries() → creates Stake instance (NO queries)
 **Test Result**: ✅ No duplicate queries detected
 
 ### PROVIDER (Top Layer)
+
 ```typescript
 LevrProvider
   ├─ project = useProjectQuery()
@@ -151,7 +164,8 @@ LevrProvider
   └─ staking = useStakingQueries({ projectData: project.data })
 ```
 
-**Test Result**: ✅ 
+**Test Result**: ✅
+
 - 11 total RPC calls on load
 - 0 separate staking queries
 - 0 duplicate contract calls
@@ -161,14 +175,17 @@ LevrProvider
 ## 🔧 Additional Fix: Logic Duplication Eliminated
 
 ### Problem
+
 `user.ts` and `project.ts` had duplicate balance formatting logic:
 
 **Before:**
+
 - `user.ts`: Had its own `formatWithUsd()` function
 - `project.ts`: Had its own treasury balance formatting logic
 - `balance.ts`: Had `calculateUsd()` but was only used in `balance()` function
 
 **After:**
+
 - ✅ Exported `formatBalanceWithUsd()` utility from `balance.ts`
 - ✅ Exported `calculateUsd()` utility from `balance.ts`
 - ✅ `user.ts` uses `formatBalanceWithUsd()` for ALL balance formatting (10+ calls)
@@ -179,18 +196,18 @@ LevrProvider
 
 ## 📊 Test Coverage Matrix
 
-| Test Category | Tests | Status |
-|--------------|-------|--------|
-| Zero Duplicate Fetches | 2 | ✅ All pass |
-| Correct Data Grouping | 9 | ✅ All pass |
-| Data Sharing Patterns | 5 | ✅ All pass |
-| Provider Alignment | 6 | ✅ All pass |
-| Public Hooks Alignment | 5 | ✅ All pass |
-| Hierarchical vs Flat | 2 | ✅ All pass |
-| Refetch Methods | 7 | ✅ All pass |
-| Wasteful Refetch Prevention | 2 | ✅ All pass |
-| End-to-End Integration | 3 | ✅ All pass |
-| **TOTAL** | **39** | **✅ 100%** |
+| Test Category               | Tests  | Status      |
+| --------------------------- | ------ | ----------- |
+| Zero Duplicate Fetches      | 2      | ✅ All pass |
+| Correct Data Grouping       | 9      | ✅ All pass |
+| Data Sharing Patterns       | 5      | ✅ All pass |
+| Provider Alignment          | 6      | ✅ All pass |
+| Public Hooks Alignment      | 5      | ✅ All pass |
+| Hierarchical vs Flat        | 2      | ✅ All pass |
+| Refetch Methods             | 7      | ✅ All pass |
+| Wasteful Refetch Prevention | 2      | ✅ All pass |
+| End-to-End Integration      | 3      | ✅ All pass |
+| **TOTAL**                   | **39** | **✅ 100%** |
 
 ## 🎯 Answer: Is Final Architecture Applied?
 
@@ -206,6 +223,7 @@ The Final Architecture from ZERO-DUPLICATES.md is now **completely implemented a
 6. ✅ **Data Sharing** - All queries use shared project data (NOT refetching)
 
 ### Verified via Tests:
+
 - ✅ Exact RPC call counts (10 server-side, 11 provider)
 - ✅ No duplicate contract calls detected
 - ✅ All project data items available and reused
@@ -214,4 +232,3 @@ The Final Architecture from ZERO-DUPLICATES.md is now **completely implemented a
 - ✅ No wasteful refetches
 
 **The system is now a complete, cohesive unit from bottom (server) to top (provider).**
-

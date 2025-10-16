@@ -43,4 +43,3 @@ function PrepareButton() {
 - Creates treasury and staking contracts
 - Required before token deployment
 - Part of the deployment flow (prepare → deploy → register)
-
