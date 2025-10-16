@@ -10,6 +10,7 @@ export type AirdropStatus = {
   allocatedAmount: BalanceResult
   isAvailable: boolean
   proof: `0x${string}`[]
+  deploymentTimestamp?: number
   error?: string
 }
 
@@ -61,25 +62,29 @@ export async function getTreasuryAirdropStatus(
     const { supply } = latestLog.args as { supply: bigint }
     const allocatedAmount = supply
 
-    const results = await publicClient.multicall({
-      contracts: [
-        {
-          address: airdropAddress,
-          abi: IClankerAirdrop,
-          functionName: 'amountAvailableToClaim',
-          args: [clankerToken, treasury, allocatedAmount],
-        },
-        {
-          address: clankerToken,
-          abi: erc20Abi,
-          functionName: 'balanceOf',
-          args: [treasury],
-        },
-      ],
-      allowFailure: false,
-    })
+    const [multicallResults, block] = await Promise.all([
+      publicClient.multicall({
+        contracts: [
+          {
+            address: airdropAddress,
+            abi: IClankerAirdrop,
+            functionName: 'amountAvailableToClaim',
+            args: [clankerToken, treasury, allocatedAmount],
+          },
+          {
+            address: clankerToken,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [treasury],
+          },
+        ],
+        allowFailure: false,
+      }),
+      publicClient.getBlock({ blockNumber: latestLog.blockNumber }),
+    ])
 
-    const [availableAmount, treasuryBalance] = results as [bigint, bigint]
+    const [availableAmount, treasuryBalance] = multicallResults as [bigint, bigint]
+    const deploymentTimestamp = Number(block.timestamp) * 1000
 
     if (availableAmount === 0n) {
       const isAlreadyClaimed = treasuryBalance >= allocatedAmount
@@ -89,6 +94,7 @@ export async function getTreasuryAirdropStatus(
         allocatedAmount: formatBalanceWithUsd(allocatedAmount, tokenDecimals, tokenUsdPrice),
         isAvailable: false,
         proof: [],
+        deploymentTimestamp,
         error: isAlreadyClaimed
           ? 'Treasury airdrop already claimed'
           : 'Airdrop is still locked (lockup period not passed)',
@@ -100,6 +106,7 @@ export async function getTreasuryAirdropStatus(
       allocatedAmount: formatBalanceWithUsd(allocatedAmount, tokenDecimals, tokenUsdPrice),
       isAvailable: true,
       proof: [],
+      deploymentTimestamp,
       error: undefined,
     }
   } catch (error) {
