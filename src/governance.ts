@@ -251,10 +251,6 @@ export class Governance {
     })
   }
 
-  /**
-   * Claim airdrop for treasury
-   * Requires airdrop status to be fetched beforehand
-   */
   async claimAirdrop(airdropStatus: AirdropStatus): Promise<TransactionReceipt> {
     const chainId = this.publicClient.chain?.id
     const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
@@ -279,7 +275,7 @@ export class Governance {
         this.project.token.address,
         this.project.treasury,
         airdropStatus.allocatedAmount.raw,
-        [],
+        airdropStatus.proof,
       ],
       chain: this.wallet.chain,
     })
@@ -287,7 +283,7 @@ export class Governance {
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
 
     if (receipt.status === 'reverted') {
-      throw new Error('Claim airdrop transaction reverted')
+      throw new Error(`Claim airdrop transaction reverted: ${hash}`)
     }
 
     return receipt
