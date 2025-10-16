@@ -5,7 +5,6 @@ import { usePublicClient, useWalletClient } from 'wagmi'
 
 import type { UpdateFeeReceiverParams } from '../../fee-receivers'
 import { updateFeeReceiver } from '../../fee-receivers'
-import { useLevrContext } from '../levr-provider'
 
 // Fee receivers data comes from project() multicall in src/project.ts
 // The areYouAnAdmin flag is already calculated based on userAddress
@@ -24,12 +23,11 @@ export type UseFeeReceiversParams = {
  * Fee receivers come from project.feeReceivers (with areYouAnAdmin already calculated)
  */
 export function useFeeReceivers({ onSuccess, onError }: UseFeeReceiversParams = {}) {
-  const { project, refetch } = useLevrContext()
   const publicClient = usePublicClient()
   const wallet = useWalletClient()
   const chainId = publicClient?.chain?.id
 
-  const mutate = useMutation({
+  return useMutation({
     mutationFn: (params: Omit<UpdateFeeReceiverParams, 'walletClient' | 'chainId'>) =>
       updateFeeReceiver({
         walletClient: wallet.data!,
@@ -39,16 +37,8 @@ export function useFeeReceivers({ onSuccess, onError }: UseFeeReceiversParams = 
         newRecipient: params.newRecipient,
       }),
     onSuccess: async (hash) => {
-      await refetch.project() // Refetch project to update fee receivers
       onSuccess?.(hash)
     },
     onError: onError,
   })
-
-  return {
-    data: project.data?.feeReceivers, // Already has areYouAnAdmin calculated!
-    isLoading: project.isLoading,
-    error: project.error,
-    mutate,
-  }
 }

@@ -8,11 +8,18 @@ export type FeeReceiversParams = {
   userAddress?: `0x${string}`
 }
 
+export enum FeePreference {
+  Both = 0,
+  Paired = 1, // WETH only
+  Clanker = 2, // Clanker token only
+}
+
 export type FeeReceiverAdmin = {
   areYouAnAdmin: boolean
   admin: `0x${string}`
   recipient: `0x${string}`
   percentage: number
+  feePreference?: FeePreference // Which tokens this recipient receives
 }
 
 export type UpdateFeeReceiverParams = {
@@ -86,24 +93,28 @@ export async function getTokenRewards(publicClient: PopPublicClient, clankerToke
 /**
  * Parse fee receivers from tokenRewards result
  * Shared utility to avoid logic duplication
+ * Note: feePreference is optional and should be added via a separate call to feePreferences()
  */
 export function parseFeeReceivers(
   tokenRewardsResult: {
     rewardAdmins?: readonly `0x${string}`[]
     rewardRecipients?: readonly `0x${string}`[]
     rewardBps?: readonly number[]
+    feePreferences?: readonly number[] // Optional: fee preferences for each receiver
   },
   userAddress?: `0x${string}`
 ): FeeReceiverAdmin[] {
   const admins = tokenRewardsResult.rewardAdmins || []
   const recipients = tokenRewardsResult.rewardRecipients || []
   const bps = tokenRewardsResult.rewardBps || []
+  const feePrefs = tokenRewardsResult.feePreferences || []
 
   return admins.map((admin, index) => ({
     areYouAnAdmin: userAddress ? admin.toLowerCase() === userAddress.toLowerCase() : false,
     admin,
     recipient: recipients[index],
     percentage: bps[index] / 100, // Convert bps to percentage
+    feePreference: feePrefs[index] !== undefined ? (feePrefs[index] as FeePreference) : undefined,
   }))
 }
 
@@ -153,4 +164,48 @@ export async function updateFeeReceiver({
   })
 
   return hash
+}
+/**
+ * Check which tokens a specific address is set up to receive as a fee receiver
+ * Returns array of tokens (clanker token address and/or WETH address) that this recipient can receive
+ * Uses feePreference to determine which tokens: Both (0), Paired/WETH only (1), or Clanker only (2)
+ */
+export function getReceivableTokens(
+  feeReceivers: FeeReceiverAdmin[] | undefined,
+  recipientAddress: `0x${string}`,
+  clankerToken: `0x${string}`,
+  wethAddress?: `0x${string}`
+): `0x${string}`[] {
+  if (!feeReceivers || feeReceivers.length === 0) {
+    return []
+  }
+
+  const receivableTokens: `0x${string}`[] = []
+
+  // Check each fee receiver to see if the recipient address matches
+  for (const receiver of feeReceivers) {
+    if (receiver.recipient.toLowerCase() === recipientAddress.toLowerCase()) {
+      // This recipient receives fees - check which tokens based on feePreference
+      const pref = receiver.feePreference
+
+      if (pref === undefined) {
+        // If no preference is set, assume Both for backwards compatibility
+        receivableTokens.push(clankerToken)
+        if (wethAddress) receivableTokens.push(wethAddress)
+      } else if (pref === FeePreference.Both) {
+        // Receives both clanker token and WETH
+        receivableTokens.push(clankerToken)
+        if (wethAddress) receivableTokens.push(wethAddress)
+      } else if (pref === FeePreference.Paired) {
+        // Receives WETH only
+        if (wethAddress) receivableTokens.push(wethAddress)
+      } else if (pref === FeePreference.Clanker) {
+        // Receives clanker token only
+        receivableTokens.push(clankerToken)
+      }
+      break
+    }
+  }
+
+  return receivableTokens
 }
