@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.2](https://github.com/quantidexyz/levr-sdk/compare/v0.2.1...v0.2.2) (2025-10-16)
+
+
+### Features
+
+* enhance airdrop status retrieval by adding deployment timestamp and optimizing multicall for improved performance ([5b03f2b](https://github.com/quantidexyz/levr-sdk/commit/5b03f2bcf2043aa545a09eef0d5bb40e7eaee2af))
+* introduce feePreference enum and enhance fee receiver functionality to support token selection based on preferences ([551109d](https://github.com/quantidexyz/levr-sdk/commit/551109d4c227007a468af2049e230f8f5d873e84))
+
+
+### Bug Fixes
+
+* change allowFailure to false in multicall execution for improved error handling ([539c895](https://github.com/quantidexyz/levr-sdk/commit/539c895433247c128a6d771924c78c6b62dc0bba))
+
 ### [0.2.1](https://github.com/quantidexyz/levr-sdk/compare/v0.2.0...v0.2.1) (2025-10-16)
 
 ## [0.2.0](https://github.com/quantidexyz/levr-sdk/compare/v0.1.2...v0.2.0) (2025-10-15)
