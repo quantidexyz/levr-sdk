@@ -220,7 +220,7 @@ export class Stake {
     // Use forwarder's executeMulticall for meta-transaction support
     const calls = tokenAddresses.map((tokenAddress) => ({
       target: this.stakingAddress,
-      allowFailure: true,
+      allowFailure: false,
       value: 0n,
       callData: encodeFunctionData({
         abi: LevrStaking_v1,
