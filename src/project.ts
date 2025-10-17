@@ -81,6 +81,11 @@ export type GovernanceStats = {
   }
 }
 
+/**
+ * Combined fee splitter data (static from getStaticProject + dynamic from getProject)
+ */
+export type FeeSplitter = FeeSplitterStatic & Partial<FeeSplitterDynamic>
+
 export type Project = {
   chainId: number
   treasury: `0x${string}`
@@ -106,8 +111,7 @@ export type Project = {
   stakingStats?: StakingStats
   governanceStats?: GovernanceStats
   feeReceivers?: FeeReceiverAdmin[]
-  feeSplitterStatic?: FeeSplitterStatic
-  feeSplitterDynamic?: FeeSplitterDynamic
+  feeSplitter?: FeeSplitter
   pricing?: PricingResult
 }
 
@@ -122,7 +126,7 @@ export type StaticProject = Pick<
   | 'token'
   | 'pool'
   | 'feeReceivers'
-  | 'feeSplitterStatic'
+  | 'feeSplitter'
 >
 
 // ---
@@ -734,10 +738,17 @@ export async function getStaticProject({
   // If tokenRewards fails (e.g., token not deployed through Clanker), poolInfo remains undefined
 
   // Parse fee splitter static data
-  let feeSplitterStatic: FeeSplitterStatic | undefined
+  let feeSplitter: FeeSplitter | undefined
   if (feeSplitterStaticResults) {
-    const parsed = parseFeeSplitterStatic(feeSplitterStaticResults as any)
-    feeSplitterStatic = parsed ?? undefined
+    // Get current fee recipient from fee receivers (if user is admin)
+    const currentFeeRecipient = feeReceivers?.find((fr) => fr.areYouAnAdmin)?.recipient
+
+    const parsed = parseFeeSplitterStatic(
+      feeSplitterStaticResults as any,
+      currentFeeRecipient,
+      feeSplitterAddress
+    )
+    feeSplitter = parsed ?? undefined
   }
 
   return {
@@ -750,7 +761,7 @@ export async function getStaticProject({
     token: tokenData,
     pool: poolInfo,
     feeReceivers,
-    feeSplitterStatic,
+    feeSplitter,
   }
 }
 
@@ -809,7 +820,7 @@ export async function getProject({
     ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
     ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
-    ...(feeSplitterAddress && staticProject.feeSplitterStatic?.isConfigured
+    ...(feeSplitterAddress && staticProject.feeSplitter?.isConfigured
       ? getFeeSplitterDynamicContracts(clankerToken, feeSplitterAddress, rewardTokens)
       : []),
   ]
@@ -821,7 +832,7 @@ export async function getProject({
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
   const feeSplitterDynamicCount =
-    feeSplitterAddress && staticProject.feeSplitterStatic?.isConfigured ? rewardTokens.length : 0
+    feeSplitterAddress && staticProject.feeSplitter?.isConfigured ? rewardTokens.length : 0
 
   let idx = 0
   const treasuryResults = results.slice(idx, idx + treasuryCount) as TreasuryContractsResult
@@ -858,10 +869,17 @@ export async function getProject({
 
   const governanceStats = parseGovernanceData(governanceResults)
 
-  // Parse fee splitter dynamic data
-  let feeSplitterDynamic: FeeSplitterDynamic | undefined
-  if (feeSplitterDynamicResults) {
-    feeSplitterDynamic = parseFeeSplitterDynamic(feeSplitterDynamicResults as any, wethAddress)
+  // Parse fee splitter dynamic data and merge with static
+  let feeSplitter = staticProject.feeSplitter
+  if (feeSplitterDynamicResults && staticProject.feeSplitter) {
+    const feeSplitterDynamic = parseFeeSplitterDynamic(
+      feeSplitterDynamicResults as any,
+      wethAddress
+    )
+    feeSplitter = {
+      ...staticProject.feeSplitter,
+      ...feeSplitterDynamic,
+    }
   }
 
   return {
@@ -871,6 +889,6 @@ export async function getProject({
     stakingStats,
     governanceStats,
     pricing,
-    feeSplitterDynamic,
+    feeSplitter,
   }
 }

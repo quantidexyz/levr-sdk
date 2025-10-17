@@ -165,6 +165,89 @@ export async function updateFeeReceiver({
 
   return hash
 }
+
+/**
+ * UI-friendly split config with percentage (0-100)
+ */
+export type SplitConfigUI = {
+  receiver: `0x${string}`
+  percentage: number // 0-100
+}
+
+/**
+ * Configure fee splitter splits (step 1)
+ */
+export type ConfigureSplitsParams = {
+  walletClient: PopWalletClient
+  clankerToken: `0x${string}`
+  chainId: number
+  splits: readonly SplitConfigUI[]
+}
+
+export async function configureSplits({
+  walletClient,
+  clankerToken,
+  chainId,
+  splits,
+}: ConfigureSplitsParams): Promise<`0x${string}`> {
+  if (Object.values({ walletClient, clankerToken, chainId }).some((value) => !value)) {
+    throw new Error('Invalid configure splits params')
+  }
+
+  const { GET_FEE_SPLITTER_ADDRESS } = await import('./constants')
+  const { LevrFeeSplitter_v1 } = await import('./abis')
+
+  const splitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+  if (!splitterAddress) throw new Error('Fee splitter not deployed on this chain')
+
+  // Convert percentage to bps
+  const splitsWithBps: SplitConfig[] = splits.map((s) => ({
+    receiver: s.receiver,
+    bps: Math.floor(s.percentage * 100), // percentage to basis points
+  }))
+
+  const hash = await walletClient.writeContract({
+    address: splitterAddress,
+    abi: LevrFeeSplitter_v1,
+    functionName: 'configureSplits',
+    args: [clankerToken, splitsWithBps],
+  })
+
+  return hash
+}
+
+/**
+ * Update reward recipient to fee splitter (step 2)
+ * Note: Must be called after configureSplits succeeds
+ */
+export type UpdateRecipientToSplitterParams = {
+  walletClient: PopWalletClient
+  clankerToken: `0x${string}`
+  chainId: number
+  rewardIndex: bigint | number
+}
+
+export async function updateRecipientToSplitter({
+  walletClient,
+  clankerToken,
+  chainId,
+  rewardIndex,
+}: UpdateRecipientToSplitterParams): Promise<`0x${string}`> {
+  const { GET_FEE_SPLITTER_ADDRESS } = await import('./constants')
+
+  const splitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+  if (!splitterAddress) throw new Error('Fee splitter not deployed on this chain')
+
+  // Update to splitter address (direct call from token admin)
+  return updateFeeReceiver({
+    walletClient,
+    clankerToken,
+    chainId,
+    rewardIndex,
+    newRecipient: splitterAddress,
+  })
+}
+
 /**
  * Check which tokens a specific address is set up to receive as a fee receiver
  * Returns array of tokens (clanker token address and/or WETH address) that this recipient can receive
@@ -227,6 +310,7 @@ export type SplitConfig = {
  */
 export type FeeSplitterStatic = {
   isConfigured: boolean
+  isActive: boolean // true if current fee receiver is the splitter
   splits: SplitConfig[]
   totalBps: number
 }
@@ -281,7 +365,9 @@ export function parseFeeSplitterStatic(
     { result: boolean; status: 'success' | 'failure' }, // isSplitsConfigured
     { result: SplitConfig[]; status: 'success' | 'failure' }, // getSplits
     { result: bigint; status: 'success' | 'failure' }, // getTotalBps
-  ]
+  ],
+  currentFeeRecipient?: `0x${string}`,
+  feeSplitterAddress?: `0x${string}`
 ): FeeSplitterStatic | null {
   const [isConfiguredResult, splitsResult, totalBpsResult] = results
 
@@ -299,8 +385,16 @@ export function parseFeeSplitterStatic(
     return null
   }
 
+  // Determine if splitter is active by comparing current recipient to splitter address
+  const isActive = !!(
+    currentFeeRecipient &&
+    feeSplitterAddress &&
+    currentFeeRecipient.toLowerCase() === feeSplitterAddress.toLowerCase()
+  )
+
   return {
     isConfigured: isConfiguredResult.result,
+    isActive,
     splits: splitsResult.result,
     totalBps: Number(totalBpsResult.result),
   }

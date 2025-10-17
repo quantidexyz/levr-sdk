@@ -8,7 +8,12 @@ import type { Address } from 'viem'
  */
 export const queryKeys = {
   /**
-   * Project query key
+   * Static project query key (doesn't change frequently - includes feeSplitter config)
+   */
+  staticProject: (token: Address, chainId: number) => ['static-project', token, chainId] as const,
+
+  /**
+   * Project query key (dynamic data - treasury stats, staking stats, etc.)
    */
   project: (token: Address, chainId: number) => ['project', token, chainId] as const,
 
