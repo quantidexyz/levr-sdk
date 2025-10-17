@@ -35,6 +35,21 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 }
 
 /**
+ * Get the fee splitter address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The fee splitter address
+ */
+export const GET_FEE_SPLITTER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    // TODO: We did not configure the fee splitter for the anvil chain yet
+    // [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL,
+    [baseSepolia.id]: '0x3dcE6d5ef0a1328C56c396A65a3663c0f595eb90',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
  * Get the WETH address for a given chain ID
  * @param chainId - The chain ID
  * @returns The WETH address
