@@ -34,6 +34,7 @@ export const useAirdropStatus = () => useLevrContext().airdropStatus
 // ========================================
 
 export * from './use-clanker'
+export * from './use-configure-splits'
 export * from './use-fee-receivers'
 export * from './use-governance'
 export * from './use-stake'

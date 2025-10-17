@@ -158,3 +158,43 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
 )
 
 export type LevrClankerDeploymentSchemaType = typeof LevrClankerDeploymentSchema.Type
+
+// ---
+// Fee Splitter Configuration Schema
+
+const LevrSplitConfig = Schema.Struct({
+  receiver: EthereumAddress.annotations({
+    description: 'Receiver address for this split',
+  }),
+  percentage: Schema.Number.annotations({
+    description: 'Percentage of fees (must total 100%)',
+  }),
+}).annotations({
+  description: 'Fee split configuration',
+})
+
+export const LevrFeeSplitterConfigSchema = Schema.Struct({
+  splits: Schema.Array(LevrSplitConfig).annotations({
+    description: 'Fee split recipients and percentages',
+  }),
+}).pipe(
+  Schema.filter(
+    (data) => {
+      const total = data.splits.reduce((sum, split) => sum + split.percentage, 0)
+      return total === 100
+    },
+    {
+      message: () => 'Total split percentages must equal 100%',
+    }
+  ),
+  Schema.filter(
+    (data) => {
+      return data.splits.length > 0 && data.splits.length <= 10
+    },
+    {
+      message: () => 'Must have 1-10 fee receivers',
+    }
+  )
+)
+
+export type LevrFeeSplitterConfigSchemaType = typeof LevrFeeSplitterConfigSchema.Type
