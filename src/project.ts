@@ -2,9 +2,16 @@ import { erc20Abi, zeroAddress } from 'viem'
 
 import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { GET_FACTORY_ADDRESS, WETH } from './constants'
-import type { FeeReceiverAdmin } from './fee-receivers'
-import { getFeeReceiverContracts, parseFeeReceivers } from './fee-receivers'
+import { GET_FACTORY_ADDRESS, GET_FEE_SPLITTER_ADDRESS, WETH } from './constants'
+import type { FeeReceiverAdmin, FeeSplitterDynamic, FeeSplitterStatic } from './fee-receivers'
+import {
+  getFeeReceiverContracts,
+  getFeeSplitterDynamicContracts,
+  getFeeSplitterStaticContracts,
+  parseFeeReceivers,
+  parseFeeSplitterDynamic,
+  parseFeeSplitterStatic,
+} from './fee-receivers'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -99,6 +106,8 @@ export type Project = {
   stakingStats?: StakingStats
   governanceStats?: GovernanceStats
   feeReceivers?: FeeReceiverAdmin[]
+  feeSplitterStatic?: FeeSplitterStatic
+  feeSplitterDynamic?: FeeSplitterDynamic
   pricing?: PricingResult
 }
 
@@ -113,6 +122,7 @@ export type StaticProject = Pick<
   | 'token'
   | 'pool'
   | 'feeReceivers'
+  | 'feeSplitterStatic'
 >
 
 // ---
@@ -656,11 +666,14 @@ export async function getStaticProject({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
 
-  // Build contract calls including tokenRewards in the same multicall
+  const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+
+  // Build contract calls including tokenRewards and fee splitter static in the same multicall
   const contracts = [
     ...getTokenContracts(clankerToken),
     ...getFactoryContracts(factoryAddress, clankerToken),
     ...getFeeReceiverContracts(clankerToken, chainId),
+    ...(feeSplitterAddress ? getFeeSplitterStaticContracts(clankerToken, feeSplitterAddress) : []),
   ]
 
   const multicallResults = await publicClient.multicall({ contracts })
@@ -669,6 +682,7 @@ export async function getStaticProject({
   const tokenCount = 5
   const factoryCount = 2
   const tokenRewardsCount = 1
+  const feeSplitterStaticCount = feeSplitterAddress ? 3 : 0
 
   let idx = 0
   const tokenResults = multicallResults.slice(idx, idx + tokenCount) as TokenContractsResult
@@ -679,6 +693,11 @@ export async function getStaticProject({
 
   const tokenRewardsResult = multicallResults[idx]
   idx += tokenRewardsCount
+
+  const feeSplitterStaticResults = feeSplitterAddress
+    ? multicallResults.slice(idx, idx + feeSplitterStaticCount)
+    : null
+  idx += feeSplitterStaticCount
 
   // Parse results using individual parsers
   const tokenData = parseTokenData(tokenResults, clankerToken)
@@ -714,6 +733,13 @@ export async function getStaticProject({
   }
   // If tokenRewards fails (e.g., token not deployed through Clanker), poolInfo remains undefined
 
+  // Parse fee splitter static data
+  let feeSplitterStatic: FeeSplitterStatic | undefined
+  if (feeSplitterStaticResults) {
+    const parsed = parseFeeSplitterStatic(feeSplitterStaticResults as any)
+    feeSplitterStatic = parsed ?? undefined
+  }
+
   return {
     treasury: factoryData.treasury,
     governor: factoryData.governor,
@@ -724,6 +750,7 @@ export async function getStaticProject({
     token: tokenData,
     pool: poolInfo,
     feeReceivers,
+    feeSplitterStatic,
   }
 }
 
@@ -746,6 +773,8 @@ export async function getProject({
 
   const wethAddress = WETH(chainId)?.address
   const clankerToken = staticProject.token.address
+  const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+  const rewardTokens = wethAddress ? [clankerToken, wethAddress] : [clankerToken]
 
   // Fetch pricing data if oracle client is provided and pool exists
   let pricing: PricingResult | undefined
@@ -775,11 +804,14 @@ export async function getProject({
     }
   }
 
-  // Fetch only dynamic data (treasury, governance, and staking stats)
+  // Fetch only dynamic data (treasury, governance, staking stats, and fee splitter dynamic)
   const contracts = [
     ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
     ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
+    ...(feeSplitterAddress && staticProject.feeSplitterStatic?.isConfigured
+      ? getFeeSplitterDynamicContracts(clankerToken, feeSplitterAddress, rewardTokens)
+      : []),
   ]
 
   const results = await publicClient.multicall({ contracts })
@@ -788,6 +820,8 @@ export async function getProject({
   const treasuryCount = 2
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
+  const feeSplitterDynamicCount =
+    feeSplitterAddress && staticProject.feeSplitterStatic?.isConfigured ? rewardTokens.length : 0
 
   let idx = 0
   const treasuryResults = results.slice(idx, idx + treasuryCount) as TreasuryContractsResult
@@ -797,6 +831,10 @@ export async function getProject({
   idx += governanceCount
 
   const stakingResults = results.slice(idx, idx + stakingCount) as StakingContractsResult
+  idx += stakingCount
+
+  const feeSplitterDynamicResults =
+    feeSplitterDynamicCount > 0 ? results.slice(idx, idx + feeSplitterDynamicCount) : null
 
   // Calculate USD values for stats if pricing is available
   const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
@@ -820,6 +858,12 @@ export async function getProject({
 
   const governanceStats = parseGovernanceData(governanceResults)
 
+  // Parse fee splitter dynamic data
+  let feeSplitterDynamic: FeeSplitterDynamic | undefined
+  if (feeSplitterDynamicResults) {
+    feeSplitterDynamic = parseFeeSplitterDynamic(feeSplitterDynamicResults as any, wethAddress)
+  }
+
   return {
     chainId,
     ...staticProject,
@@ -827,5 +871,6 @@ export async function getProject({
     stakingStats,
     governanceStats,
     pricing,
+    feeSplitterDynamic,
   }
 }

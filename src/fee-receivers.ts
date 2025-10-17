@@ -1,4 +1,4 @@
-import { IClankerLpLockerMultiple } from './abis'
+import { IClankerLpLockerMultiple, LevrFeeSplitter_v1 } from './abis'
 import { GET_LP_LOCKER_ADDRESS } from './constants'
 import type { PopPublicClient, PopWalletClient } from './types'
 
@@ -208,4 +208,139 @@ export function getReceivableTokens(
   }
 
   return receivableTokens
+}
+
+// ---
+// Fee Splitter Types and Utilities
+
+/**
+ * Split configuration for fee splitter
+ */
+export type SplitConfig = {
+  receiver: `0x${string}`
+  bps: number // basis points (e.g., 5000 = 50%)
+}
+
+/**
+ * Static fee splitter data (splits configuration)
+ * Fetched in getStaticProject() via multicall
+ */
+export type FeeSplitterStatic = {
+  isConfigured: boolean
+  splits: SplitConfig[]
+  totalBps: number
+}
+
+/**
+ * Dynamic fee splitter data (pending fees)
+ * Fetched in getProject() via multicall
+ */
+export type FeeSplitterDynamic = {
+  pendingFees: {
+    token: bigint
+    weth: bigint | null
+  }
+}
+
+/**
+ * Get static fee splitter contracts for multicall
+ * Returns contracts for: isSplitsConfigured(), getSplits(), getTotalBps()
+ */
+export function getFeeSplitterStaticContracts(
+  clankerToken: `0x${string}`,
+  feeSplitterAddress: `0x${string}`
+) {
+  return [
+    {
+      address: feeSplitterAddress,
+      abi: LevrFeeSplitter_v1,
+      functionName: 'isSplitsConfigured' as const,
+      args: [clankerToken],
+    },
+    {
+      address: feeSplitterAddress,
+      abi: LevrFeeSplitter_v1,
+      functionName: 'getSplits' as const,
+      args: [clankerToken],
+    },
+    {
+      address: feeSplitterAddress,
+      abi: LevrFeeSplitter_v1,
+      functionName: 'getTotalBps' as const,
+      args: [clankerToken],
+    },
+  ]
+}
+
+/**
+ * Parse static fee splitter data from multicall results
+ * Returns null if splits are not configured
+ */
+export function parseFeeSplitterStatic(
+  results: [
+    { result: boolean; status: 'success' | 'failure' }, // isSplitsConfigured
+    { result: SplitConfig[]; status: 'success' | 'failure' }, // getSplits
+    { result: bigint; status: 'success' | 'failure' }, // getTotalBps
+  ]
+): FeeSplitterStatic | null {
+  const [isConfiguredResult, splitsResult, totalBpsResult] = results
+
+  // Check if all calls succeeded
+  if (
+    isConfiguredResult.status !== 'success' ||
+    splitsResult.status !== 'success' ||
+    totalBpsResult.status !== 'success'
+  ) {
+    return null
+  }
+
+  // Check if splits are configured
+  if (!isConfiguredResult.result) {
+    return null
+  }
+
+  return {
+    isConfigured: isConfiguredResult.result,
+    splits: splitsResult.result,
+    totalBps: Number(totalBpsResult.result),
+  }
+}
+
+/**
+ * Get dynamic fee splitter contracts for multicall
+ * Returns contracts for: pendingFees() for each reward token
+ */
+export function getFeeSplitterDynamicContracts(
+  clankerToken: `0x${string}`,
+  feeSplitterAddress: `0x${string}`,
+  rewardTokens: `0x${string}`[]
+) {
+  return rewardTokens.map((rewardToken) => ({
+    address: feeSplitterAddress,
+    abi: LevrFeeSplitter_v1,
+    functionName: 'pendingFees' as const,
+    args: [clankerToken, rewardToken],
+  }))
+}
+
+/**
+ * Parse dynamic fee splitter data from multicall results
+ * Maps pending fees results to { token, weth } structure
+ */
+export function parseFeeSplitterDynamic(
+  results: Array<{ result: bigint; status: 'success' | 'failure' }>,
+  wethAddress?: `0x${string}`
+): FeeSplitterDynamic {
+  // First result is always the clanker token
+  const tokenPending = results[0]?.status === 'success' ? results[0].result : 0n
+
+  // Second result is WETH (if provided)
+  const wethPending = wethAddress && results[1]?.status === 'success' ? results[1].result : null
+
+  return {
+    pendingFees: {
+      token: tokenPending,
+      weth: wethPending,
+    },
+  }
 }

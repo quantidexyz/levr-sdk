@@ -3,8 +3,8 @@ import type { TransactionReceipt } from 'viem'
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 
 import type { Project } from '.'
-import { LevrForwarder_v1, LevrStaking_v1 } from './abis'
-import { WETH } from './constants'
+import { LevrFeeSplitter_v1, LevrForwarder_v1, LevrStaking_v1 } from './abis'
+import { GET_FEE_SPLITTER_ADDRESS, WETH } from './constants'
 import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
@@ -189,7 +189,10 @@ export class Stake {
   }
 
   /**
-   * Accrue rewards by triggering automatic collection from LP locker and claiming from ClankerFeeLocker
+   * Accrue rewards by triggering manual accrual from balance delta detection
+   *
+   * NOTE: If fee splitter is configured, call distributeFromFeeSplitter() FIRST.
+   * The fee splitter transfers tokens to staking, then accrueRewards() detects the balance increase.
    */
   async accrueRewards(tokenAddress?: `0x${string}`): Promise<TransactionReceipt> {
     const hash = await this.wallet.writeContract({
@@ -210,7 +213,45 @@ export class Stake {
   }
 
   /**
+   * Distribute fees from the fee splitter to all configured receivers (including staking)
+   *
+   * This should be called BEFORE accrueRewards() when fee splitter is configured.
+   * The fee splitter claims fees from LP locker and distributes them according to configured splits.
+   */
+  async distributeFromFeeSplitter(params?: {
+    tokens?: `0x${string}`[]
+  }): Promise<TransactionReceipt> {
+    const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(this.chainId)
+    if (!feeSplitterAddress) {
+      throw new Error('Fee splitter address not found for this chain')
+    }
+
+    // Default to clanker token + WETH if tokens not provided
+    const wethAddress = WETH(this.chainId)?.address
+    const defaultTokens = wethAddress ? [this.tokenAddress, wethAddress] : [this.tokenAddress]
+    const tokens = params?.tokens ?? defaultTokens
+
+    const hash = await this.wallet.writeContract({
+      address: feeSplitterAddress,
+      abi: LevrFeeSplitter_v1,
+      functionName: 'distributeBatch',
+      args: [this.tokenAddress, tokens],
+      chain: this.wallet.chain,
+    })
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error('Distribute from fee splitter transaction reverted')
+    }
+
+    return receipt
+  }
+
+  /**
    * Accrue rewards for multiple tokens in a single transaction using forwarder multicall
+   *
+   * NOTE: If fee splitter is configured, call distributeFromFeeSplitter() FIRST for all tokens.
    */
   async accrueAllRewards(tokenAddresses: `0x${string}`[]): Promise<TransactionReceipt> {
     if (!this.trustedForwarder) {
