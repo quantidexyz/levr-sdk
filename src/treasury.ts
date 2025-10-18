@@ -11,6 +11,7 @@ export type AirdropStatus = {
   isAvailable: boolean
   proof: `0x${string}`[]
   deploymentTimestamp?: number
+  lockupDurationHours?: number
   error?: string
 }
 
@@ -59,8 +60,9 @@ export async function getTreasuryAirdropStatus(
     }
 
     const latestLog = logs[logs.length - 1]
-    const { supply } = latestLog.args as { supply: bigint }
+    const { supply, lockupDuration } = latestLog.args as { supply: bigint; lockupDuration: bigint }
     const allocatedAmount = supply
+    const lockupDurationHours = Number(lockupDuration) / 3600 // Convert seconds to hours
 
     const [multicallResults, block] = await Promise.all([
       publicClient.multicall({
@@ -95,6 +97,7 @@ export async function getTreasuryAirdropStatus(
         isAvailable: false,
         proof: [],
         deploymentTimestamp,
+        lockupDurationHours,
         error: isAlreadyClaimed
           ? 'Treasury airdrop already claimed'
           : 'Airdrop is still locked (lockup period not passed)',
@@ -107,6 +110,7 @@ export async function getTreasuryAirdropStatus(
       isAvailable: true,
       proof: [],
       deploymentTimestamp,
+      lockupDurationHours,
       error: undefined,
     }
   } catch (error) {

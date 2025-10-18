@@ -113,6 +113,7 @@ export type Project = {
   feeReceivers?: FeeReceiverAdmin[]
   feeSplitter?: FeeSplitter
   pricing?: PricingResult
+  blockTimestamp?: bigint
 }
 
 export type StaticProject = Pick<
@@ -452,6 +453,7 @@ function parseStakingStats(
   tokenDecimals: number,
   tokenUsdPrice: number | null,
   wethUsdPrice: number | null,
+  blockTimestamp: bigint,
   pricing?: PricingResult,
   feeSplitterPending?: { token: bigint; weth: bigint | null }
 ): StakingStats {
@@ -498,9 +500,8 @@ function parseStakingStats(
     }
   }
 
-  // Calculate if stream is active
-  const now = BigInt(Math.floor(Date.now() / 1000))
-  const isStreamActive = streamStartRaw <= now && now <= streamEndRaw
+  // Calculate if stream is active using blockchain timestamp
+  const isStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
 
   // When fee splitter is active, REPLACE staking's pending with fee splitter's pending
   // (staking is no longer the fee recipient - fee splitter is!)
@@ -628,6 +629,7 @@ export async function getProjects({
     | 'governanceStats'
     | 'feeReceivers'
     | 'airdrop'
+    | 'blockTimestamp'
   >[] = []
   const callsPerProject = 7 // 5 token + 2 treasury (no governance for list view)
 
@@ -830,6 +832,10 @@ export async function getProject({
     }
   }
 
+  // Get current block timestamp for accurate stream status
+  const block = await publicClient.getBlock()
+  const blockTimestamp = block.timestamp
+
   // Fetch only dynamic data (treasury, governance, staking stats, and fee splitter dynamic)
   const contracts = [
     ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
@@ -902,6 +908,7 @@ export async function getProject({
     staticProject.token.decimals,
     tokenUsdPrice,
     wethUsdPrice,
+    blockTimestamp,
     pricing,
     feeSplitterPendingFees
   )
@@ -916,5 +923,6 @@ export async function getProject({
     governanceStats,
     pricing,
     feeSplitter,
+    blockTimestamp,
   }
 }
