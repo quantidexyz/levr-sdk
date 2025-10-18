@@ -1,9 +1,29 @@
 # Documentation Update Summary
 
-**Date:** October 15, 2025  
+**Date:** October 18, 2025  
 **Status:** ✅ Complete
 
-## Latest Changes (October 15, 2025)
+## Latest Changes (October 18, 2025)
+
+### Fee Splitter Integration
+
+- ✅ **Added `useConfigureSplits()` hook** - Configure fee splitting among multiple recipients
+- ✅ **Added `feeSplitter` field to Project type** - Includes static configuration and dynamic pending fees
+- ✅ **Added server functions** - `configureSplits()` and `updateRecipientToSplitter()`
+- ✅ **Added `FeePreference` enum** - Specify which tokens fee receivers can accept (Both, Paired/WETH, Clanker)
+- ✅ **Added `feePreference` field to fee receivers** - Optional field indicating token preference
+- ✅ **Added `GET_FEE_SPLITTER_ADDRESS()` constant** - Get splitter contract address by chain
+- ✅ **Updated staking stats logic** - When splitter is active, pending fees are tracked in splitter instead of staking contract
+- ✅ **Created comprehensive documentation**:
+  - `use-configure-splits.md` - Client hook for fee splitting
+  - Updated `fee-receivers.md` - Server API with splitter functions
+  - Updated all relevant docs with fee splitter references
+
+**Result:** Complete fee splitting system allowing trading fees to be distributed among multiple recipients with transparent tracking of pending fees.
+
+---
+
+## Previous Update (October 15, 2025)
 
 ### Token Metadata Consolidation
 
@@ -240,5 +260,7 @@ All documentation now accurately reflects:
 4. Vote receipt feature
 5. Simplified API surface
 6. Current function signatures and return types
+7. Fee splitter system for distributing fees among multiple recipients
+8. Fee preference system for token-specific fee routing
 
 **Status: Production Ready** ✅

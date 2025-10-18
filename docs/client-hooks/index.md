@@ -24,6 +24,7 @@ Hooks with both queries and mutations:
 - [useSwap](./mutation/use-swap.md) - Swap operations with quotes
 - [useGovernance](./mutation/use-governance.md) - Governance operations (propose, vote, execute, airdrop)
 - [useFeeReceivers](./mutation/use-fee-receivers.md) - Fee receiver management
+- [useConfigureSplits](./mutation/use-configure-splits.md) - Configure fee splitting among multiple recipients
 - [useDeploy](./mutation/use-deploy.md) - Deploy and register Clanker tokens
 - [usePrepare](./mutation/use-prepare.md) - Prepare contracts for deployment
 - [useRegister](./mutation/use-register.md) - Register existing tokens

@@ -44,7 +44,7 @@ export const GET_FEE_SPLITTER_ADDRESS = (chainId?: number): `0x${string}` | unde
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL,
-    [baseSepolia.id]: '0x3dcE6d5ef0a1328C56c396A65a3663c0f595eb90',
+    [baseSepolia.id]: '0x61351e06c89f1203a59c0353c6964a557ed0ce6a',
   }[chainId] as `0x${string}` | undefined
 }
 

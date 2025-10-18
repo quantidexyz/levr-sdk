@@ -50,6 +50,12 @@ console.log('Treasury Balance:', projectData.treasuryStats?.balance.formatted)
 console.log('Token Price:', projectData.pricing?.tokenUsd, 'USD')
 console.log('Current Cycle:', projectData.governanceStats?.currentCycleId.toString())
 console.log('Total Staked:', projectData.stakingStats?.totalStaked.formatted)
+
+// Check fee splitter status
+if (projectData.feeSplitter?.isActive) {
+  console.log('Fee splitter active with', projectData.feeSplitter.splits.length, 'recipients')
+  console.log('Pending fees:', projectData.feeSplitter.pendingFees)
+}
 ```
 
 ## Parameters
@@ -134,7 +140,22 @@ Returns `Project | null` (null if project not registered)
     admin: `0x${string}`
     recipient: `0x${string}`
     percentage: number
+    feePreference?: FeePreference
   }>
+
+  // Fee Splitter
+  feeSplitter?: {
+    // Static data
+    isConfigured: boolean
+    isActive: boolean
+    splits: Array<{ receiver: `0x${string}`, bps: number }>
+    totalBps: number
+    // Dynamic data (if active)
+    pendingFees?: {
+      token: bigint
+      weth: bigint | null
+    }
+  }
 
   // Pricing (dynamic data, fetched if oraclePublicClient provided)
   pricing?: {
@@ -154,6 +175,7 @@ Returns `Project | null` (null if project not registered)
 - Token info (name, symbol, decimals, total supply)
 - Pool info (poolKey, fee display, positions)
 - Fee receivers
+- Fee splitter configuration (`isConfigured`, `isActive`, `splits`, `totalBps`)
 
 **Dynamic data** (fetched fresh):
 
@@ -161,6 +183,7 @@ Returns `Project | null` (null if project not registered)
 - Staking stats (total staked, APR, rewards)
 - Governance stats (cycle ID, active proposals)
 - Pricing (USD prices if oracle client provided)
+- Fee splitter pending fees (if active)
 
 **Not included:**
 

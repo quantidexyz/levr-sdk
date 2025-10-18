@@ -66,6 +66,56 @@ function FeeReceiverManager() {
   admin: `0x${string}` // Admin address who can update
   recipient: `0x${string}` // Current fee recipient
   percentage: number // Fee percentage (e.g., 50 = 50%)
+  feePreference?: FeePreference // Which tokens this recipient receives
+}
+```
+
+### Fee Preference
+
+The `feePreference` field indicates which tokens the fee receiver accepts:
+
+```typescript
+enum FeePreference {
+  Both = 0, // Receives both clanker token and WETH
+  Paired = 1, // Receives WETH only
+  Clanker = 2, // Receives clanker token only
+}
+```
+
+**Example:**
+
+```typescript
+const { data } = useFeeReceivers()
+
+data?.forEach((receiver) => {
+  switch (receiver.feePreference) {
+    case 0: // Both
+      console.log('Receives:', 'Token + WETH')
+      break
+    case 1: // Paired
+      console.log('Receives:', 'WETH only')
+      break
+    case 2: // Clanker
+      console.log('Receives:', 'Token only')
+      break
+  }
+})
+```
+
+## Fee Splitter Integration
+
+If a fee splitter is active, the fee receiver's `recipient` will be the splitter contract address. You can check this via `useProject()`:
+
+```typescript
+import { useProject } from 'levr-sdk/client'
+
+const { data: project } = useProject()
+
+// Check if fee splitter is active
+if (project?.feeSplitter?.isActive) {
+  console.log('Fee splitter is active')
+  console.log('Splits:', project.feeSplitter.splits)
+  console.log('Pending fees:', project.feeSplitter.pendingFees)
 }
 ```
 
@@ -74,3 +124,5 @@ function FeeReceiverManager() {
 - Fee receiver data comes from `project` query (no separate query)
 - `areYouAnAdmin` is automatically calculated based on connected wallet
 - Only admins can update their respective fee receivers
+- `feePreference` is optional and may be undefined for legacy configurations
+- When fee splitter is active, the recipient will be the splitter contract address

@@ -77,6 +77,28 @@ function ProjectInfo() {
           ))}
         </div>
       )}
+
+      {project.feeSplitter?.isConfigured && (
+        <div>
+          <h3>Fee Splitter</h3>
+          <p>Status: {project.feeSplitter.isActive ? 'Active' : 'Configured (not active)'}</p>
+          <p>Total BPS: {project.feeSplitter.totalBps}</p>
+          {project.feeSplitter.splits.map((split, i) => (
+            <div key={i}>
+              <p>Receiver: {split.receiver}</p>
+              <p>BPS: {split.bps} ({split.bps / 100}%)</p>
+            </div>
+          ))}
+          {project.feeSplitter.pendingFees && (
+            <div>
+              <p>Pending Token: {project.feeSplitter.pendingFees.token.toString()}</p>
+              {project.feeSplitter.pendingFees.weth && (
+                <p>Pending WETH: {project.feeSplitter.pendingFees.weth.toString()}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -158,7 +180,22 @@ Project data contains ALL project-level information:
     admin: `0x${string}`
     recipient: `0x${string}`
     percentage: number
+    feePreference?: FeePreference
   }>
+
+  // Fee Splitter
+  feeSplitter?: {
+    // Static data
+    isConfigured: boolean
+    isActive: boolean
+    splits: Array<{ receiver: `0x${string}`, bps: number }>
+    totalBps: number
+    // Dynamic data (if active)
+    pendingFees?: {
+      token: bigint
+      weth: bigint | null
+    }
+  }
 
   // Pricing (dynamic data, if oraclePublicClient provided to LevrProvider)
   pricing?: {
@@ -184,6 +221,7 @@ Project data contains ALL project-level information:
 - Token info
 - Pool info
 - Fee receivers
+- Fee splitter configuration (`isConfigured`, `isActive`, `splits`, `totalBps`)
 
 **Dynamic data** (refetches every 30s):
 
@@ -191,6 +229,7 @@ Project data contains ALL project-level information:
 - Staking stats
 - Governance stats
 - Pricing (if oracle provided)
+- Fee splitter pending fees (if active)
 
 **Not included:**
 
@@ -202,6 +241,8 @@ Project data contains ALL project-level information:
 - Static data cached with `staleTime: Infinity` (only refetches on token change)
 - Dynamic data refetches every 30 seconds
 - Includes fee receivers with `areYouAnAdmin` calculated automatically
+- Includes fee splitter configuration and pending fees (if active)
+- When fee splitter is active, `stakingStats.outstandingRewards` includes fees in the splitter
 - Pricing requires `oraclePublicClient` in LevrProvider
 - Automatically refetches when token or chain changes
 
@@ -210,3 +251,4 @@ Project data contains ALL project-level information:
 - [useAirdropStatus](./use-airdrop-status.md) - Get airdrop status separately
 - [useUser](./use-user.md) - Get user-specific data
 - [usePool](./use-pool.md) - Get real-time pool state
+- [useConfigureSplits](../mutation/use-configure-splits.md) - Configure fee splitting

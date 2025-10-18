@@ -17,6 +17,8 @@ Core data fetching functions:
 - [getTreasuryAirdropStatus()](./queries/airdrop-status.md) - Get airdrop status (separate query)
 - [balance()](./queries/balance.md) - Get token balances (used internally by getUser)
 - [feeReceivers()](./queries/fee-receivers.md) - Get fee receiver information
+- [configureSplits()](./queries/fee-receivers.md#configure-splits-params) - Configure fee splitter splits
+- [updateRecipientToSplitter()](./queries/fee-receivers.md#update-recipient-to-splitter-params) - Update fee recipient to splitter
 
 ### Class APIs
 
@@ -38,7 +40,7 @@ Helper functions and constants:
 
 - [getUsdPrice()](./utilities/get-usd-price.md) - Get USD prices
 - [updateFeeReceiver()](./utilities/update-fee-receiver.md) - Update fee receiver address
-- [Constants](./utilities/constants.md) - Exported constants
+- [Constants](./utilities/constants.md) - Exported constants (includes `GET_FEE_SPLITTER_ADDRESS`)
 
 ## Quick Example
 

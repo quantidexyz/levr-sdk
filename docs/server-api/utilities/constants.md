@@ -15,6 +15,7 @@ import {
   GET_USDC_ADDRESS,
   GET_FACTORY_ADDRESS,
   GET_LP_LOCKER_ADDRESS,
+  GET_FEE_SPLITTER_ADDRESS,
   GET_CLANKER_FACTORY_ADDRESS,
   GET_CLANKER_AIRDROP_ADDRESS,
 } from 'levr-sdk'
@@ -35,6 +36,15 @@ Returns the Levr Factory V1 address for the given chain.
 ### `GET_LP_LOCKER_ADDRESS(chainId)`
 
 Returns the Clanker LP Locker address for the given chain.
+
+### `GET_FEE_SPLITTER_ADDRESS(chainId)`
+
+Returns the Levr Fee Splitter V1 address for the given chain. Used for splitting trading fees among multiple recipients.
+
+```typescript
+const splitter = GET_FEE_SPLITTER_ADDRESS(8453) // Base
+// '0x...' - Fee splitter contract address
+```
 
 ## Clanker Contracts
 

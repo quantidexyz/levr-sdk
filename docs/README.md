@@ -32,6 +32,7 @@ Complete reference for all React hooks:
 - [useSwap](./client-hooks/mutation/use-swap.md) - Swap operations
 - [useGovernance](./client-hooks/mutation/use-governance.md) - Governance operations
 - [useFeeReceivers](./client-hooks/mutation/use-fee-receivers.md) - Fee receiver management
+- [useConfigureSplits](./client-hooks/mutation/use-configure-splits.md) - Fee splitting configuration
 - [useDeploy](./client-hooks/mutation/use-deploy.md) - Deploy tokens
 - [usePrepare](./client-hooks/mutation/use-prepare.md) - Prepare deployment
 - [useRegister](./client-hooks/mutation/use-register.md) - Register tokens
@@ -56,6 +57,8 @@ Server-side functions and classes:
 - [proposal()](./server-api/queries/proposal.md) - Get single proposal
 - [balance()](./server-api/queries/balance.md) - Get token balances
 - [feeReceivers()](./server-api/queries/fee-receivers.md) - Get fee receivers
+- [configureSplits()](./server-api/queries/fee-receivers.md#configure-splits-params) - Configure fee splitter
+- [updateRecipientToSplitter()](./server-api/queries/fee-receivers.md#update-recipient-to-splitter-params) - Update to splitter
 - [getTreasuryAirdropStatus()](./server-api/queries/airdrop-status.md) - Get airdrop status
 
 **Classes:**
@@ -101,6 +104,7 @@ PROJECT (Single Multicall)
 | Staking stats (pool) | `project`   | `project.data.stakingStats`                  |
 | Governance stats     | `project`   | `project.data.governanceStats`               |
 | Fee receivers        | `project`   | `project.data.feeReceivers`                  |
+| Fee splitter         | `project`   | `project.data.feeSplitter`                   |
 | Pricing (USD)        | `project`   | `project.data.pricing` (dynamic)             |
 | User balances        | `user`      | `user.data.balances`                         |
 | User staking         | `user`      | `user.data.staking`                          |

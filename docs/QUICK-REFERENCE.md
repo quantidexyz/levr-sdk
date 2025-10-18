@@ -80,6 +80,15 @@ project?.feeReceivers?.[0].admin
 project?.feeReceivers?.[0].recipient
 project?.feeReceivers?.[0].percentage
 project?.feeReceivers?.[0].areYouAnAdmin
+project?.feeReceivers?.[0].feePreference // 0 = Both, 1 = WETH only, 2 = Token only
+
+// Fee splitter
+project?.feeSplitter?.isConfigured
+project?.feeSplitter?.isActive
+project?.feeSplitter?.splits // Array of { receiver, bps }
+project?.feeSplitter?.totalBps
+project?.feeSplitter?.pendingFees?.token
+project?.feeSplitter?.pendingFees?.weth
 
 // Pricing (dynamic data)
 project?.pricing?.tokenUsd
@@ -197,6 +206,26 @@ if (quote.data) {
 
   await swap.mutateAsync(config)
 }
+```
+
+### Fee Splitting
+
+```typescript
+import { useConfigureSplits } from 'levr-sdk/client'
+
+const { mutate: configureSplits } = useConfigureSplits()
+
+// Configure splits and update recipient in one call
+configureSplits({
+  clankerToken: '0x...',
+  rewardIndex: 0,
+  splits: [
+    { receiver: '0xABC...', percentage: 50 },
+    { receiver: '0xDEF...', percentage: 30 },
+    { receiver: '0x123...', percentage: 20 },
+  ],
+  isSplitterAlreadyActive: false,
+})
 ```
 
 ### Governance
@@ -333,6 +362,14 @@ const canClaimAirdrop = airdrop?.isAvailable === true
 ```typescript
 const { data: user } = useUser()
 const hasRewards = user && parseFloat(user.staking.claimableRewards.staking.formatted) > 0
+```
+
+### Check if Fee Splitter Active
+
+```typescript
+const { data: project } = useProject()
+const isSplitterActive = project?.feeSplitter?.isActive === true
+const pendingFees = project?.feeSplitter?.pendingFees
 ```
 
 ### Get Current Price Impact
