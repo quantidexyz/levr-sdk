@@ -155,7 +155,7 @@ export function useStake({
       if (project.data?.token.address) tokenAddresses.push(project.data.token.address)
       if (wethAddress) tokenAddresses.push(wethAddress)
 
-      return stakeService.accrueAllRewards(tokenAddresses)
+      return stakeService.accrueAllRewards({ tokens: tokenAddresses })
     },
     onSuccess: async (receipt) => {
       await refetch.afterAccrue()

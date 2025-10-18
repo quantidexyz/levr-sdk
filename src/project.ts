@@ -452,7 +452,8 @@ function parseStakingStats(
   tokenDecimals: number,
   tokenUsdPrice: number | null,
   wethUsdPrice: number | null,
-  pricing?: PricingResult
+  pricing?: PricingResult,
+  feeSplitterPending?: { token: bigint; weth: bigint | null }
 ): StakingStats {
   const totalStakedRaw = results[0].result
   const aprBpsRaw = results[1].result
@@ -501,6 +502,20 @@ function parseStakingStats(
   const now = BigInt(Math.floor(Date.now() / 1000))
   const isStreamActive = streamStartRaw <= now && now <= streamEndRaw
 
+  // When fee splitter is active, REPLACE staking's pending with fee splitter's pending
+  // (staking is no longer the fee recipient - fee splitter is!)
+  // When fee splitter is NOT active, use staking's pending from ClankerFeeLocker
+  const tokenPendingTotal = feeSplitterPending
+    ? feeSplitterPending.token // Use ONLY fee splitter pending (it's the recipient)
+    : outstandingRewardsTokenRaw[1] // Use staking's pending (it's the recipient)
+
+  const wethPendingTotal =
+    feeSplitterPending?.weth !== undefined
+      ? feeSplitterPending.weth // Use ONLY fee splitter pending (it's the recipient)
+      : outstandingRewardsWethRaw
+        ? outstandingRewardsWethRaw[1] // Use staking's pending (it's the recipient)
+        : null
+
   return {
     totalStaked: formatBalanceWithUsd(totalStakedRaw, tokenDecimals, tokenUsdPrice),
     apr: {
@@ -517,12 +532,12 @@ function parseStakingStats(
           tokenDecimals,
           tokenUsdPrice
         ),
-        pending: formatBalanceWithUsd(outstandingRewardsTokenRaw[1], tokenDecimals, tokenUsdPrice),
+        pending: formatBalanceWithUsd(tokenPendingTotal, tokenDecimals, tokenUsdPrice),
       },
       weth: outstandingRewardsWethRaw
         ? {
             available: formatBalanceWithUsd(outstandingRewardsWethRaw[0], 18, wethUsdPrice),
-            pending: formatBalanceWithUsd(outstandingRewardsWethRaw[1], 18, wethUsdPrice),
+            pending: formatBalanceWithUsd(wethPendingTotal ?? 0n, 18, wethUsdPrice),
           }
         : null,
     },
@@ -820,7 +835,7 @@ export async function getProject({
     ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
     ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
-    ...(feeSplitterAddress && staticProject.feeSplitter?.isConfigured
+    ...(feeSplitterAddress && staticProject.feeSplitter?.isActive
       ? getFeeSplitterDynamicContracts(clankerToken, feeSplitterAddress, rewardTokens)
       : []),
   ]
@@ -832,7 +847,7 @@ export async function getProject({
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
   const feeSplitterDynamicCount =
-    feeSplitterAddress && staticProject.feeSplitter?.isConfigured ? rewardTokens.length : 0
+    feeSplitterAddress && staticProject.feeSplitter?.isActive ? rewardTokens.length : 0
 
   let idx = 0
   const treasuryResults = results.slice(idx, idx + treasuryCount) as TreasuryContractsResult
@@ -851,6 +866,29 @@ export async function getProject({
   const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
   const wethUsdPrice = pricing ? parseFloat(pricing.wethUsd) : null
 
+  // Parse fee splitter dynamic data first (needed for staking stats)
+  let feeSplitter = staticProject.feeSplitter
+  let feeSplitterPendingFees: { token: bigint; weth: bigint | null } | undefined
+  if (feeSplitterDynamicResults && staticProject.feeSplitter) {
+    const feeSplitterDynamic = parseFeeSplitterDynamic(
+      feeSplitterDynamicResults as any,
+      wethAddress
+    )
+    feeSplitter = {
+      ...staticProject.feeSplitter,
+      ...feeSplitterDynamic,
+    }
+
+    // Extract pending fees to add to outstanding rewards
+    // When using fee splitter, fees in LP locker should show as "pending" in outstanding rewards
+    if (staticProject.feeSplitter.isActive && feeSplitterDynamic.pendingFees) {
+      feeSplitterPendingFees = {
+        token: feeSplitterDynamic.pendingFees.token,
+        weth: feeSplitterDynamic.pendingFees.weth ?? null,
+      }
+    }
+  }
+
   // Parse treasury and staking stats using individual parsers
   const treasuryStats = parseTreasuryStats(
     treasuryResults,
@@ -864,23 +902,11 @@ export async function getProject({
     staticProject.token.decimals,
     tokenUsdPrice,
     wethUsdPrice,
-    pricing
+    pricing,
+    feeSplitterPendingFees
   )
 
   const governanceStats = parseGovernanceData(governanceResults)
-
-  // Parse fee splitter dynamic data and merge with static
-  let feeSplitter = staticProject.feeSplitter
-  if (feeSplitterDynamicResults && staticProject.feeSplitter) {
-    const feeSplitterDynamic = parseFeeSplitterDynamic(
-      feeSplitterDynamicResults as any,
-      wethAddress
-    )
-    feeSplitter = {
-      ...staticProject.feeSplitter,
-      ...feeSplitterDynamic,
-    }
-  }
 
   return {
     chainId,

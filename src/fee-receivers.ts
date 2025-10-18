@@ -403,6 +403,7 @@ export function parseFeeSplitterStatic(
 /**
  * Get dynamic fee splitter contracts for multicall
  * Returns contracts for: pendingFees() for each reward token
+ * Note: Fee splitter internally queries ClankerFeeLocker
  */
 export function getFeeSplitterDynamicContracts(
   clankerToken: `0x${string}`,

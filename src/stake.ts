@@ -63,6 +63,7 @@ export class Stake {
   private chainId: number
   private userAddress: `0x${string}`
   private trustedForwarder?: `0x${string}`
+  private isFeeSplitterActive: boolean
 
   constructor(config: StakeConfig) {
     // Validate required fields only (not optional fields like trustedForwarder, pricing)
@@ -77,6 +78,7 @@ export class Stake {
     this.chainId = config.publicClient.chain?.id ?? 1 // Get chainId from publicClient
     this.userAddress = config.wallet.account.address
     this.trustedForwarder = config.project.forwarder
+    this.isFeeSplitterActive = config.project.feeSplitter?.isActive ?? false
   }
   /**
    * Approve ERC20 tokens for spending by the staking contract
@@ -251,24 +253,73 @@ export class Stake {
   /**
    * Accrue rewards for multiple tokens in a single transaction using forwarder multicall
    *
-   * NOTE: If fee splitter is configured, call distributeFromFeeSplitter() FIRST for all tokens.
+   * If fee splitter is configured and active, this will:
+   * 1. Call distribute() on fee splitter for each token
+   * 2. Fee splitter automatically calls accrueRewards() after distribution
+   *
+   * If fee splitter is NOT configured, this will:
+   * 1. Directly call accrueRewards() for each token on staking contract
+   *
+   * @param params.tokens - Array of token addresses to accrue (defaults to [clankerToken, WETH])
+   * @param params.useFeeSplitter - If true, uses fee splitter distribute (auto-detected if not provided)
    */
-  async accrueAllRewards(tokenAddresses: `0x${string}`[]): Promise<TransactionReceipt> {
+  async accrueAllRewards(params?: {
+    tokens?: `0x${string}`[]
+    useFeeSplitter?: boolean
+  }): Promise<TransactionReceipt> {
     if (!this.trustedForwarder) {
       throw new Error('Trusted forwarder is required for multicall operations')
     }
 
-    // Use forwarder's executeMulticall for meta-transaction support
-    const calls = tokenAddresses.map((tokenAddress) => ({
-      target: this.stakingAddress,
-      allowFailure: false,
-      value: 0n,
-      callData: encodeFunctionData({
-        abi: LevrStaking_v1,
-        functionName: 'accrueRewards',
-        args: [tokenAddress],
-      }),
-    }))
+    // Default tokens: clankerToken + WETH (if available)
+    let defaultTokens = [this.tokenAddress]
+    const wethAddress = WETH(this.chainId)?.address
+    if (wethAddress) {
+      defaultTokens.push(wethAddress)
+    }
+    const tokenAddresses = params?.tokens ?? defaultTokens
+
+    // Detect if fee splitter should be used (can be overridden)
+    const useFeeSplitter = params?.useFeeSplitter ?? this._shouldUseFeeSplitter()
+
+    let calls: Array<{
+      target: `0x${string}`
+      allowFailure: boolean
+      value: bigint
+      callData: `0x${string}`
+    }>
+
+    if (useFeeSplitter) {
+      // Fee splitter mode: Call distribute() for each token
+      // The fee splitter will automatically call accrueRewards() after distributing
+      const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(this.chainId)
+      if (!feeSplitterAddress) {
+        throw new Error('Fee splitter address not found for this chain')
+      }
+
+      calls = tokenAddresses.map((tokenAddress) => ({
+        target: feeSplitterAddress,
+        allowFailure: false,
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrFeeSplitter_v1,
+          functionName: 'distribute',
+          args: [this.tokenAddress, tokenAddress],
+        }),
+      }))
+    } else {
+      // Direct mode: Call accrueRewards() on staking contract
+      calls = tokenAddresses.map((tokenAddress) => ({
+        target: this.stakingAddress,
+        allowFailure: false,
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrStaking_v1,
+          functionName: 'accrueRewards',
+          args: [tokenAddress],
+        }),
+      }))
+    }
 
     const hash = await this.wallet.writeContract({
       address: this.trustedForwarder,
@@ -285,6 +336,14 @@ export class Stake {
     }
 
     return receipt
+  }
+
+  /**
+   * Helper to detect if fee splitter should be used
+   * Returns true if fee splitter is configured and active for this project
+   */
+  private _shouldUseFeeSplitter(): boolean {
+    return this.isFeeSplitterActive
   }
 
   /**

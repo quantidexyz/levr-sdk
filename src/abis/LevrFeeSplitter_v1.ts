@@ -242,7 +242,7 @@ export default [
     name: 'pendingFees',
     inputs: [
       {
-        name: '',
+        name: 'clankerToken',
         type: 'address',
         internalType: 'address',
       },
@@ -273,6 +273,44 @@ export default [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'AutoAccrualFailed',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'AutoAccrualSuccess',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',
