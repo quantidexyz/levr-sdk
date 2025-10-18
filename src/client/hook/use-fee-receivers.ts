@@ -28,16 +28,19 @@ export function useFeeReceivers({ onSuccess, onError }: UseFeeReceiversParams = 
   const chainId = publicClient?.chain?.id
 
   return useMutation({
-    mutationFn: (params: Omit<UpdateFeeReceiverParams, 'walletClient' | 'chainId'>) =>
+    mutationFn: (
+      params: Omit<UpdateFeeReceiverParams, 'walletClient' | 'publicClient' | 'chainId'>
+    ) =>
       updateFeeReceiver({
         walletClient: wallet.data!,
+        publicClient: publicClient!,
         clankerToken: params.clankerToken,
         chainId: chainId!,
         rewardIndex: params.rewardIndex,
         newRecipient: params.newRecipient,
       }),
-    onSuccess: async (hash) => {
-      onSuccess?.(hash)
+    onSuccess: async (receipt) => {
+      onSuccess?.(receipt.transactionHash)
     },
     onError: onError,
   })

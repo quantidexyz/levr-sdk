@@ -34,32 +34,34 @@ export function useConfigureSplits({
 
   return useMutation({
     mutationFn: async (params: UpdateSplitterParams) => {
-      // Step 1: Configure splits
-      const configureSplitsHash = await configureSplits({
+      // Step 1: Configure splits (waits for receipt)
+      const configureSplitsReceipt = await configureSplits({
         walletClient: wallet.data!,
+        publicClient: publicClient!,
         clankerToken: params.clankerToken,
         chainId: chainId!,
         splits: params.splits,
       })
 
-      onConfigureSplitsSuccess?.(configureSplitsHash)
+      onConfigureSplitsSuccess?.(configureSplitsReceipt.transactionHash)
 
       // Step 2: Update reward recipient to splitter (only if not already active)
       if (!params.isSplitterAlreadyActive) {
-        const updateRecipientHash = await updateRecipientToSplitter({
+        const updateRecipientReceipt = await updateRecipientToSplitter({
           walletClient: wallet.data!,
+          publicClient: publicClient!,
           clankerToken: params.clankerToken,
           chainId: chainId!,
           rewardIndex: params.rewardIndex,
         })
 
-        onUpdateRecipientSuccess?.(updateRecipientHash)
+        onUpdateRecipientSuccess?.(updateRecipientReceipt.transactionHash)
 
-        return updateRecipientHash
+        return updateRecipientReceipt.transactionHash
       }
 
       // If already active, just return the configure splits hash
-      return configureSplitsHash
+      return configureSplitsReceipt.transactionHash
     },
     onSuccess: async (hash) => {
       onSuccess?.(hash)

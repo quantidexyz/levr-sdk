@@ -24,6 +24,7 @@ export type FeeReceiverAdmin = {
 
 export type UpdateFeeReceiverParams = {
   walletClient: PopWalletClient
+  publicClient: PopPublicClient
   clankerToken: `0x${string}`
   chainId: number
   rewardIndex: bigint | number // usually 0 for primary recipient
@@ -136,16 +137,20 @@ export async function feeReceivers({
 
 /**
  * Update fee receiver for a clanker token
+ * Waits for transaction confirmation before returning
  */
 export async function updateFeeReceiver({
   walletClient,
+  publicClient,
   clankerToken,
   chainId,
   rewardIndex,
   newRecipient,
-}: UpdateFeeReceiverParams): Promise<`0x${string}`> {
+}: UpdateFeeReceiverParams) {
   if (
-    Object.values({ walletClient, clankerToken, chainId, newRecipient }).some((value) => !value)
+    Object.values({ walletClient, publicClient, clankerToken, chainId, newRecipient }).some(
+      (value) => !value
+    )
   ) {
     throw new Error('Invalid update fee receiver params')
   }
@@ -163,7 +168,13 @@ export async function updateFeeReceiver({
     args: [clankerToken, BigInt(index), newRecipient],
   })
 
-  return hash
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+  if (receipt.status === 'reverted') {
+    throw new Error('Update fee receiver transaction reverted')
+  }
+
+  return receipt
 }
 
 /**
@@ -179,6 +190,7 @@ export type SplitConfigUI = {
  */
 export type ConfigureSplitsParams = {
   walletClient: PopWalletClient
+  publicClient: PopPublicClient
   clankerToken: `0x${string}`
   chainId: number
   splits: readonly SplitConfigUI[]
@@ -186,11 +198,14 @@ export type ConfigureSplitsParams = {
 
 export async function configureSplits({
   walletClient,
+  publicClient,
   clankerToken,
   chainId,
   splits,
-}: ConfigureSplitsParams): Promise<`0x${string}`> {
-  if (Object.values({ walletClient, clankerToken, chainId }).some((value) => !value)) {
+}: ConfigureSplitsParams) {
+  if (
+    Object.values({ walletClient, publicClient, clankerToken, chainId }).some((value) => !value)
+  ) {
     throw new Error('Invalid configure splits params')
   }
 
@@ -213,7 +228,13 @@ export async function configureSplits({
     args: [clankerToken, splitsWithBps],
   })
 
-  return hash
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+  if (receipt.status === 'reverted') {
+    throw new Error('Configure splits transaction reverted')
+  }
+
+  return receipt
 }
 
 /**
@@ -222,6 +243,7 @@ export async function configureSplits({
  */
 export type UpdateRecipientToSplitterParams = {
   walletClient: PopWalletClient
+  publicClient: PopPublicClient
   clankerToken: `0x${string}`
   chainId: number
   rewardIndex: bigint | number
@@ -229,10 +251,11 @@ export type UpdateRecipientToSplitterParams = {
 
 export async function updateRecipientToSplitter({
   walletClient,
+  publicClient,
   clankerToken,
   chainId,
   rewardIndex,
-}: UpdateRecipientToSplitterParams): Promise<`0x${string}`> {
+}: UpdateRecipientToSplitterParams) {
   const { GET_FEE_SPLITTER_ADDRESS } = await import('./constants')
 
   const splitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
@@ -241,6 +264,7 @@ export async function updateRecipientToSplitter({
   // Update to splitter address (direct call from token admin)
   return updateFeeReceiver({
     walletClient,
+    publicClient,
     clankerToken,
     chainId,
     rewardIndex,

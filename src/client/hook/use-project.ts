@@ -61,14 +61,14 @@ export function useProjectQuery({
   const chainId = publicClient?.chain?.id
 
   // Fetch static data (only refetches when token changes)
-  const { data: staticProject } = useStaticProjectQuery({
+  const { data: staticProject, refetch: refetchStatic } = useStaticProjectQuery({
     clankerToken,
     enabled: e,
   })
 
   const enabled = !!publicClient && !!clankerToken && !!chainId && !!staticProject && e
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.project(clankerToken!, chainId!),
     enabled,
     queryFn: () =>
@@ -79,6 +79,11 @@ export function useProjectQuery({
       }),
     staleTime: 30_000, // 30 seconds cache for dynamic data
   })
+
+  return {
+    ...query,
+    refetchStatic,
+  }
 }
 
 export type UseProjectsParams = {
