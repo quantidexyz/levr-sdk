@@ -27,20 +27,22 @@ const LevrMetadata = Schema.Struct({
 const TreasuryFunding = Schema.Literal(
   ...(Object.keys(TREASURY_AIRDROP_AMOUNTS) as [keyof typeof TREASURY_AIRDROP_AMOUNTS])
 ).annotations({
-  description: 'Amount to fund the treasury during deployment',
+  description:
+    'Percentage of total token supply (100B tokens) allocated to the treasury at deployment. Combined with custom airdrops, maximum 90% can be allocated (minimum 10% reserved for liquidity). Any remaining tokens are sent to liquidity.',
 })
 
 const LevrAirdrop = Schema.Array(
   Schema.Struct({
     amount: Schema.Number.annotations({
-      description: 'Total airdrop amount',
+      description: 'Total airdrop amount in tokens',
     }),
     account: EthereumAddress.annotations({
-      description: 'Account address',
+      description: 'Account address to receive airdrop',
     }),
   })
 ).annotations({
-  description: 'Clanker token airdrop, bigger portian is reserved for the treasury',
+  description:
+    'Custom token airdrops at deployment. Combined with treasury funding, total cannot exceed 90% of supply (minimum 10% reserved for liquidity).',
 })
 
 const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH').annotations({
@@ -73,26 +75,29 @@ const LevrFees = Schema.Union(LevrStaticFee, LevrDynamicFee).annotations({
 const LevrRewardRecipients = Schema.Array(
   Schema.Struct({
     admin: EthereumAddress.annotations({
-      description: 'Admin address for recipient',
+      description: 'Admin address who can manage this reward recipient configuration',
     }),
     recipient: EthereumAddress.annotations({
-      description: 'Recipient address',
+      description: 'Address that will receive the allocated reward tokens',
     }),
     percentage: Schema.Number.annotations({
-      description: 'Percentage of rewards to recipient',
+      description: 'Percentage of total rewards allocated to this recipient (in basis points)',
     }),
     token: Schema.Literal('Both', 'Paired', 'Clanker').annotations({
-      description: 'Token type for rewards',
+      description:
+        'Type of tokens to distribute: Both (paired token + clanker token), Paired (only paired token), or Clanker (only clanker token)',
     }),
   })
 ).annotations({
-  description: 'Reward recipient for the clanker token',
+  description:
+    'Custom reward recipients who receive a portion of the trading fees. Combined with staking rewards, total allocation cannot exceed 100%.',
 })
 
 const LevrStakingReward = Schema.Literal(
   ...(Object.keys(STAKING_REWARDS) as [keyof typeof STAKING_REWARDS])
 ).annotations({
-  description: 'The precentage that is distributed to the staking contract',
+  description:
+    'Percentage of trading fees distributed to token stakers as rewards. Combined with custom reward recipients, total cannot exceed 100%.',
 })
 
 /**
@@ -115,7 +120,7 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   airdrop: Schema.optional(LevrAirdrop),
   treasuryFunding: TreasuryFunding,
   fees: LevrFees,
-  stakingReward: Schema.optional(LevrStakingReward),
+  stakingReward: LevrStakingReward,
   rewards: Schema.optional(LevrRewardRecipients),
 }).pipe(
   Schema.filter(
@@ -138,8 +143,8 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   ),
   Schema.filter(
     (data) => {
-      // Get staking reward in basis points (default to 100% if not provided)
-      const stakingRewardBps = STAKING_REWARDS[data.stakingReward ?? '100%']
+      // Get staking reward in basis points
+      const stakingRewardBps = STAKING_REWARDS[data.stakingReward]
 
       // Calculate total rewards recipients percentage
       const rewardRecipientsTotal =
@@ -175,7 +180,8 @@ const LevrSplitConfig = Schema.Struct({
 
 export const LevrFeeSplitterConfigSchema = Schema.Struct({
   splits: Schema.Array(LevrSplitConfig).annotations({
-    description: 'Fee split recipients and percentages',
+    description:
+      'Fee split recipients and percentages. By default, the first receiver is the staking allocation.',
   }),
 }).pipe(
   Schema.filter(

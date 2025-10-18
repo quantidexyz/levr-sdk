@@ -72,7 +72,7 @@ const getFees = (
 const getRewards = (
   admin: `0x${string}`,
   staking: `0x${string}`,
-  stakingReward: keyof typeof STAKING_REWARDS = '100%',
+  stakingReward: keyof typeof STAKING_REWARDS,
   rewards: LevrClankerDeploymentSchemaType['rewards']
 ): NonNullable<ClankerDeploymentSchemaType['rewards']> => {
   const recipients = rewards

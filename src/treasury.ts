@@ -1,4 +1,4 @@
-import { erc20Abi } from 'viem'
+import type { Abi, AbiEvent } from 'viem'
 
 import { IClankerAirdrop } from './abis'
 import { formatBalanceWithUsd } from './balance'
@@ -31,23 +31,25 @@ export async function getTreasuryAirdropStatus(
 
   try {
     const currentBlock = await publicClient.getBlockNumber()
-    const blocksToSearch = 100_000n
+    const blocksToSearch = 20_000n
     const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : 0n
 
-    const logs = await publicClient.getLogs({
+    // Find event definitions from ABI
+    const airdropCreatedEvent = (IClankerAirdrop as Abi).find(
+      (item) => item.type === 'event' && item.name === 'AirdropCreated'
+    ) as AbiEvent | undefined
+    const airdropClaimedEvent = (IClankerAirdrop as Abi).find(
+      (item) => item.type === 'event' && item.name === 'AirdropClaimed'
+    ) as AbiEvent | undefined
+
+    if (!airdropCreatedEvent || !airdropClaimedEvent) {
+      throw new Error('Required events not found in IClankerAirdrop ABI')
+    }
+
+    // First, fetch AirdropCreated events to find when the airdrop was deployed
+    const createdLogs = await publicClient.getLogs({
       address: airdropAddress,
-      event: {
-        type: 'event',
-        name: 'AirdropCreated',
-        inputs: [
-          { name: 'token', type: 'address', indexed: true },
-          { name: 'admin', type: 'address', indexed: true },
-          { name: 'merkleRoot', type: 'bytes32', indexed: false },
-          { name: 'supply', type: 'uint256', indexed: false },
-          { name: 'lockupDuration', type: 'uint256', indexed: false },
-          { name: 'vestingDuration', type: 'uint256', indexed: false },
-        ],
-      },
+      event: airdropCreatedEvent,
       args: {
         token: clankerToken,
       },
@@ -55,16 +57,27 @@ export async function getTreasuryAirdropStatus(
       toBlock: 'latest',
     })
 
-    if (logs.length === 0) {
+    if (createdLogs.length === 0) {
       return null
     }
 
-    const latestLog = logs[logs.length - 1]
+    const latestLog = createdLogs[createdLogs.length - 1]
     const { supply, lockupDuration } = latestLog.args as { supply: bigint; lockupDuration: bigint }
     const allocatedAmount = supply
     const lockupDurationHours = Number(lockupDuration) / 3600 // Convert seconds to hours
 
-    const [multicallResults, block] = await Promise.all([
+    // Fetch claim logs, available amount, and deployment block in parallel
+    const [allClaimLogs, multicallResults, block] = await Promise.all([
+      publicClient.getLogs({
+        address: airdropAddress,
+        event: airdropClaimedEvent,
+        args: {
+          token: clankerToken,
+          user: treasury, // Filter by treasury as the user
+        },
+        fromBlock: latestLog.blockNumber, // Search from airdrop creation
+        toBlock: 'latest',
+      }),
       publicClient.multicall({
         contracts: [
           {
@@ -73,23 +86,18 @@ export async function getTreasuryAirdropStatus(
             functionName: 'amountAvailableToClaim',
             args: [clankerToken, treasury, allocatedAmount],
           },
-          {
-            address: clankerToken,
-            abi: erc20Abi,
-            functionName: 'balanceOf',
-            args: [treasury],
-          },
         ],
         allowFailure: false,
       }),
       publicClient.getBlock({ blockNumber: latestLog.blockNumber }),
     ])
 
-    const [availableAmount, treasuryBalance] = multicallResults as [bigint, bigint]
+    const [availableAmount] = multicallResults as [bigint]
     const deploymentTimestamp = Number(block.timestamp) * 1000
 
     if (availableAmount === 0n) {
-      const isAlreadyClaimed = treasuryBalance >= allocatedAmount
+      // Check if there's a claim event for this treasury (already filtered by user in the query)
+      const isAlreadyClaimed = allClaimLogs.length > 0
 
       return {
         availableAmount: formatBalanceWithUsd(0n, tokenDecimals, tokenUsdPrice),
