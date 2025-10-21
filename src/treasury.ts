@@ -1,6 +1,4 @@
-import type { Abi, AbiEvent } from 'viem'
-
-import { IClankerAirdrop } from './abis'
+import ClankerAirdropV2 from './abis/ClankerAirdropV2'
 import { formatBalanceWithUsd } from './balance'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
 import type { BalanceResult, PopPublicClient } from './types'
@@ -31,16 +29,16 @@ export async function getTreasuryAirdropStatus(
 
   try {
     const currentBlock = await publicClient.getBlockNumber()
-    const blocksToSearch = 20_000n
+    const blocksToSearch = 1_000_000n
     const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : 0n
 
     // Find event definitions from ABI
-    const airdropCreatedEvent = (IClankerAirdrop as Abi).find(
+    const airdropCreatedEvent = ClankerAirdropV2.find(
       (item) => item.type === 'event' && item.name === 'AirdropCreated'
-    ) as AbiEvent | undefined
-    const airdropClaimedEvent = (IClankerAirdrop as Abi).find(
+    )
+    const airdropClaimedEvent = ClankerAirdropV2.find(
       (item) => item.type === 'event' && item.name === 'AirdropClaimed'
-    ) as AbiEvent | undefined
+    )
 
     if (!airdropCreatedEvent || !airdropClaimedEvent) {
       throw new Error('Required events not found in IClankerAirdrop ABI')
@@ -82,7 +80,7 @@ export async function getTreasuryAirdropStatus(
         contracts: [
           {
             address: airdropAddress,
-            abi: IClankerAirdrop,
+            abi: ClankerAirdropV2,
             functionName: 'amountAvailableToClaim',
             args: [clankerToken, treasury, allocatedAmount],
           },
