@@ -159,27 +159,27 @@ fi
 
 echo "[devnet] FACTORY_ADDRESS=$FACTORY_ADDR"
 
-# Try to parse fee splitter address from console logs
-SPLITTER_ADDR=$(grep -Eo 'Fee Splitter Address:\s*0x[a-fA-F0-9]{40}' "$DEPLOY_LOG" | tail -n1 | awk '{print $4}' || true)
+# Try to parse fee splitter deployer address from console logs
+DEPLOYER_ADDR=$(grep -Eo 'Fee Splitter Deployer Address:\s*0x[a-fA-F0-9]{40}' "$DEPLOY_LOG" | tail -n1 | awk '{print $5}' || true)
 
 # Fallback to broadcast artifact if needed
-if [[ -z "${SPLITTER_ADDR:-}" ]]; then
-  echo "[devnet] Parsing broadcast artifacts for fee splitter address..."
+if [[ -z "${DEPLOYER_ADDR:-}" ]]; then
+  echo "[devnet] Parsing broadcast artifacts for fee splitter deployer address..."
   BROADCAST_DIR="$CONTRACTS_DIR/broadcast/DeployLevrFactoryDevnet.s.sol"
   if [[ -d "$BROADCAST_DIR" ]]; then
     LATEST=$(find "$BROADCAST_DIR" -name run-latest.json -type f -print0 | xargs -0 ls -t | head -n1 || true)
     if [[ -n "${LATEST:-}" ]]; then
-      SPLITTER_ADDR=$(jq -r '(.transactions[]? | select(.contractName=="LevrFeeSplitter_v1") | .contractAddress) // empty' "$LATEST" | tail -n1 || true)
+      DEPLOYER_ADDR=$(jq -r '(.transactions[]? | select(.contractName=="LevrFeeSplitterDeployer_v1") | .contractAddress) // empty' "$LATEST" | tail -n1 || true)
     fi
   fi
 fi
 
-if [[ -z "${SPLITTER_ADDR:-}" ]]; then
-  echo "[devnet] ERROR: Could not determine FEE_SPLITTER_ADDRESS" >&2
+if [[ -z "${DEPLOYER_ADDR:-}" ]]; then
+  echo "[devnet] ERROR: Could not determine FEE_SPLITTER_DEPLOYER_ADDRESS" >&2
   exit 1
 fi
 
-echo "[devnet] FEE_SPLITTER_ADDRESS=$SPLITTER_ADDR"
+echo "[devnet] FEE_SPLITTER_DEPLOYER_ADDRESS=$DEPLOYER_ADDR"
 
 # Write/update FACTORY_ADDRESS in contracts/.env
 if grep -q '^FACTORY_ADDRESS=' "$ENV_FILE"; then
@@ -191,14 +191,14 @@ fi
 
 echo "[devnet] Updated $ENV_FILE with FACTORY_ADDRESS"
 
-# Write/update FEE_SPLITTER_ADDRESS in contracts/.env
-if grep -q '^FEE_SPLITTER_ADDRESS=' "$ENV_FILE"; then
-  sed -i '' -E "s/^FEE_SPLITTER_ADDRESS=.*/FEE_SPLITTER_ADDRESS=$SPLITTER_ADDR/" "$ENV_FILE"
+# Write/update FEE_SPLITTER_DEPLOYER_ADDRESS in contracts/.env
+if grep -q '^FEE_SPLITTER_DEPLOYER_ADDRESS=' "$ENV_FILE"; then
+  sed -i '' -E "s/^FEE_SPLITTER_DEPLOYER_ADDRESS=.*/FEE_SPLITTER_DEPLOYER_ADDRESS=$DEPLOYER_ADDR/" "$ENV_FILE"
 else
-  echo "FEE_SPLITTER_ADDRESS=$SPLITTER_ADDR" >> "$ENV_FILE"
+  echo "FEE_SPLITTER_DEPLOYER_ADDRESS=$DEPLOYER_ADDR" >> "$ENV_FILE"
 fi
 
-echo "[devnet] Updated $ENV_FILE with FEE_SPLITTER_ADDRESS"
+echo "[devnet] Updated $ENV_FILE with FEE_SPLITTER_DEPLOYER_ADDRESS"
 
 # Write/update NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL in project root .env for Next.js
 if grep -q '^NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL=' "$ROOT_ENV_FILE"; then
@@ -209,14 +209,14 @@ fi
 
 echo "[devnet] Updated $ROOT_ENV_FILE with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
 
-# Write/update NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL in project root .env for Next.js
-if grep -q '^NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=' "$ROOT_ENV_FILE"; then
-  sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=$SPLITTER_ADDR/" "$ROOT_ENV_FILE"
+# Write/update NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL in project root .env for Next.js
+if grep -q '^NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=' "$ROOT_ENV_FILE"; then
+  sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=$DEPLOYER_ADDR/" "$ROOT_ENV_FILE"
 else
-  echo "NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=$SPLITTER_ADDR" >> "$ROOT_ENV_FILE"
+  echo "NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=$DEPLOYER_ADDR" >> "$ROOT_ENV_FILE"
 fi
 
-echo "[devnet] Updated $ROOT_ENV_FILE with NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL"
+echo "[devnet] Updated $ROOT_ENV_FILE with NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL"
 
 # Try to update monorepo root .env (three levels up from script) - gracefully fail if not accessible
 MONOREPO_ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../../.. && pwd)/.env"
@@ -231,12 +231,12 @@ if [[ -f "$MONOREPO_ENV_FILE" ]] || [[ -w "$(dirname "$MONOREPO_ENV_FILE")" ]]; 
     fi
     echo "[devnet] ✓ Updated monorepo root .env with NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL"
 
-    if grep -q '^NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=' "$MONOREPO_ENV_FILE" 2> /dev/null; then
-      sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=$SPLITTER_ADDR/" "$MONOREPO_ENV_FILE" 2> /dev/null || true
+    if grep -q '^NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=' "$MONOREPO_ENV_FILE" 2> /dev/null; then
+      sed -i '' -E "s/^NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=.*/NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=$DEPLOYER_ADDR/" "$MONOREPO_ENV_FILE" 2> /dev/null || true
     else
-      echo "NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL=$SPLITTER_ADDR" >> "$MONOREPO_ENV_FILE" 2> /dev/null || true
+      echo "NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=$DEPLOYER_ADDR" >> "$MONOREPO_ENV_FILE" 2> /dev/null || true
     fi
-    echo "[devnet] ✓ Updated monorepo root .env with NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL"
+    echo "[devnet] ✓ Updated monorepo root .env with NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL"
   else
     echo "[devnet] ⚠ Monorepo root .env not writable, skipping"
   fi
