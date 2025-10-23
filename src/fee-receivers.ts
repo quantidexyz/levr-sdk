@@ -261,10 +261,17 @@ export async function updateRecipientToSplitter({
   chainId,
   rewardIndex,
 }: UpdateRecipientToSplitterParams) {
-  const { GET_FEE_SPLITTER_ADDRESS } = await import('./constants')
+  // Get the deployed fee splitter for this token
+  const { getFeeSplitter } = await import('./fee-splitter')
+  const splitterAddress = await getFeeSplitter({
+    publicClient,
+    clankerToken,
+    chainId,
+  })
 
-  const splitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
-  if (!splitterAddress) throw new Error('Fee splitter not deployed on this chain')
+  if (!splitterAddress) {
+    throw new Error('Fee splitter not deployed for this token. Deploy it first using deployFeeSplitter()')
+  }
 
   // Update to splitter address (direct call from token admin)
   return updateFeeReceiver({
@@ -338,6 +345,7 @@ export type SplitConfig = {
  * Fetched in getStaticProject() via multicall
  */
 export type FeeSplitterStatic = {
+  address: `0x${string}` // The deployed fee splitter address
   isConfigured: boolean
   isActive: boolean // true if current fee receiver is the splitter
   splits: SplitConfig[]
@@ -368,19 +376,16 @@ export function getFeeSplitterStaticContracts(
       address: feeSplitterAddress,
       abi: LevrFeeSplitter_v1,
       functionName: 'isSplitsConfigured' as const,
-      args: [clankerToken],
     },
     {
       address: feeSplitterAddress,
       abi: LevrFeeSplitter_v1,
       functionName: 'getSplits' as const,
-      args: [clankerToken],
     },
     {
       address: feeSplitterAddress,
       abi: LevrFeeSplitter_v1,
       functionName: 'getTotalBps' as const,
-      args: [clankerToken],
     },
   ]
 }
@@ -414,6 +419,11 @@ export function parseFeeSplitterStatic(
     return null
   }
 
+  // Ensure we have the fee splitter address
+  if (!feeSplitterAddress) {
+    throw new Error('Fee splitter address is required to parse static data')
+  }
+
   // Determine if splitter is active by comparing current recipient to splitter address
   const isActive = !!(
     currentFeeRecipient &&
@@ -422,6 +432,7 @@ export function parseFeeSplitterStatic(
   )
 
   return {
+    address: feeSplitterAddress,
     isConfigured: isConfiguredResult.result,
     isActive,
     splits: splitsResult.result,
@@ -443,7 +454,7 @@ export function getFeeSplitterDynamicContracts(
     address: feeSplitterAddress,
     abi: LevrFeeSplitter_v1,
     functionName: 'pendingFees' as const,
-    args: [clankerToken, rewardToken],
+    args: [rewardToken],
   }))
 }
 

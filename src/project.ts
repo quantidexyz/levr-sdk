@@ -2,7 +2,7 @@ import { erc20Abi, zeroAddress } from 'viem'
 
 import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { GET_FACTORY_ADDRESS, GET_FEE_SPLITTER_ADDRESS, WETH } from './constants'
+import { GET_FACTORY_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin, FeeSplitterDynamic, FeeSplitterStatic } from './fee-receivers'
 import {
   getFeeReceiverContracts,
@@ -12,6 +12,7 @@ import {
   parseFeeSplitterDynamic,
   parseFeeSplitterStatic,
 } from './fee-receivers'
+import { getFeeSplitter } from './fee-splitter'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -687,7 +688,12 @@ export async function getStaticProject({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
 
-  const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+  // Get deployed fee splitter for this token (if exists)
+  const feeSplitterAddress = await getFeeSplitter({
+    publicClient,
+    clankerToken,
+    chainId,
+  })
 
   // Build contract calls including tokenRewards and fee splitter static in the same multicall
   const contracts = [
@@ -801,7 +807,8 @@ export async function getProject({
 
   const wethAddress = WETH(chainId)?.address
   const clankerToken = staticProject.token.address
-  const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
+  // Use fee splitter from staticProject (already fetched in getStaticProject)
+  const feeSplitterAddress = staticProject.feeSplitter?.address
   const rewardTokens = wethAddress ? [clankerToken, wethAddress] : [clankerToken]
 
   // Fetch pricing data if oracle client is provided and pool exists
