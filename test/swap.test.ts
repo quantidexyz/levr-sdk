@@ -41,6 +41,7 @@ describe('#QUOTE_SWAP_TEST', () => {
       feeTier: '3%',
     },
     treasuryFunding: '90%',
+    stakingReward: '100%',
   }
 
   // ---

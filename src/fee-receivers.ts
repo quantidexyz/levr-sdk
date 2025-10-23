@@ -209,23 +209,28 @@ export async function configureSplits({
     throw new Error('Invalid configure splits params')
   }
 
-  const { GET_FEE_SPLITTER_ADDRESS } = await import('./constants')
+  const { deployFeeSplitter } = await import('./fee-splitter')
   const { LevrFeeSplitter_v1 } = await import('./abis')
 
-  const splitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
-  if (!splitterAddress) throw new Error('Fee splitter not deployed on this chain')
+  // Step 1: Ensure fee splitter is deployed for this token
+  // This will deploy if not exists, or return existing address
+  const splitterAddress = await deployFeeSplitter({
+    publicClient,
+    walletClient,
+    clankerToken,
+  })
 
-  // Convert percentage to bps
+  // Step 2: Configure splits on the deployed splitter
   const splitsWithBps: SplitConfig[] = splits.map((s) => ({
     receiver: s.receiver,
     bps: Math.floor(s.percentage * 100), // percentage to basis points
   }))
 
   const hash = await walletClient.writeContract({
-    address: splitterAddress,
+    address: splitterAddress, // Use deployed splitter, not deployer!
     abi: LevrFeeSplitter_v1,
     functionName: 'configureSplits',
-    args: [clankerToken, splitsWithBps],
+    args: [splitsWithBps],
   })
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash })

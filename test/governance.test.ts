@@ -76,6 +76,7 @@ describe('#GOVERNANCE_TEST', () => {
       feeTier: '3%',
     },
     treasuryFunding: '90%',
+    stakingReward: '100%',
   }
 
   // ---

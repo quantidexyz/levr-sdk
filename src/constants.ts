@@ -38,6 +38,7 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
  * Get the fee splitter address for a given chain ID
  * @param chainId - The chain ID
  * @returns The fee splitter address
+ * @deprecated Use GET_FEE_SPLITTER_DEPLOYER_ADDRESS instead
  */
 export const GET_FEE_SPLITTER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   if (!chainId) return undefined
@@ -45,6 +46,20 @@ export const GET_FEE_SPLITTER_ADDRESS = (chainId?: number): `0x${string}` | unde
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_V1_ANVIL,
     [baseSepolia.id]: '0x61351e06c89f1203a59c0353c6964a557ed0ce6a',
+  }[chainId] as `0x${string}` | undefined
+}
+
+/**
+ * Get the fee splitter deployer address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The fee splitter deployer address
+ */
+export const GET_FEE_SPLITTER_DEPLOYER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL,
+    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA,
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -235,6 +250,8 @@ export const TREASURY_AIRDROP_AMOUNTS = {
   '50%': 50_000_000_000, // 50B tokens (50% of 100B)
   '60%': 60_000_000_000, // 60B tokens (60% of 100B)
   '70%': 70_000_000_000, // 70B tokens (70% of 100B)
+  '80%': 80_000_000_000, // 80B tokens (80% of 100B)
+  '90%': 90_000_000_000, // 90B tokens (90% of 100B)
 } as const
 
 /**

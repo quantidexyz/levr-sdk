@@ -137,13 +137,7 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[2] = { result: 'TEST', status: 'success' } // symbol
       results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
       results[4] = {
-        result: [
-          MOCK_USER_ADDRESS,
-          MOCK_USER_ADDRESS,
-          'https://example.com/image.png',
-          '',
-          '',
-        ],
+        result: [MOCK_USER_ADDRESS, MOCK_USER_ADDRESS, 'https://example.com/image.png', '', ''],
         status: 'success',
       } // allData
       results[5] = {
@@ -183,13 +177,7 @@ function createMockPublicClient(tracker: RpcCallTracker) {
       results[2] = { result: 'TEST', status: 'success' } // symbol
       results[3] = { result: 1000000000000000000000000n, status: 'success' } // totalSupply
       results[4] = {
-        result: [
-          MOCK_USER_ADDRESS,
-          MOCK_USER_ADDRESS,
-          'https://example.com/image.png',
-          '',
-          '',
-        ],
+        result: [MOCK_USER_ADDRESS, MOCK_USER_ADDRESS, 'https://example.com/image.png', '', ''],
         status: 'success',
       } // allData
       results[5] = {
@@ -620,19 +608,6 @@ describe('#data-flow', () => {
         // Current cycle ID
         expect(projectData?.governanceStats?.currentCycleId).toBeDefined()
         expect(typeof projectData?.governanceStats?.currentCycleId).toBe('bigint')
-
-        // Fee splitter static (from getStaticProject)
-        if (projectData?.feeSplitterStatic) {
-          expect(projectData.feeSplitterStatic.isConfigured).toBe(true)
-          expect(projectData.feeSplitterStatic.splits).toBeDefined()
-          expect(projectData.feeSplitterStatic.totalBps).toBe(10000)
-        }
-
-        // Fee splitter dynamic (from getProject)
-        if (projectData?.feeSplitterDynamic) {
-          expect(projectData.feeSplitterDynamic.pendingFees).toBeDefined()
-          expect(projectData.feeSplitterDynamic.pendingFees.token).toBeDefined()
-        }
 
         // Now verify NO other queries fetch any of this data
         if (!projectData) throw new Error('Project data is null')

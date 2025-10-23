@@ -3,6 +3,11 @@ export default [
     type: 'constructor',
     inputs: [
       {
+        name: 'clankerToken_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'factory_',
         type: 'address',
         internalType: 'address',
@@ -17,13 +22,21 @@ export default [
   },
   {
     type: 'function',
-    name: 'configureSplits',
-    inputs: [
+    name: 'clankerToken',
+    inputs: [],
+    outputs: [
       {
-        name: 'clankerToken',
+        name: '',
         type: 'address',
         internalType: 'address',
       },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'configureSplits',
+    inputs: [
       {
         name: 'splits',
         type: 'tuple[]',
@@ -50,11 +63,6 @@ export default [
     name: 'distribute',
     inputs: [
       {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'rewardToken',
         type: 'address',
         internalType: 'address',
@@ -67,11 +75,6 @@ export default [
     type: 'function',
     name: 'distributeBatch',
     inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
       {
         name: 'rewardTokens',
         type: 'address[]',
@@ -98,11 +101,6 @@ export default [
     type: 'function',
     name: 'getDistributionState',
     inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
       {
         name: 'rewardToken',
         type: 'address',
@@ -133,13 +131,7 @@ export default [
   {
     type: 'function',
     name: 'getSplits',
-    inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'splits',
@@ -164,13 +156,7 @@ export default [
   {
     type: 'function',
     name: 'getStakingAddress',
-    inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'staking',
@@ -183,13 +169,7 @@ export default [
   {
     type: 'function',
     name: 'getTotalBps',
-    inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'totalBps',
@@ -202,13 +182,7 @@ export default [
   {
     type: 'function',
     name: 'isSplitsConfigured',
-    inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'configured',
@@ -242,10 +216,24 @@ export default [
     name: 'pendingFees',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'rewardToken',
         type: 'address',
         internalType: 'address',
       },
+    ],
+    outputs: [
+      {
+        name: 'pending',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'pendingFeesInclBalance',
+    inputs: [
       {
         name: 'rewardToken',
         type: 'address',

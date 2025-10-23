@@ -4,7 +4,7 @@ import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 
 import type { Project } from '.'
 import { LevrFeeSplitter_v1, LevrForwarder_v1, LevrStaking_v1 } from './abis'
-import { GET_FEE_SPLITTER_ADDRESS, WETH } from './constants'
+import { WETH } from './constants'
 import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
@@ -223,9 +223,16 @@ export class Stake {
   async distributeFromFeeSplitter(params?: {
     tokens?: `0x${string}`[]
   }): Promise<TransactionReceipt> {
-    const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(this.chainId)
+    // Get the deployed fee splitter for THIS specific token
+    const { getFeeSplitter } = await import('./fee-splitter')
+    const feeSplitterAddress = await getFeeSplitter({
+      publicClient: this.publicClient,
+      clankerToken: this.tokenAddress,
+      chainId: this.chainId,
+    })
+
     if (!feeSplitterAddress) {
-      throw new Error('Fee splitter address not found for this chain')
+      throw new Error('Fee splitter not deployed for this token. Deploy it first.')
     }
 
     // Default to clanker token + WETH if tokens not provided
@@ -234,10 +241,10 @@ export class Stake {
     const tokens = params?.tokens ?? defaultTokens
 
     const hash = await this.wallet.writeContract({
-      address: feeSplitterAddress,
+      address: feeSplitterAddress, // Per-project splitter, not deployer!
       abi: LevrFeeSplitter_v1,
       functionName: 'distributeBatch',
-      args: [this.tokenAddress, tokens],
+      args: [tokens],
       chain: this.wallet.chain,
     })
 
@@ -290,21 +297,29 @@ export class Stake {
     }>
 
     if (useFeeSplitter) {
-      // Fee splitter mode: Call distribute() for each token
+      // Fee splitter mode: Get the deployed splitter for this token, then call distribute()
       // The fee splitter will automatically call accrueRewards() after distributing
-      const feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(this.chainId)
+      const { getFeeSplitter } = await import('./fee-splitter')
+      const feeSplitterAddress = await getFeeSplitter({
+        publicClient: this.publicClient,
+        clankerToken: this.tokenAddress,
+        chainId: this.chainId,
+      })
+
       if (!feeSplitterAddress) {
-        throw new Error('Fee splitter address not found for this chain')
+        throw new Error(
+          'Fee splitter not deployed for this token. Deploy it first or use useFeeSplitter: false'
+        )
       }
 
       calls = tokenAddresses.map((tokenAddress) => ({
-        target: feeSplitterAddress,
+        target: feeSplitterAddress, // Per-project splitter, not deployer!
         allowFailure: false,
         value: 0n,
         callData: encodeFunctionData({
           abi: LevrFeeSplitter_v1,
           functionName: 'distribute',
-          args: [this.tokenAddress, tokenAddress],
+          args: [tokenAddress],
         }),
       }))
     } else {

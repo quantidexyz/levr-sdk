@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatUnits, parseEther } from 'viem'
 
-import { IClankerLpLockerMultiple, LevrFeeSplitter_v1 } from '../src/abis'
-import { GET_FEE_SPLITTER_ADDRESS } from '../src/constants'
+import {
+  IClankerLpLockerMultiple,
+  LevrFeeSplitter_v1,
+  LevrFeeSplitterDeployer_v1,
+} from '../src/abis'
+import { GET_FEE_SPLITTER_DEPLOYER_ADDRESS } from '../src/constants'
 import { deployV4 } from '../src/deploy-v4'
 import { getProject, getStaticProject } from '../src/project'
 import { quote } from '../src/quote'
@@ -42,6 +46,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       feeTier: '3%',
     },
     treasuryFunding: '50%',
+    stakingReward: '100%',
   }
 
   // ---
@@ -52,7 +57,8 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
   let lpLockerAddress: SetupTestReturnType['lpLockerAddress']
   let clanker: SetupTestReturnType['clanker']
   let weth: SetupTestReturnType['weth']
-  let feeSplitterAddress: `0x${string}`
+  let feeSplitterDeployerAddress: `0x${string}`
+  let feeSplitterAddress: `0x${string}` // Will be set after deploying splitter for token
   let deployedTokenAddress: `0x${string}`
   let stakingAddress: `0x${string}`
 
@@ -65,9 +71,9 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
     weth = setup.weth
 
     const chainId = publicClient.chain?.id
-    const _feeSplitterAddress = GET_FEE_SPLITTER_ADDRESS(chainId)
-    if (!_feeSplitterAddress) throw new Error('Fee splitter address not found')
-    feeSplitterAddress = _feeSplitterAddress
+    const _feeSplitterDeployerAddress = GET_FEE_SPLITTER_DEPLOYER_ADDRESS(chainId)
+    if (!_feeSplitterDeployerAddress) throw new Error('Fee splitter deployer address not found')
+    feeSplitterDeployerAddress = _feeSplitterDeployerAddress
   })
 
   it(
@@ -110,6 +116,27 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         bps: tokenRewardsBefore.rewardBps,
       })
 
+      console.log('\n=== Step 2.5: Deploy Fee Splitter for This Token ===')
+
+      // Deploy fee splitter for this specific token
+      const deployHash = await wallet.writeContract({
+        address: feeSplitterDeployerAddress,
+        abi: LevrFeeSplitterDeployer_v1,
+        functionName: 'deploy',
+        args: [deployedTokenAddress],
+        chain: wallet.chain,
+      })
+      await publicClient.waitForTransactionReceipt({ hash: deployHash })
+
+      // Get deployed splitter address
+      feeSplitterAddress = await publicClient.readContract({
+        address: feeSplitterDeployerAddress,
+        abi: LevrFeeSplitterDeployer_v1,
+        functionName: 'getSplitter',
+        args: [deployedTokenAddress],
+      })
+      console.log('✓ Fee splitter deployed:', feeSplitterAddress)
+
       console.log('\n=== Step 3: Update Fee Receiver to Splitter ===')
 
       // Update LP locker to use fee splitter
@@ -139,7 +166,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         bps: tokenRewardsAfter.rewardBps,
       })
 
-      console.log('\n=== Step 3: Configure Splits (50% staking, 50% deployer) ===')
+      console.log('\n=== Step 4: Configure Splits (50% staking, 50% deployer) ===')
 
       const splits = [
         { receiver: stakingAddress, bps: 5000 },
@@ -147,10 +174,10 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       ]
 
       const hash2 = await wallet.writeContract({
-        address: feeSplitterAddress,
+        address: feeSplitterAddress, // Per-project splitter, not deployer
         abi: LevrFeeSplitter_v1,
         functionName: 'configureSplits',
-        args: [deployedTokenAddress, splits],
+        args: [splits],
         chain: wallet.chain,
       })
 
@@ -162,7 +189,6 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         address: feeSplitterAddress,
         abi: LevrFeeSplitter_v1,
         functionName: 'getSplits',
-        args: [deployedTokenAddress],
       })
 
       expect(storedSplits.length).toBe(2)
@@ -285,14 +311,14 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         address: feeSplitterAddress,
         abi: LevrFeeSplitter_v1,
         functionName: 'pendingFees',
-        args: [deployedTokenAddress, deployedTokenAddress],
+        args: [deployedTokenAddress],
       })
 
       const splitterPendingWeth = await publicClient.readContract({
         address: feeSplitterAddress,
         abi: LevrFeeSplitter_v1,
         functionName: 'pendingFees',
-        args: [deployedTokenAddress, weth.address],
+        args: [weth.address],
       })
 
       console.log('Fee splitter pending (from ClankerFeeLocker):')
@@ -301,9 +327,28 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         weth: formatUnits(splitterPendingWeth, 18),
       })
 
-      console.log('\n=== Step 5.2: Check Fee Splitter Status ===')
+      // Verify we have pending WETH fees in the FEE SPLITTER (not staking)
+      // This is the key difference in the new architecture
+      expect(splitterPendingWeth).toBeGreaterThan(0n)
+      console.log('✓ Confirmed: Fee splitter has pending WETH fees')
 
-      // Refetch static project to get fee splitter status
+      console.log('\n=== Step 5.2: Verify Splits Configuration ===')
+
+      // Verify splits are configured correctly
+      const configuredSplits = await publicClient.readContract({
+        address: feeSplitterAddress,
+        abi: LevrFeeSplitter_v1,
+        functionName: 'getSplits',
+      })
+
+      expect(configuredSplits.length).toBe(2)
+      expect(configuredSplits[0].bps).toBe(5000)
+      expect(configuredSplits[1].bps).toBe(5000)
+      console.log('✓ Splits configured: 50% staking, 50% deployer')
+
+      console.log('\n=== Step 5.3: Check Staking Outstanding Rewards ===')
+
+      // Refetch static project
       const staticProjectRefetch = await getStaticProject({
         publicClient,
         clankerToken: deployedTokenAddress,
@@ -312,16 +357,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       if (!staticProjectRefetch) throw new Error('Failed to get static project')
 
-      console.log('Fee Splitter Status:')
-      console.log({
-        isConfigured: staticProjectRefetch.feeSplitter?.isConfigured,
-        isActive: staticProjectRefetch.feeSplitter?.isActive,
-        splitsLength: staticProjectRefetch.feeSplitter?.splits.length,
-      })
-
-      console.log('\n=== Step 5.3: Check Outstanding Rewards BEFORE AccrueAll ===')
-
-      // Refetch project to see pending fees
+      // Refetch project to see staking state
       const projectBefore = await getProject({
         publicClient,
         staticProject: staticProjectRefetch,
@@ -329,7 +365,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       if (!projectBefore) throw new Error('Failed to get project before')
 
-      console.log('Outstanding Rewards BEFORE accrueAll:')
+      console.log('Staking Outstanding Rewards BEFORE distribution:')
       console.log({
         token: {
           available: formatUnits(
@@ -353,16 +389,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         },
       })
 
-      console.log('Reward Rates BEFORE accrueAll:')
-      console.log({
-        token: formatUnits(projectBefore.stakingStats?.rewardRates.token.raw ?? 0n, 18) + '/sec',
-        weth: formatUnits(projectBefore.stakingStats?.rewardRates.weth?.raw ?? 0n, 18) + '/sec',
-      })
-
-      // Verify we have pending WETH fees
-      const wethPending = projectBefore.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
-      expect(wethPending).toBeGreaterThan(0n)
-      console.log('✓ Confirmed: WETH pending fees > 0')
+      // Staking should have 0 pending (fees are in the splitter, not staking)
+      const stakingWethPending =
+        projectBefore.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
+      expect(stakingWethPending).toBe(0n)
+      console.log('✓ Confirmed: Staking has 0 pending (fees in splitter, as expected)')
 
       console.log('\n=== Step 6: Call AccrueAll ===')
 
@@ -596,11 +627,19 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       if (!projectBeforeAccrue) throw new Error('Failed to get project before accrue')
 
-      console.log('Fee Splitter Status:')
+      // Check current fee receiver configuration (should be staking, not splitter)
+      const currentRecipients = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLpLockerMultiple,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      console.log('Fee Receiver Status:')
       console.log({
-        isConfigured: projectBeforeAccrue.feeSplitter?.isConfigured,
-        isActive: projectBeforeAccrue.feeSplitter?.isActive, // Should be FALSE now
-        splitsLength: projectBeforeAccrue.feeSplitter?.splits.length,
+        currentRecipient: currentRecipients.rewardRecipients?.[0],
+        isStaking: currentRecipients.rewardRecipients?.[0] === stakingAddress,
+        isFeeSplitter: currentRecipients.rewardRecipients?.[0] === feeSplitterAddress,
       })
 
       // Check staking contract balances directly
@@ -654,9 +693,17 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         weth: `${formatUnits(projectBeforeAccrue.stakingStats?.rewardRates.weth?.raw ?? 0n, 18)}/sec`,
       })
 
-      // Verify fee splitter is NOT active (staking is receiving directly)
-      expect(projectBeforeAccrue.feeSplitter?.isActive).toBe(false)
-      console.log('✓ Confirmed: Fee splitter is NOT active')
+      // Verify fee receiver is now staking (NOT the fee splitter)
+      const currentFeeReceivers = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLpLockerMultiple,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      const isStakingDirectly = currentFeeReceivers.rewardRecipients?.[0] === stakingAddress
+      expect(isStakingDirectly).toBe(true)
+      console.log('✓ Confirmed: Fees going directly to staking (not fee splitter)')
 
       // Check if we have WETH pending fees (going directly to staking)
       const wethPendingDirect =

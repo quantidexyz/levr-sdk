@@ -60,6 +60,7 @@ describe('#STAKE_TEST', () => {
       feeTier: '3%',
     },
     treasuryFunding: '90%',
+    stakingReward: '100%',
   }
 
   // ---
