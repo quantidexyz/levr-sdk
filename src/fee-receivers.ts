@@ -243,6 +243,178 @@ export async function configureSplits({
 }
 
 /**
+ * Compare two split configurations for equality
+ * Compares receiver addresses and percentages (converted to bps)
+ */
+function areSplitsEqual(
+  currentSplits: readonly SplitConfig[],
+  newSplits: readonly SplitConfigUI[]
+): boolean {
+  if (currentSplits.length !== newSplits.length) return false
+
+  // Convert UI splits to bps for comparison
+  const newSplitsWithBps = newSplits.map((s) => ({
+    receiver: s.receiver.toLowerCase(),
+    bps: Math.floor(s.percentage * 100),
+  }))
+
+  // Sort both arrays by receiver for comparison
+  const sortedCurrent = [...currentSplits]
+    .map((s) => ({ receiver: s.receiver.toLowerCase(), bps: s.bps }))
+    .sort((a, b) => a.receiver.localeCompare(b.receiver))
+  const sortedNew = [...newSplitsWithBps].sort((a, b) => a.receiver.localeCompare(b.receiver))
+
+  // Compare each split
+  return sortedCurrent.every(
+    (current, index) =>
+      current.receiver === sortedNew[index].receiver && current.bps === sortedNew[index].bps
+  )
+}
+
+/**
+ * Smart two-step flow: configure splits and update recipient only if needed
+ * Checks if splits have changed to avoid unnecessary transactions
+ * Checks if splitter is already the active recipient to avoid unnecessary transactions
+ * Returns receipts for steps performed, or null receipts if no action needed
+ */
+export type ConfigureSplitsAndUpdateRecipientParams = {
+  walletClient: PopWalletClient
+  publicClient: PopPublicClient
+  clankerToken: `0x${string}`
+  chainId: number
+  splits: readonly SplitConfigUI[]
+  rewardIndex: bigint | number
+}
+
+export type ConfigureSplitsResult = {
+  configureSplitsReceipt?: { transactionHash: `0x${string}`; status: 'success' | 'reverted' }
+  updateRecipientReceipt?: { transactionHash: `0x${string}`; status: 'success' | 'reverted' }
+  recipientWasAlreadyActive: boolean
+  splitsWereUnchanged: boolean
+}
+
+export async function configureSplitsAndUpdateRecipient(
+  params: ConfigureSplitsAndUpdateRecipientParams
+): Promise<ConfigureSplitsResult> {
+  const { walletClient, publicClient, clankerToken, chainId, splits, rewardIndex } = params
+
+  const { getFeeSplitter } = await import('./fee-splitter')
+  const { LevrFeeSplitter_v1 } = await import('./abis')
+
+  // Step 0: Get or deploy fee splitter
+  const splitterAddress = await getFeeSplitter({
+    publicClient,
+    clankerToken,
+    chainId,
+  })
+
+  if (!splitterAddress) {
+    // Fee splitter doesn't exist, need to deploy and configure
+    const configureSplitsReceipt = await configureSplits({
+      walletClient,
+      publicClient,
+      clankerToken,
+      chainId,
+      splits,
+    })
+
+    // After first deployment, update recipient
+    const updateRecipientReceipt = await updateRecipientToSplitter({
+      walletClient,
+      publicClient,
+      clankerToken,
+      chainId,
+      rewardIndex,
+    })
+
+    return {
+      configureSplitsReceipt: {
+        transactionHash: configureSplitsReceipt.transactionHash,
+        status: configureSplitsReceipt.status,
+      },
+      updateRecipientReceipt: {
+        transactionHash: updateRecipientReceipt.transactionHash,
+        status: updateRecipientReceipt.status,
+      },
+      recipientWasAlreadyActive: false,
+      splitsWereUnchanged: false,
+    }
+  }
+
+  // Fee splitter exists - check if splits need updating
+  const currentSplits = await publicClient.readContract({
+    address: splitterAddress,
+    abi: LevrFeeSplitter_v1,
+    functionName: 'getSplits',
+  })
+
+  const splitsUnchanged = areSplitsEqual(currentSplits, splits)
+
+  // Step 1: Configure splits only if they've changed
+  let configureSplitsReceipt:
+    | { transactionHash: `0x${string}`; status: 'success' | 'reverted' }
+    | undefined
+  if (!splitsUnchanged) {
+    const receipt = await configureSplits({
+      walletClient,
+      publicClient,
+      clankerToken,
+      chainId,
+      splits,
+    })
+    configureSplitsReceipt = {
+      transactionHash: receipt.transactionHash,
+      status: receipt.status,
+    }
+  }
+
+  // Step 2: Check if splitter is already the active recipient
+  const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+  if (!lpLockerAddress) {
+    throw new Error('LP locker address not found for chain')
+  }
+
+  const tokenRewards = await publicClient.readContract({
+    address: lpLockerAddress,
+    abi: IClankerLpLockerMultiple,
+    functionName: 'tokenRewards',
+    args: [clankerToken],
+  })
+
+  const currentRecipient = tokenRewards.rewardRecipients?.[0]
+  const isAlreadyActive =
+    currentRecipient && currentRecipient.toLowerCase() === splitterAddress.toLowerCase()
+
+  // Step 3: Update recipient only if not already active
+  if (!isAlreadyActive) {
+    const updateRecipientReceipt = await updateRecipientToSplitter({
+      walletClient,
+      publicClient,
+      clankerToken,
+      chainId,
+      rewardIndex,
+    })
+
+    return {
+      configureSplitsReceipt,
+      updateRecipientReceipt: {
+        transactionHash: updateRecipientReceipt.transactionHash,
+        status: updateRecipientReceipt.status,
+      },
+      recipientWasAlreadyActive: false,
+      splitsWereUnchanged: splitsUnchanged,
+    }
+  }
+
+  // Recipient already active - return result based on whether splits were configured
+  return {
+    configureSplitsReceipt,
+    recipientWasAlreadyActive: true,
+    splitsWereUnchanged: splitsUnchanged,
+  }
+}
+
+/**
  * Update reward recipient to fee splitter (step 2)
  * Note: Must be called after configureSplits succeeds
  */
@@ -270,7 +442,9 @@ export async function updateRecipientToSplitter({
   })
 
   if (!splitterAddress) {
-    throw new Error('Fee splitter not deployed for this token. Deploy it first using deployFeeSplitter()')
+    throw new Error(
+      'Fee splitter not deployed for this token. Deploy it first using deployFeeSplitter()'
+    )
   }
 
   // Update to splitter address (direct call from token admin)

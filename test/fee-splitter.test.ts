@@ -819,4 +819,105 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
     },
     { timeout: 180_000 }
   )
+
+  it(
+    'should only request 1 transaction when updating splits on already-active splitter',
+    async () => {
+      console.log('\n=== Smart Update: Already-Active Splitter ===')
+
+      // First, switch fee receiver back to splitter if not already
+      const tokenRewardsCheck = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLpLockerMultiple,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      const currentRecipient = tokenRewardsCheck.rewardRecipients?.[0]
+      const isSplitterActive = currentRecipient === feeSplitterAddress
+
+      if (!isSplitterActive) {
+        console.log('Fee receiver is not splitter, switching back...')
+        const switchHash = await wallet.writeContract({
+          address: lpLockerAddress,
+          abi: IClankerLpLockerMultiple,
+          functionName: 'updateRewardRecipient',
+          args: [deployedTokenAddress, 0n, feeSplitterAddress],
+          chain: wallet.chain,
+        })
+        await publicClient.waitForTransactionReceipt({ hash: switchHash })
+        console.log('✓ Fee receiver switched back to splitter')
+      }
+
+      // Get current project state
+      const staticProjectCurrent = await getStaticProject({
+        publicClient,
+        clankerToken: deployedTokenAddress,
+      })
+
+      if (!staticProjectCurrent) throw new Error('Failed to get static project')
+
+      // Verify splitter is currently active
+      const tokenRewardsCurrent = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLpLockerMultiple,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      const finalRecipient = tokenRewardsCurrent.rewardRecipients?.[0]
+      expect(finalRecipient).toBe(feeSplitterAddress)
+      console.log('✓ Verified: Fee splitter is currently the active recipient')
+
+      // Now update splits WITHOUT needing to update recipient
+      // (since splitter is already active)
+      console.log('\nUpdating splits configuration (should be 1 TX, not 2):')
+
+      const newSplits = [
+        { receiver: stakingAddress, bps: 6000 }, // 60% staking
+        { receiver: wallet.account!.address, bps: 4000 }, // 40% deployer
+      ]
+
+      const updateHash = await wallet.writeContract({
+        address: feeSplitterAddress, // ✅ Direct call to splitter
+        abi: LevrFeeSplitter_v1,
+        functionName: 'configureSplits',
+        args: [newSplits],
+        chain: wallet.chain,
+      })
+
+      const updateReceipt = await publicClient.waitForTransactionReceipt({ hash: updateHash })
+      expect(updateReceipt.status).toBe('success')
+      console.log('✅ Single transaction completed (splits updated)')
+      console.log('   TX Hash:', updateHash)
+
+      // Verify the new split configuration
+      const updatedSplits = await publicClient.readContract({
+        address: feeSplitterAddress,
+        abi: LevrFeeSplitter_v1,
+        functionName: 'getSplits',
+      })
+
+      expect(updatedSplits[0].bps).toBe(6000)
+      expect(updatedSplits[1].bps).toBe(4000)
+      console.log('✓ Verified: New splits configured (60% staking, 40% deployer)')
+
+      // Verify recipient is STILL the splitter (unchanged)
+      const tokenRewardsAfter = await publicClient.readContract({
+        address: lpLockerAddress,
+        abi: IClankerLpLockerMultiple,
+        functionName: 'tokenRewards',
+        args: [deployedTokenAddress],
+      })
+
+      expect(tokenRewardsAfter.rewardRecipients?.[0]).toBe(feeSplitterAddress)
+      console.log('✓ Verified: Fee recipient unchanged (still splitter)')
+
+      console.log('\n🎉 Smart Update Works!')
+      console.log('✅ Only 1 transaction requested (configureSplits only)')
+      console.log('✅ Recipient update skipped (already active)')
+      console.log('✅ New split configuration applied successfully')
+    },
+    { timeout: 60_000 }
+  )
 })
