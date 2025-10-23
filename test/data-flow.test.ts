@@ -59,12 +59,13 @@ const MOCK_STAKING_ADDRESS: Address = '0xstakingstakingstakingstakingstakingstak
 const MOCK_STAKED_TOKEN_ADDRESS: Address = '0xstakedtokenstakedtokenstakedtokenstakedtoken'
 const MOCK_FORWARDER_ADDRESS: Address = '0xforwarderforwarderforwarderforwarderforwarder'
 const MOCK_WETH_ADDRESS: Address = '0x4200000000000000000000000000000000000006' // WETH on baseSepolia
-const MOCK_FEE_SPLITTER_DEPLOYER_ADDRESS: Address = '0xdeployerdeployerdeployerdeployerdeployer1234' // Fee splitter deployer
+const MOCK_FEE_SPLITTER_FACTORY_ADDRESS: Address =
+  '0xfactoryfactoryfactoryfactoryfactoryfactory1234' // Fee splitter factory
 const MOCK_FEE_SPLITTER_ADDRESS: Address = '0x3dcE6d5ef0a1328C56c396A65a3663c0f595eb90' // Deployed fee splitter for token
 
-// Mock env var for fee splitter deployer
-process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA =
-  MOCK_FEE_SPLITTER_DEPLOYER_ADDRESS
+// Mock env var for fee splitter factory
+process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA =
+  MOCK_FEE_SPLITTER_FACTORY_ADDRESS
 
 const MOCK_POOL_KEY = {
   currency0: MOCK_WETH_ADDRESS,
@@ -988,7 +989,7 @@ describe('#data-flow', () => {
   })
 
   // ========================================
-  // REACT HOOKS INTEGRATION TESTS
+  // REACT HOOKS INTEGRATION TEST
   // ========================================
 
   describe('React Hooks Integration', () => {

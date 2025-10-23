@@ -2,7 +2,7 @@
 
 **Date:** October 23, 2025  
 **Status:** ✅ Complete - All tests passing (38/38 in data-flow, all related tests passing)  
-**Scope:** Transition from singleton `LevrFeeSplitter_v1` to per-project deployer pattern via `LevrFeeSplitterDeployer_v1`
+**Scope:** Transition from singleton `LevrFeeSplitter_v1` to per-project factory pattern via `LevrFeeSplitterFactory_v1`
 
 ## 🎯 Objective
 
@@ -37,7 +37,7 @@ Problems:
 
 ```
 ┌──────────────────────────────────────────────┐
-│  LevrFeeSplitterDeployer_v1                  │
+│  LevrFeeSplitterFactory_v1                   │
 │  (Deployment & Registry)                     │
 ├──────────────────────────────────────────────┤
 │  deploy(clankerToken)                        │
@@ -66,7 +66,7 @@ Benefits:
 
 ### 1. New Contracts
 
-#### LevrFeeSplitterDeployer_v1
+#### LevrFeeSplitterFactory_v1
 
 - **Role:** Factory for deploying and tracking fee splitters
 - **Key Methods:**
@@ -110,16 +110,16 @@ export async function getFeeSplitter(params: GetFeeSplitterParams): Promise<Addr
 
 **Changes:**
 
-- ✅ Added `GET_FEE_SPLITTER_DEPLOYER_ADDRESS` function
+- ✅ Added `GET_FEE_SPLITTER_FACTORY_ADDRESS` function
 - ✅ Removed `GET_FEE_SPLITTER_ADDRESS` (deprecated singleton pattern)
 - ✅ Extended `TREASURY_AIRDROP_AMOUNTS` to include `'80%'` and `'90%'`
 
 ```typescript
-export const GET_FEE_SPLITTER_DEPLOYER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+export const GET_FEE_SPLITTER_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   if (!chainId) return undefined
   return {
-    [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL,
-    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA,
+    [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL,
+    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA,
   }[chainId] as `0x${string}` | undefined
 }
 ```
@@ -245,7 +245,7 @@ const splits = await publicClient.readContract({
 
 **Changes:**
 
-- ✅ Mocked `NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA` environment variable
+- ✅ Mocked `NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA` environment variable
 - ✅ Updated `readContractSpy` to handle `getSplitter` calls
 - ✅ Adjusted multicall expectations: Added `readContract` call for `getSplitter`
 - ✅ Updated RPC call counts to account for fee splitter lookup
@@ -386,29 +386,6 @@ ILevrFeeSplitter_v1(splitterAddress).configureSplits(
 Required environment variables (per chain):
 
 ```bash
-NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL=0x...
-NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA=0x...
+NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL=0x...
+NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA=0x...
 ```
-
-## 🚀 Production Readiness
-
-✅ **All tests passing** - 38/38 data flow tests + related tests  
-✅ **Type-safe** - Full TypeScript support  
-✅ **Backward compatible** - Old patterns gracefully deprecated  
-✅ **Well-tested** - Comprehensive fee splitter test coverage  
-✅ **Documented** - Clear migration path for developers
-
-**Status: Production Ready** 🎉
-
-## Summary of Changes
-
-| Component        | Change                             | Status |
-| ---------------- | ---------------------------------- | ------ |
-| Contract Pattern | Singleton → Per-Project Deployer   | ✅     |
-| SDK Module       | New `fee-splitter.ts`              | ✅     |
-| Constants        | Added deployer getter              | ✅     |
-| Fee Receivers    | Updated to deployer pattern        | ✅     |
-| Staking          | Updated to per-project splitters   | ✅     |
-| Project          | Added splitter address fetching    | ✅     |
-| Tests            | Updated all mocks and expectations | ✅     |
-| Documentation    | Migration guides provided          | ✅     |

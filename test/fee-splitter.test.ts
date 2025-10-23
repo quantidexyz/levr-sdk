@@ -4,9 +4,9 @@ import { erc20Abi, formatUnits, parseEther } from 'viem'
 import {
   IClankerLpLockerMultiple,
   LevrFeeSplitter_v1,
-  LevrFeeSplitterDeployer_v1,
+  LevrFeeSplitterFactory_v1,
 } from '../src/abis'
-import { GET_FEE_SPLITTER_DEPLOYER_ADDRESS } from '../src/constants'
+import { GET_FEE_SPLITTER_FACTORY_ADDRESS } from '../src/constants'
 import { deployV4 } from '../src/deploy-v4'
 import { getProject, getStaticProject } from '../src/project'
 import { quote } from '../src/quote'
@@ -71,7 +71,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
     weth = setup.weth
 
     const chainId = publicClient.chain?.id
-    const _feeSplitterDeployerAddress = GET_FEE_SPLITTER_DEPLOYER_ADDRESS(chainId)
+    const _feeSplitterDeployerAddress = GET_FEE_SPLITTER_FACTORY_ADDRESS(chainId)
     if (!_feeSplitterDeployerAddress) throw new Error('Fee splitter deployer address not found')
     feeSplitterDeployerAddress = _feeSplitterDeployerAddress
   })
@@ -121,7 +121,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       // Deploy fee splitter for this specific token
       const deployHash = await wallet.writeContract({
         address: feeSplitterDeployerAddress,
-        abi: LevrFeeSplitterDeployer_v1,
+        abi: LevrFeeSplitterFactory_v1,
         functionName: 'deploy',
         args: [deployedTokenAddress],
         chain: wallet.chain,
@@ -131,7 +131,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       // Get deployed splitter address
       feeSplitterAddress = await publicClient.readContract({
         address: feeSplitterDeployerAddress,
-        abi: LevrFeeSplitterDeployer_v1,
+        abi: LevrFeeSplitterFactory_v1,
         functionName: 'getSplitter',
         args: [deployedTokenAddress],
       })

@@ -10,7 +10,7 @@ const contracts = [
   'LevrTreasury_v1',
   'LevrForwarder_v1',
   'LevrFeeSplitter_v1',
-  'LevrFeeSplitterDeployer_v1',
+  'LevrFeeSplitterFactory_v1',
   'IClankerToken',
   'IClankerLPLocker',
   'IClankerLpLockerMultiple',

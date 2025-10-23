@@ -251,6 +251,24 @@ export default [
   },
   {
     type: 'function',
+    name: 'recoverDust',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'to',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'trustedForwarder',
     inputs: [],
     outputs: [
@@ -318,6 +336,31 @@ export default [
       },
       {
         name: 'totalAmount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'DustRecovered',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'to',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -419,6 +462,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'DuplicateReceiver',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'DuplicateStakingReceiver',
     inputs: [],
   },
@@ -476,6 +524,11 @@ export default [
   {
     type: 'error',
     name: 'SplitsNotConfigured',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'TooManyReceivers',
     inputs: [],
   },
   {

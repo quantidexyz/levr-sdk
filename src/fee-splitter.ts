@@ -1,7 +1,7 @@
 import type { Address, PublicClient, WalletClient } from 'viem'
 
-import LevrFeeSplitterDeployer_v1 from './abis/LevrFeeSplitterDeployer_v1'
-import { GET_FEE_SPLITTER_DEPLOYER_ADDRESS } from './constants'
+import LevrFeeSplitterFactory_v1 from './abis/LevrFeeSplitterFactory_v1'
+import { GET_FEE_SPLITTER_FACTORY_ADDRESS } from './constants'
 
 export interface DeployFeeSplitterParams {
   publicClient: PublicClient
@@ -25,13 +25,13 @@ export async function deployFeeSplitter(params: DeployFeeSplitterParams): Promis
   const chainId = walletClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found')
 
-  const deployerAddress = GET_FEE_SPLITTER_DEPLOYER_ADDRESS(chainId)
-  if (!deployerAddress) throw new Error('Fee splitter deployer not found for this chain')
+  const deployerAddress = GET_FEE_SPLITTER_FACTORY_ADDRESS(chainId)
+  if (!deployerAddress) throw new Error('Fee splitter factory not found for this chain')
 
   // Check if already deployed
   const existing = await publicClient.readContract({
     address: deployerAddress,
-    abi: LevrFeeSplitterDeployer_v1,
+    abi: LevrFeeSplitterFactory_v1,
     functionName: 'getSplitter',
     args: [clankerToken],
   })
@@ -43,7 +43,7 @@ export async function deployFeeSplitter(params: DeployFeeSplitterParams): Promis
   // Deploy new splitter
   const hash = await walletClient.writeContract({
     address: deployerAddress,
-    abi: LevrFeeSplitterDeployer_v1,
+    abi: LevrFeeSplitterFactory_v1,
     functionName: 'deploy',
     args: [clankerToken],
     chain: walletClient.chain,
@@ -58,7 +58,7 @@ export async function deployFeeSplitter(params: DeployFeeSplitterParams): Promis
   // Get deployed address
   const splitterAddress = await publicClient.readContract({
     address: deployerAddress,
-    abi: LevrFeeSplitterDeployer_v1,
+    abi: LevrFeeSplitterFactory_v1,
     functionName: 'getSplitter',
     args: [clankerToken],
   })
@@ -73,12 +73,12 @@ export async function deployFeeSplitter(params: DeployFeeSplitterParams): Promis
 export async function getFeeSplitter(params: GetFeeSplitterParams): Promise<Address | undefined> {
   const { publicClient, clankerToken, chainId } = params
 
-  const deployerAddress = GET_FEE_SPLITTER_DEPLOYER_ADDRESS(chainId)
+  const deployerAddress = GET_FEE_SPLITTER_FACTORY_ADDRESS(chainId)
   if (!deployerAddress) return undefined
 
   const splitterAddress = await publicClient.readContract({
     address: deployerAddress,
-    abi: LevrFeeSplitterDeployer_v1,
+    abi: LevrFeeSplitterFactory_v1,
     functionName: 'getSplitter',
     args: [clankerToken],
   })

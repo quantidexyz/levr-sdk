@@ -35,16 +35,16 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 }
 
 /**
- * Get the fee splitter deployer address for a given chain ID
+ * Get the fee splitter factory address for a given chain ID
  * @param chainId - The chain ID
- * @returns The fee splitter deployer address
+ * @returns The fee splitter factory address
  */
-export const GET_FEE_SPLITTER_DEPLOYER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+export const GET_FEE_SPLITTER_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   if (!chainId) return undefined
 
   return {
-    [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_ANVIL,
-    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_DEPLOYER_V1_BASE_SEPOLIA,
+    [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL,
+    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA,
   }[chainId] as `0x${string}` | undefined
 }
 

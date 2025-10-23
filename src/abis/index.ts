@@ -2,7 +2,7 @@
 // Levr
 export { default as LevrFactory_v1 } from './LevrFactory_v1'
 export { default as LevrFeeSplitter_v1 } from './LevrFeeSplitter_v1'
-export { default as LevrFeeSplitterDeployer_v1 } from './LevrFeeSplitterDeployer_v1'
+export { default as LevrFeeSplitterFactory_v1 } from './LevrFeeSplitterFactory_v1'
 export { default as LevrForwarder_v1 } from './LevrForwarder_v1'
 export { default as LevrGovernor_v1 } from './LevrGovernor_v1'
 export { default as LevrStakedToken_v1 } from './LevrStakedToken_v1'
