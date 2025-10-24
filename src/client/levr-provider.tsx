@@ -8,12 +8,14 @@ import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
 import type { AirdropStatus } from '..'
+import type { FactoryConfig } from '../factory'
 import type { PoolData } from '../pool'
 import type { Project } from '../project'
 import type { ProposalsResult } from '../proposal'
 import type { User } from '../user'
 import { getPublicClient } from '../util'
 import { useAirdropStatusQuery } from '.'
+import { useFactoryConfigQuery } from './hook/use-factory'
 import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposal'
@@ -40,6 +42,7 @@ export type LevrContextValue = {
   pool: UseQueryResult<PoolData | null>
   proposals: UseQueryResult<ProposalsResult | null>
   airdropStatus: UseQueryResult<AirdropStatus | null>
+  factoryConfig: UseQueryResult<FactoryConfig | null>
 
   // Action-based refetch methods
   refetch: {
@@ -135,6 +138,7 @@ export function LevrProvider({
     cycleId: selectedCycleId ?? undefined,
     enabled,
   })
+  const factoryConfig = useFactoryConfigQuery({ enabled })
 
   // ========================================
   // REFETCH METHODS
@@ -239,6 +243,7 @@ export function LevrProvider({
       pool: poolQuery,
       proposals: proposalsQuery,
       airdropStatus,
+      factoryConfig,
 
       // Refetch methods
       refetch: refetchMethods,
@@ -255,6 +260,7 @@ export function LevrProvider({
       poolQuery,
       proposalsQuery,
       airdropStatus,
+      factoryConfig,
       refetchMethods,
     ]
   )

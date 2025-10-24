@@ -54,6 +54,7 @@ export * from './use-swap'
 
 export * from './use-airdrop'
 export * from './use-deploy'
+export * from './use-factory'
 export * from './use-pool'
 export * from './use-prepare'
 export * from './use-project'

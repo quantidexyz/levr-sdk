@@ -77,4 +77,9 @@ export const queryKeys = {
       amountInDecimals?: number
     ) => ['swap', 'quote', chainId, poolKey, zeroForOne, amountIn, amountInDecimals] as const,
   },
+
+  /**
+   * Factory config query keys (static per chain)
+   */
+  factoryConfig: (chainId?: number) => ['factory-config', chainId] as const,
 } as const
