@@ -154,11 +154,17 @@ export function useGovernance({
   })
 
   const claimAirdrop = useMutation({
-    mutationFn: async (airdropStatus: AirdropStatus) => {
+    mutationFn: async (recipient: {
+      address: `0x${string}`
+      allocatedAmount: { raw: bigint }
+      proof: `0x${string}`[]
+      isAvailable: boolean
+      error?: string
+    }) => {
       if (!governance) throw new Error('Governance not initialized')
       if (!wallet.data) throw new Error('Wallet is not connected')
 
-      return await governance.claimAirdrop(airdropStatus)
+      return await governance.claimAirdrop(recipient)
     },
     onSuccess: async (receipt) => {
       await refetch.afterAirdrop()

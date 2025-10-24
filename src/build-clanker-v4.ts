@@ -1,3 +1,4 @@
+import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import type { ClankerTokenV4 } from 'clanker-sdk'
 import { createMerkleTree, FEE_CONFIGS } from 'clanker-sdk'
 import { omit } from 'lodash'
@@ -13,14 +14,19 @@ type BuildClankerV4Params = {
   chainId: number
 }
 
+export type BuildClankerV4ReturnType = {
+  config: ClankerTokenV4
+  merkleTree: StandardMerkleTree<[string, string]> | null
+}
+
 export const buildClankerV4 = ({
   c,
   treasuryAddress,
   deployer,
   staking,
   chainId,
-}: BuildClankerV4Params): ClankerTokenV4 => {
-  const airdrop = getAirdrop(c.airdrop, treasuryAddress, c.treasuryFunding)
+}: BuildClankerV4Params): BuildClankerV4ReturnType => {
+  const { airdrop, merkleTree } = getAirdrop(c.airdrop, treasuryAddress, c.treasuryFunding)
   const devBuy = getDevBuy(c.devBuy)
   const metadata = getMetadata(c.metadata)
   const fees = getFees(c.fees)
@@ -38,7 +44,10 @@ export const buildClankerV4 = ({
     vanity: true,
   } as const
 
-  return config
+  return {
+    config,
+    merkleTree,
+  }
 }
 
 /**
@@ -145,13 +154,16 @@ const getDevBuy = (
  * @param airdrop - Levr airdrop (with percentages)
  * @param treasuryAddress - Treasury address
  * @param treasuryAirdropAmount - Treasury airdrop amount
- * @returns Clanker airdrop
+ * @returns Clanker airdrop config and merkle tree
  */
 const getAirdrop = (
   airdrop: LevrClankerDeploymentSchemaType['airdrop'],
   treasuryAddress: `0x${string}`,
   treasuryAirdrop: keyof typeof TREASURY_AIRDROP_AMOUNTS
-): ClankerDeploymentSchemaType['airdrop'] => {
+): {
+  airdrop: ClankerDeploymentSchemaType['airdrop']
+  merkleTree: StandardMerkleTree<[string, string]> | null
+} => {
   const TOTAL_SUPPLY = 100_000_000_000 // 100B tokens
 
   // Convert airdrop percentages to amounts
@@ -169,11 +181,15 @@ const getAirdrop = (
     amount: TREASURY_AIRDROP_AMOUNTS[treasuryAirdrop],
   })
 
-  const merkleTree = createMerkleTree(airdropData)
+  const merkleTreeResult = createMerkleTree(airdropData)
+
   return {
-    amount: airdropData.reduce((acc, curr) => acc + curr.amount, 0),
-    merkleRoot: merkleTree.root,
-    lockupDuration: 86400, // 1 day minimum required by Clanker SDK
-    vestingDuration: 0,
+    airdrop: {
+      amount: airdropData.reduce((acc, curr) => acc + curr.amount, 0),
+      merkleRoot: merkleTreeResult.root,
+      lockupDuration: 86400, // 1 day minimum required by Clanker SDK
+      vestingDuration: 0,
+    },
+    merkleTree: merkleTreeResult.tree,
   }
 }

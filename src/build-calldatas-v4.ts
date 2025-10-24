@@ -1,3 +1,4 @@
+import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { CLANKERS } from 'clanker-sdk'
 import type { Clanker } from 'clanker-sdk/v4'
 import type { PublicClient, WalletClient } from 'viem'
@@ -22,10 +23,13 @@ export type BuildCalldatasV4ReturnType = {
   callDatas: CallData[]
   clankerTokenAddress: `0x${string}`
   totalValue: bigint
+  merkleTree: StandardMerkleTree<[string, string]> | null
+  treasury: `0x${string}`
 }
 
 export const clankerV4Factory: Record<number, `0x${string}`> = {
   // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
+
   [chains.anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.address,
   [chains.base.id]: CLANKERS.clanker_v4.address,
   [chains.baseSepolia.id]: CLANKERS.clanker_v4_sepolia.address,
@@ -69,7 +73,7 @@ export const buildCalldatasV4 = async ({
     data: result.data,
   })
 
-  const config = buildClankerV4({
+  const { config, merkleTree } = buildClankerV4({
     c,
     treasuryAddress: treasury,
     deployer,
@@ -132,5 +136,7 @@ export const buildCalldatasV4 = async ({
     callDatas,
     clankerTokenAddress: tokenAddress,
     totalValue: devBuyValue, // Total ETH to send with executeMulticall
+    merkleTree,
+    treasury,
   }
 }

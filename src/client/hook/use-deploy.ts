@@ -7,19 +7,25 @@ import { useClanker } from './use-clanker'
 
 export type UseDeployParams = {
   treasuryAirdropAmount?: number
-  onSuccess?: (params: { receipt: TransactionReceipt; address: `0x${string}` }) => void
+  ipfsJsonUploadUrl?: string // Full URL to /api/ipfs-json endpoint
+  onSuccess?: (params: {
+    receipt: TransactionReceipt
+    address: `0x${string}`
+    merkleTreeCID?: string
+  }) => void
   onError?: (error: unknown) => void
 }
 
 /**
  * Deploys a Clanker token and registers it with the Levr factory.
- * Returns tx hash and deployed address.
+ * Returns tx hash, deployed address, and merkle tree CID (if IPFS URL provided).
  */
-export function useDeploy({ onSuccess, onError }: UseDeployParams) {
+export function useDeploy({ ipfsJsonUploadUrl, onSuccess, onError }: UseDeployParams) {
   const clanker = useClanker()
 
   return useMutation({
-    mutationFn: (c: LevrClankerDeploymentSchemaType) => deployV4({ c, clanker: clanker.data }),
+    mutationFn: (c: LevrClankerDeploymentSchemaType) =>
+      deployV4({ c, clanker: clanker.data, ipfsJsonUploadUrl }),
     onSuccess,
     onError,
   })

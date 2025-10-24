@@ -4,7 +4,6 @@ import { decodeEventLog, parseUnits } from 'viem'
 import type { Project } from '.'
 import { IClankerAirdrop, LevrGovernor_v1 } from './abis'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
-import type { AirdropStatus } from './treasury'
 import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type GovernanceConfig = {
@@ -251,7 +250,13 @@ export class Governance {
     })
   }
 
-  async claimAirdrop(airdropStatus: AirdropStatus): Promise<TransactionReceipt> {
+  async claimAirdrop(recipient: {
+    address: `0x${string}`
+    allocatedAmount: { raw: bigint }
+    proof: `0x${string}`[]
+    isAvailable: boolean
+    error?: string
+  }): Promise<TransactionReceipt> {
     const chainId = this.publicClient.chain?.id
     const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
 
@@ -259,11 +264,11 @@ export class Governance {
       throw new Error(`No airdrop address found for chain ID ${chainId}`)
     }
 
-    if (airdropStatus.error) {
-      throw new Error(airdropStatus.error)
+    if (recipient.error) {
+      throw new Error(recipient.error)
     }
 
-    if (!airdropStatus.isAvailable) {
+    if (!recipient.isAvailable) {
       throw new Error('No airdrop available to claim')
     }
 
@@ -273,9 +278,9 @@ export class Governance {
       functionName: 'claim',
       args: [
         this.project.token.address,
-        this.project.treasury,
-        airdropStatus.allocatedAmount.raw,
-        airdropStatus.proof,
+        recipient.address,
+        recipient.allocatedAmount.raw,
+        recipient.proof,
       ],
       chain: this.wallet.chain,
     })

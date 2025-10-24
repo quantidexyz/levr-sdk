@@ -78,6 +78,16 @@ export type LevrProviderProps = {
    * If not provided, uses public RPC endpoints
    */
   oracleRpcUrl?: string
+  /**
+   * Full URL to /api/ipfs-search endpoint
+   * Required for multi-recipient airdrop proof generation
+   */
+  ipfsSearchUrl?: string
+  /**
+   * Full URL to /api/ipfs-json endpoint
+   * Required for multi-recipient airdrop proof generation
+   */
+  ipfsJsonUrl?: string
 }
 
 /**
@@ -89,6 +99,8 @@ export function LevrProvider({
   enabled = true,
   oracleChainId = base.id,
   oracleRpcUrl,
+  ipfsSearchUrl,
+  ipfsJsonUrl,
 }: LevrProviderProps) {
   const [clankerToken, setClankerToken] = React.useState<Address | null>(null)
   const queryClient = useQueryClient()
@@ -105,7 +117,12 @@ export function LevrProvider({
   // ========================================
 
   const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
-  const airdropStatus = useAirdropStatusQuery({ project: project.data, enabled })
+  const airdropStatus = useAirdropStatusQuery({
+    project: project.data,
+    enabled,
+    ipfsSearchUrl,
+    ipfsJsonUrl,
+  })
   const userQuery = useUserQuery({ project: project.data, enabled })
   const poolQuery = usePoolQuery({ project: project.data, enabled })
   const proposalsQuery = useProposalsQuery({

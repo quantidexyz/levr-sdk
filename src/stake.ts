@@ -167,7 +167,7 @@ export class Stake {
    */
   async claimRewards(params: ClaimParams | void): Promise<TransactionReceipt> {
     // Default to claiming both staking token and WETH
-    let defaultTokens = [this.tokenAddress]
+    const defaultTokens = [this.tokenAddress]
     const wethAddress = WETH(this.chainId)?.address
     if (wethAddress) {
       defaultTokens.push(wethAddress)
@@ -279,7 +279,7 @@ export class Stake {
     }
 
     // Default tokens: clankerToken + WETH (if available)
-    let defaultTokens = [this.tokenAddress]
+    const defaultTokens = [this.tokenAddress]
     const wethAddress = WETH(this.chainId)?.address
     if (wethAddress) {
       defaultTokens.push(wethAddress)
