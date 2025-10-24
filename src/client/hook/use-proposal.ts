@@ -10,6 +10,7 @@ import { queryKeys } from '../query-keys'
 
 export type UseProposalsQueryParams = {
   project: Project | null | undefined
+  cycleId?: bigint
   enabled?: boolean
 }
 
@@ -21,31 +22,34 @@ export type UseProposalParams = {
 /**
  * Internal: Creates proposals query with all logic
  * Used by LevrProvider
- * Gets all proposals for current cycle with enriched data in single multicall
+ * Gets proposals for specified cycle (or current cycle if not provided) with enriched data in single multicall
  * Includes vote receipts if user is connected
  */
-export function useProposalsQuery({ project, enabled: e = true }: UseProposalsQueryParams) {
+export function useProposalsQuery({
+  project,
+  cycleId,
+  enabled: e = true,
+}: UseProposalsQueryParams) {
   const publicClient = usePublicClient()
   const { address: userAddress } = useAccount()
 
+  // Use provided cycleId or fall back to current cycle
+  const effectiveCycleId = cycleId ?? project?.governanceStats?.currentCycleId
+
   return useQuery({
-    queryKey: queryKeys.proposals(
-      project?.chainId,
-      project?.governanceStats?.currentCycleId?.toString(),
-      userAddress
-    ),
+    queryKey: queryKeys.proposals(project?.chainId, effectiveCycleId?.toString(), userAddress),
     queryFn: async () => {
       return proposals({
         publicClient: publicClient!,
         governorAddress: project!.governor,
         tokenDecimals: project!.token.decimals,
         pricing: project!.pricing,
-        cycleId: project!.governanceStats!.currentCycleId,
+        cycleId: effectiveCycleId,
         pageSize: 50,
         userAddress, // Include vote receipts if user is connected
       })
     },
-    enabled: e && !!publicClient && !!project!,
+    enabled: e && !!publicClient && !!project! && effectiveCycleId !== undefined,
     retry: 1,
     staleTime: 5000,
     refetchInterval: 30000,

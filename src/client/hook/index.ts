@@ -29,6 +29,14 @@ export const useProposals = () => useLevrContext().proposals
  */
 export const useAirdropStatus = () => useLevrContext().airdropStatus
 
+/**
+ * Hook to access and manage governance cycle selection
+ */
+export const useGovernanceCycle = () => {
+  const { selectedCycleId, setSelectedCycleId } = useLevrContext()
+  return { selectedCycleId, setSelectedCycleId }
+}
+
 // ========================================
 // COMPLEX HOOKS (with mutations/callbacks)
 // ========================================

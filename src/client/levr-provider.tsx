@@ -30,6 +30,10 @@ export type LevrContextValue = {
   chainId: number | undefined
   userAddress: Address | undefined
 
+  // Governance cycle management
+  selectedCycleId: bigint | null
+  setSelectedCycleId: (cycleId: bigint | null) => void
+
   // Data queries (hierarchical structure)
   user: UseQueryResult<User | null>
   project: UseQueryResult<Project | null>
@@ -103,6 +107,7 @@ export function LevrProvider({
   ipfsJsonUrl,
 }: LevrProviderProps) {
   const [clankerToken, setClankerToken] = React.useState<Address | null>(null)
+  const [selectedCycleId, setSelectedCycleId] = React.useState<bigint | null>(null)
   const queryClient = useQueryClient()
   const { address: userAddress } = useAccount()
   const chainId = useChainId()
@@ -127,6 +132,7 @@ export function LevrProvider({
   const poolQuery = usePoolQuery({ project: project.data, enabled })
   const proposalsQuery = useProposalsQuery({
     project: project.data,
+    cycleId: selectedCycleId ?? undefined,
     enabled,
   })
 
@@ -223,6 +229,10 @@ export function LevrProvider({
       chainId,
       userAddress,
 
+      // Governance cycle management
+      selectedCycleId,
+      setSelectedCycleId,
+
       // Data queries
       user: userQuery,
       project,
@@ -238,6 +248,8 @@ export function LevrProvider({
       setClankerToken,
       chainId,
       userAddress,
+      selectedCycleId,
+      setSelectedCycleId,
       userQuery,
       project,
       poolQuery,
