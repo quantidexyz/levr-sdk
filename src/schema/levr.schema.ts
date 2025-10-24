@@ -33,8 +33,9 @@ const TreasuryFunding = Schema.Literal(
 
 const LevrAirdrop = Schema.Array(
   Schema.Struct({
-    amount: Schema.Number.annotations({
-      description: 'Total airdrop amount in tokens',
+    percentage: Schema.Number.annotations({
+      description:
+        'Percentage of total token supply allocated to this recipient (0-100, e.g., 5 for 5%)',
     }),
     account: EthereumAddress.annotations({
       description: 'Account address to receive airdrop',
@@ -42,7 +43,7 @@ const LevrAirdrop = Schema.Array(
   })
 ).annotations({
   description:
-    'Custom token airdrops at deployment. Combined with treasury funding, total cannot exceed 90% of supply (minimum 10% reserved for liquidity).',
+    'Custom token airdrops at deployment. Each recipient receives a percentage of the total 100B supply. Combined with treasury funding, total cannot exceed 90% of supply (minimum 10% reserved for liquidity).',
 })
 
 const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH').annotations({
@@ -81,7 +82,8 @@ const LevrRewardRecipients = Schema.Array(
       description: 'Address that will receive the allocated reward tokens',
     }),
     percentage: Schema.Number.annotations({
-      description: 'Percentage of total rewards allocated to this recipient (in basis points)',
+      description:
+        'Percentage of total rewards allocated to this recipient (0-100, e.g., 5 for 5%)',
     }),
     token: Schema.Literal('Both', 'Paired', 'Clanker').annotations({
       description:
@@ -101,14 +103,9 @@ const LevrStakingReward = Schema.Literal(
 })
 
 /**
- * Maximum allowed sum of treasury funding and airdrop amounts (90% of 100B tokens)
+ * Maximum allowed sum of staking reward and rewards recipients (as percentages 0-100)
  */
-const MAX_TOTAL_ALLOCATION = 90_000_000_000 // 90B tokens
-
-/**
- * Maximum allowed sum of staking reward and rewards recipients
- */
-const MAX_TOTAL_REWARDS = 10_000 // 100% of rewards are distributed to the staking contract
+const MAX_TOTAL_REWARDS_PERCENTAGE = 100
 
 export const LevrClankerDeploymentSchema = Schema.Struct({
   ...ClankerDeploymentSchema.pick('name', 'symbol').fields,
@@ -125,39 +122,39 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
 }).pipe(
   Schema.filter(
     (data) => {
-      // Calculate total airdrop amount
-      const airdropTotal = data.airdrop?.reduce((sum, entry) => sum + entry.amount, 0) ?? 0
+      // Calculate total airdrop percentage
+      const airdropTotal = data.airdrop?.reduce((sum, entry) => sum + entry.percentage, 0) ?? 0
 
-      // Get treasury funding (default to 0 if not provided)
-      const treasuryAmount = TREASURY_AIRDROP_AMOUNTS[data.treasuryFunding ?? '30%']
+      // Get treasury percentage (e.g., "30%" -> 30)
+      const treasuryPercentage = parseFloat(data.treasuryFunding ?? '30%')
 
-      // Check if the sum exceeds the maximum allocation
-      const total = airdropTotal + treasuryAmount
+      // Check if total allocation exceeds 90% (must leave minimum 10% for liquidity)
+      const totalAllocated = airdropTotal + treasuryPercentage
 
-      return total <= MAX_TOTAL_ALLOCATION
+      return totalAllocated <= 90
     },
     {
       message: () =>
-        `Total allocation (airdrop + treasury funding) cannot exceed ${MAX_TOTAL_ALLOCATION.toLocaleString()} tokens (90% of 100B)`,
+        `Total allocation (airdrop + treasury funding) cannot exceed 90% (minimum 10% must be reserved for liquidity)`,
     }
   ),
   Schema.filter(
     (data) => {
-      // Get staking reward in basis points
-      const stakingRewardBps = STAKING_REWARDS[data.stakingReward]
+      // Convert staking reward from percentage string (e.g., "50%") to number (e.g., 50)
+      const stakingRewardPercentageStr = data.stakingReward // e.g., "50%"
+      const stakingRewardPercentage = parseFloat(stakingRewardPercentageStr) // e.g., 50
 
-      // Calculate total rewards recipients percentage
+      // Calculate total rewards recipients percentage (already in 0-100 format)
       const rewardRecipientsTotal =
         data.rewards?.reduce((sum, entry) => sum + entry.percentage, 0) ?? 0
 
-      // Check if the sum exceeds 100% (10,000 basis points)
-      const totalRewards = stakingRewardBps + rewardRecipientsTotal
+      // Check if the sum equals 100%
+      const totalRewards = stakingRewardPercentage + rewardRecipientsTotal
 
-      return totalRewards <= MAX_TOTAL_REWARDS
+      return totalRewards === MAX_TOTAL_REWARDS_PERCENTAGE
     },
     {
-      message: () =>
-        `Total rewards (staking reward + reward recipients) cannot exceed 100% (${MAX_TOTAL_REWARDS.toLocaleString()} basis points)`,
+      message: () => 'Total rewards (staking reward + reward recipients) must equal 100%',
     }
   )
 )

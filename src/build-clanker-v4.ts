@@ -79,8 +79,8 @@ const getRewards = (
     ? rewards.map((r) => ({
         admin: r.admin,
         recipient: r.recipient,
-        // Convert percentage to basis points
-        bps: r.percentage * 100,
+        // Convert human percentage to basis points (e.g., 5 -> 500)
+        bps: Math.round(r.percentage * 100),
         token: r.token,
       }))
     : []
@@ -142,7 +142,7 @@ const getDevBuy = (
 
 /**
  * Builds the airdrop for the Clanker token using the Levr airdrop
- * @param airdrop - Levr airdrop
+ * @param airdrop - Levr airdrop (with percentages)
  * @param treasuryAddress - Treasury address
  * @param treasuryAirdropAmount - Treasury airdrop amount
  * @returns Clanker airdrop
@@ -152,11 +152,14 @@ const getAirdrop = (
   treasuryAddress: `0x${string}`,
   treasuryAirdrop: keyof typeof TREASURY_AIRDROP_AMOUNTS
 ): ClankerDeploymentSchemaType['airdrop'] => {
-  // Always include treasury in airdrop, even if no other recipients specified
+  const TOTAL_SUPPLY = 100_000_000_000 // 100B tokens
+
+  // Convert airdrop percentages to amounts
   const airdropData = airdrop
     ? airdrop.map((a) => ({
         account: a.account,
-        amount: a.amount,
+        // Convert percentage (0-100) to actual amount (e.g., 5% of 100B = 5B)
+        amount: Math.round((a.percentage / 100) * TOTAL_SUPPLY),
       }))
     : []
 

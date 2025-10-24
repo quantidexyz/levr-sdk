@@ -389,11 +389,58 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         },
       })
 
-      // Staking should have 0 pending (fees are in the splitter, not staking)
+      // SDK reports fee splitter's pending fees as staking's pending (they'll reach staking after distribution)
       const stakingWethPending =
         projectBefore.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
-      expect(stakingWethPending).toBe(0n)
-      console.log('✓ Confirmed: Staking has 0 pending (fees in splitter, as expected)')
+      expect(stakingWethPending).toBeGreaterThan(0n) // Should show splitter's pending fees
+      console.log(
+        '✓ Confirmed: SDK shows WETH pending fees (from splitter):',
+        formatUnits(stakingWethPending, 18)
+      )
+
+      console.log('\n=== Step 5.4: Record Balances BEFORE AccrueAll ===')
+
+      // Record staking balances BEFORE
+      const stakingTokenBalanceBefore = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [stakingAddress],
+      })
+
+      const stakingWethBalanceBefore = await publicClient.readContract({
+        address: weth.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [stakingAddress],
+      })
+
+      // Record deployer balances BEFORE
+      const deployerTokenBalanceBefore = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account?.address!],
+      })
+
+      const deployerWethBalanceBefore = await publicClient.readContract({
+        address: weth.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account?.address!],
+      })
+
+      console.log('Balances BEFORE accrueAll:')
+      console.log({
+        staking: {
+          token: formatUnits(stakingTokenBalanceBefore, 18),
+          weth: formatUnits(stakingWethBalanceBefore, 18),
+        },
+        deployer: {
+          token: formatUnits(deployerTokenBalanceBefore, 18),
+          weth: formatUnits(deployerWethBalanceBefore, 18),
+        },
+      })
 
       console.log('\n=== Step 6: Call AccrueAll ===')
 
@@ -427,23 +474,59 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         args: [stakingAddress],
       })
 
-      console.log('\nStaking contract balances AFTER accrueAll:')
-      console.log({
-        token: formatUnits(stakingTokenBalanceAfter, 18),
-        weth: formatUnits(stakingWethBalanceAfter, 18),
+      // Check deployer balances AFTER
+      const deployerTokenBalanceAfter = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account?.address!],
       })
 
-      // Check deployer balances (should have received 50% of fees)
-      const deployerWethBalance = await publicClient.readContract({
+      const deployerWethBalanceAfter = await publicClient.readContract({
         address: weth.address,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [wallet.account?.address!],
       })
 
-      console.log('\nDeployer WETH balance after accrueAll:', formatUnits(deployerWethBalance, 18))
+      console.log('\nBalances AFTER accrueAll:')
+      console.log({
+        staking: {
+          token: formatUnits(stakingTokenBalanceAfter, 18),
+          weth: formatUnits(stakingWethBalanceAfter, 18),
+        },
+        deployer: {
+          token: formatUnits(deployerTokenBalanceAfter, 18),
+          weth: formatUnits(deployerWethBalanceAfter, 18),
+        },
+      })
+
+      // Calculate deltas
+      const stakingTokenDelta = stakingTokenBalanceAfter - stakingTokenBalanceBefore
+      const stakingWethDelta = stakingWethBalanceAfter - stakingWethBalanceBefore
+      const deployerTokenDelta = deployerTokenBalanceAfter - deployerTokenBalanceBefore
+      const deployerWethDelta = deployerWethBalanceAfter - deployerWethBalanceBefore
+
+      console.log('\nBalance Changes (Deltas):')
+      console.log({
+        staking: {
+          token: formatUnits(stakingTokenDelta, 18),
+          weth: formatUnits(stakingWethDelta, 18),
+        },
+        deployer: {
+          token: formatUnits(deployerTokenDelta, 18),
+          weth: formatUnits(deployerWethDelta, 18),
+        },
+      })
 
       // Check fee splitter balance (should be 0 after distribution)
+      const splitterTokenAfter = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [feeSplitterAddress],
+      })
+
       const splitterWethAfter = await publicClient.readContract({
         address: weth.address,
         abi: erc20Abi,
@@ -451,13 +534,50 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         args: [feeSplitterAddress],
       })
 
-      console.log('Fee splitter WETH balance after accrueAll:', formatUnits(splitterWethAfter, 18))
+      console.log('\nFee splitter balances after accrueAll (should be 0):')
+      console.log({
+        token: formatUnits(splitterTokenAfter, 18),
+        weth: formatUnits(splitterWethAfter, 18),
+      })
 
-      console.log('\n🚨 WHERE DID THE FEES GO?')
-      console.log(`  Fees before: 0.1312 WETH pending`)
-      console.log(`  Staking received: ${formatUnits(stakingWethBalanceAfter, 18)} WETH`)
-      console.log(`  Deployer has: ${formatUnits(deployerWethBalance, 18)} WETH (total, not delta)`)
-      console.log(`  Splitter has: ${formatUnits(splitterWethAfter, 18)} WETH`)
+      console.log('\n========================================')
+      console.log('🔍 CRITICAL VERIFICATION: BOTH RECEIVERS GET BOTH TOKENS')
+      console.log('========================================')
+
+      // ✅ STAKING MUST RECEIVE BOTH TOKENS
+      if (stakingWethDelta > 0n) {
+        console.log('✅ Staking received WETH:', formatUnits(stakingWethDelta, 18))
+      } else {
+        console.log('❌ FAILURE: Staking did NOT receive WETH')
+      }
+
+      if (stakingTokenDelta > 0n) {
+        console.log('✅ Staking received Clanker token:', formatUnits(stakingTokenDelta, 18))
+      } else {
+        console.log('❌ FAILURE: Staking did NOT receive Clanker token')
+      }
+
+      // ✅ DEPLOYER MUST RECEIVE BOTH TOKENS
+      if (deployerWethDelta > 0n) {
+        console.log('✅ Deployer received WETH:', formatUnits(deployerWethDelta, 18))
+      } else {
+        console.log('❌ FAILURE: Deployer did NOT receive WETH')
+      }
+
+      if (deployerTokenDelta > 0n) {
+        console.log('✅ Deployer received Clanker token:', formatUnits(deployerTokenDelta, 18))
+      } else {
+        console.log('❌ FAILURE: Deployer did NOT receive Clanker token')
+      }
+
+      // CRITICAL ASSERTIONS: Both receivers MUST get BOTH tokens
+      expect(stakingWethDelta).toBeGreaterThan(0n)
+      expect(stakingTokenDelta).toBeGreaterThan(0n)
+      expect(deployerWethDelta).toBeGreaterThan(0n)
+      expect(deployerTokenDelta).toBeGreaterThan(0n)
+
+      console.log('\n✅ VERIFIED: Both receivers got both tokens!')
+      console.log('========================================')
 
       console.log('\n=== Step 7: Verify Data AFTER AccrueAll ===')
 
