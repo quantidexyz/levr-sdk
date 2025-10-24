@@ -2,8 +2,9 @@ import type { Clanker } from 'clanker-sdk/v4'
 import type { TransactionReceipt } from 'viem'
 
 import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
+import ClankerAirdropV2 from './abis/ClankerAirdropV2'
 import { buildCalldatasV4 } from './build-calldatas-v4'
-import { GET_FACTORY_ADDRESS } from './constants'
+import { GET_CLANKER_AIRDROP_ADDRESS, GET_FACTORY_ADDRESS } from './constants'
 import { storeMerkleTreeToIPFS } from './ipfs-merkle-tree'
 import type { LevrClankerDeploymentSchemaType } from './schema'
 
@@ -69,20 +70,55 @@ export const deployV4 = async ({
   let merkleTreeCID: string | undefined
 
   if (ipfsJsonUploadUrl && merkleTree) {
-    // Store the merkle tree data to IPFS
-    // This will throw an error if upload fails, which will fail the entire deployment
-    const treeData = merkleTree.dump()
-    const cid = await storeMerkleTreeToIPFS({
-      tokenAddress: clankerTokenAddress,
-      chainId,
-      treeData,
-      ipfsJsonUploadUrl,
-    })
+    // Get airdrop contract info to save metadata
+    const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
 
-    merkleTreeCID = cid
+    if (airdropAddress) {
+      // Fetch airdrop info to get lockupEndTime and other metadata
+      const airdropInfo = await publicClient.readContract({
+        address: airdropAddress,
+        abi: ClankerAirdropV2,
+        functionName: 'airdrops',
+        args: [clankerTokenAddress],
+      })
 
-    console.log(`Merkle tree stored to IPFS with CID: ${cid}`)
-    console.log(`Retrieve using: tokenAddress=${clankerTokenAddress}, chainId=${chainId}`)
+      const lockupEndTime = Number(airdropInfo[4]) * 1000 // index 4 is lockupEndTime (convert to ms)
+      const lockupDuration = 86400 // 1 day in seconds
+
+      // Store the merkle tree data to IPFS with minimal metadata
+      // This will throw an error if upload fails, which will fail the entire deployment
+      const treeData = merkleTree.dump()
+      const cid = await storeMerkleTreeToIPFS({
+        tokenAddress: clankerTokenAddress,
+        chainId,
+        treeData,
+        ipfsJsonUploadUrl,
+        lockupEndTime,
+        lockupDuration,
+      })
+
+      merkleTreeCID = cid
+
+      console.log(`Merkle tree stored to IPFS with CID: ${cid}`)
+      console.log(`Metadata: lockupEndTime=${new Date(lockupEndTime).toISOString()}`)
+      console.log(`Retrieve using: tokenAddress=${clankerTokenAddress}, chainId=${chainId}`)
+    } else {
+      console.warn('No airdrop address found, storing merkle tree with default metadata')
+      const treeData = merkleTree.dump()
+      const currentBlock = await publicClient.getBlock()
+      const lockupDuration = 86400 // 1 day in seconds
+      const lockupEndTime = Number(currentBlock.timestamp) * 1000 + lockupDuration * 1000
+
+      const cid = await storeMerkleTreeToIPFS({
+        tokenAddress: clankerTokenAddress,
+        chainId,
+        treeData,
+        ipfsJsonUploadUrl,
+        lockupEndTime,
+        lockupDuration,
+      })
+      merkleTreeCID = cid
+    }
   }
 
   return {

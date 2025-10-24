@@ -3,7 +3,7 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import ClankerAirdropV2 from './abis/ClankerAirdropV2'
 import { formatBalanceWithUsd } from './balance'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
-import { retrieveMerkleTreeFromIPFS } from './ipfs-merkle-tree'
+import { type MerkleTreeWithMetadata, retrieveMerkleTreeFromIPFS } from './ipfs-merkle-tree'
 import type { BalanceResult, PopPublicClient } from './types'
 
 export type AirdropRecipient = {
@@ -61,26 +61,41 @@ export async function getTreasuryAirdropStatus(
     }
 
     console.log('[AIRDROP] Merkle tree retrieved, loading...')
-    // treeData comes from IPFS and has the correct structure - TypeScript can't infer this
-    const tree = StandardMerkleTree.load<[string, string]>(treeData as any)
+    const treeWithMetadata = treeData as MerkleTreeWithMetadata
+    const tree = StandardMerkleTree.load<[string, string]>(treeWithMetadata)
 
     console.log('[AIRDROP] Tree loaded, processing all recipients...')
 
-    // Get current block for accurate time comparison
+    // Get current block time for accurate comparison (always needed)
     const currentBlock = await publicClient.getBlock()
-    const currentBlockTime = Number(currentBlock.timestamp) * 1000 // Convert to milliseconds
+    const currentBlockTime = Number(currentBlock.timestamp) * 1000
 
-    // Get airdrop info for timestamp and lockup duration
-    const airdropInfo = await publicClient.readContract({
-      address: airdropAddress,
-      abi: ClankerAirdropV2,
-      functionName: 'airdrops',
-      args: [clankerToken],
-    })
+    // Try to get metadata from IPFS first to avoid RPC calls
+    let lockupEndTime: number
+    let lockupDuration: number
 
-    const lockupEndTime = Number(airdropInfo[4]) * 1000 // lockupEndTime is index 4 (in milliseconds)
-    const deploymentTimestamp = lockupEndTime - 86400 * 1000 // Estimate from lockupEndTime
-    const lockupDurationHours = 24 // Standard 1 day
+    if (treeWithMetadata.metadata?.lockupEndTime) {
+      // Use saved metadata from IPFS (fast path!)
+      lockupEndTime = treeWithMetadata.metadata.lockupEndTime
+      lockupDuration = treeWithMetadata.metadata.lockupDuration
+      console.log('[AIRDROP] ✅ Using metadata from IPFS (fast path)')
+    } else {
+      // Fallback: Query contract (slower)
+      console.log('[AIRDROP] No metadata in IPFS, querying contract...')
+      const airdropInfo = await publicClient.readContract({
+        address: airdropAddress,
+        abi: ClankerAirdropV2,
+        functionName: 'airdrops',
+        args: [clankerToken],
+      })
+
+      lockupEndTime = Number(airdropInfo[4]) * 1000
+      lockupDuration = 86400 // 1 day in seconds
+    }
+
+    // Calculate derived values from saved metadata
+    const deploymentTimestamp = lockupEndTime - lockupDuration * 1000
+    const lockupDurationHours = lockupDuration / 3600
 
     console.log('[AIRDROP] Block time:', new Date(currentBlockTime).toISOString())
     console.log('[AIRDROP] Lockup ends:', new Date(lockupEndTime).toISOString())

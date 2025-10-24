@@ -3,16 +3,39 @@
  * Stores and retrieves merkle tree data for airdrops using IPFS
  */
 
-export type MerkleTreeData = {
+export type MerkleTreeMetadata = {
+  lockupEndTime: number // Timestamp in milliseconds
+  lockupDuration: number // Duration in seconds
+}
+
+// Type for StandardMerkleTree.dump() output
+export type StandardMerkleTreeDump = {
+  format: string
+  tree: string[]
+  values: Array<{
+    value: [string, string]
+    treeIndex: number
+  }>
+  leafEncoding: string[]
+}
+
+export type StoredMerkleTreeData = {
   format: 'standard-v1'
-  tree: unknown // tree.dump() output from @openzeppelin/merkle-tree
+  tree: StandardMerkleTreeDump
+  metadata?: MerkleTreeMetadata
+}
+
+export type MerkleTreeWithMetadata = StandardMerkleTreeDump & {
+  metadata?: MerkleTreeMetadata
 }
 
 export type StoreMerkleTreeParams = {
   tokenAddress: `0x${string}`
   chainId: number
-  treeData: unknown // Output from tree.dump()
+  treeData: StandardMerkleTreeDump // Output from tree.dump()
   ipfsJsonUploadUrl: string // Full URL to /api/ipfs-json endpoint
+  lockupEndTime: number // Timestamp in milliseconds
+  lockupDuration: number // Duration in seconds
 }
 
 export type RetrieveMerkleTreeParams = {
@@ -21,6 +44,8 @@ export type RetrieveMerkleTreeParams = {
   ipfsSearchUrl: string // Full URL to /api/ipfs-search endpoint
   ipfsJsonUrl: string // Full URL to /api/ipfs-json endpoint
 }
+
+export type RetrieveMerkleTreeResult = MerkleTreeWithMetadata | null
 
 /**
  * Generates a consistent key for storing merkle tree data
@@ -36,13 +61,18 @@ export function getMerkleTreeKey(tokenAddress: `0x${string}`, chainId: number): 
  * @returns The IPFS CID where the data was stored
  */
 export async function storeMerkleTreeToIPFS(params: StoreMerkleTreeParams): Promise<string> {
-  const { tokenAddress, chainId, treeData, ipfsJsonUploadUrl } = params
+  const { tokenAddress, chainId, treeData, ipfsJsonUploadUrl, lockupEndTime, lockupDuration } =
+    params
 
   const key = getMerkleTreeKey(tokenAddress, chainId)
 
-  const payload: MerkleTreeData = {
+  const payload: StoredMerkleTreeData = {
     format: 'standard-v1',
     tree: treeData,
+    metadata: {
+      lockupEndTime,
+      lockupDuration,
+    },
   }
 
   const response = await fetch(ipfsJsonUploadUrl, {
@@ -75,11 +105,11 @@ export async function storeMerkleTreeToIPFS(params: StoreMerkleTreeParams): Prom
 /**
  * Retrieves merkle tree data from IPFS by searching for it using metadata
  * @param params Retrieval parameters
- * @returns The merkle tree data or null if not found
+ * @returns The merkle tree data with metadata or null if not found
  */
 export async function retrieveMerkleTreeFromIPFS(
   params: RetrieveMerkleTreeParams
-): Promise<unknown | null> {
+): Promise<RetrieveMerkleTreeResult> {
   const { tokenAddress, chainId, ipfsSearchUrl, ipfsJsonUrl } = params
 
   try {
@@ -127,7 +157,7 @@ export async function retrieveMerkleTreeFromIPFS(
 export async function fetchMerkleTreeByCID(
   cid: string,
   ipfsJsonUrl: string
-): Promise<unknown | null> {
+): Promise<RetrieveMerkleTreeResult> {
   try {
     const fetchUrl = `${ipfsJsonUrl}?cid=${cid}`
     console.log('[IPFS] Fetching merkle tree by CID:', fetchUrl)
@@ -142,9 +172,16 @@ export async function fetchMerkleTreeByCID(
       return null
     }
 
-    const data: MerkleTreeData = await response.json()
+    const data: StoredMerkleTreeData = await response.json()
     console.log('[IPFS] Merkle tree data retrieved successfully')
-    return data.tree
+
+    // Return tree data with metadata attached
+    const treeWithMetadata: MerkleTreeWithMetadata = {
+      ...data.tree,
+      metadata: data.metadata,
+    }
+
+    return treeWithMetadata
   } catch (error) {
     console.error('[IPFS] Error fetching merkle tree from IPFS:', error)
     return null
