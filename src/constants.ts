@@ -44,7 +44,7 @@ export const GET_FEE_SPLITTER_FACTORY_ADDRESS = (chainId?: number): `0x${string}
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_BASE_SEPOLIA,
+    [baseSepolia.id]: '0xc75651e0A537CeD17F13F95897Bf22994a846451',
   }[chainId] as `0x${string}` | undefined
 }
 
