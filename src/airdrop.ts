@@ -22,7 +22,7 @@ export type AirdropStatus = {
   lockupDurationHours?: number
 }
 
-export async function getTreasuryAirdropStatus(
+export async function getAirdropStatus(
   publicClient: PopPublicClient,
   clankerToken: `0x${string}`,
   treasury: `0x${string}`,
@@ -31,12 +31,10 @@ export async function getTreasuryAirdropStatus(
   ipfsSearchUrl?: string, // Full URL to /api/ipfs-search
   ipfsJsonUrl?: string // Full URL to /api/ipfs-json
 ): Promise<AirdropStatus | null> {
-  console.log('[AIRDROP] Starting airdrop status fetch...')
   const chainId = publicClient.chain?.id
   const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
 
   if (!airdropAddress) {
-    console.log('[AIRDROP] No airdrop address found for chain', chainId)
     return null
   }
 
@@ -46,7 +44,6 @@ export async function getTreasuryAirdropStatus(
   }
 
   try {
-    console.log('[AIRDROP] Fetching merkle tree from IPFS...')
     // Fetch merkle tree from IPFS
     const treeData = await retrieveMerkleTreeFromIPFS({
       tokenAddress: clankerToken,
@@ -56,15 +53,11 @@ export async function getTreasuryAirdropStatus(
     })
 
     if (!treeData) {
-      console.log('[AIRDROP] No merkle tree found on IPFS for this token')
       return null
     }
 
-    console.log('[AIRDROP] Merkle tree retrieved, loading...')
     const treeWithMetadata = treeData as MerkleTreeWithMetadata
     const tree = StandardMerkleTree.load<[string, string]>(treeWithMetadata)
-
-    console.log('[AIRDROP] Tree loaded, processing all recipients...')
 
     // Get current block time for accurate comparison (always needed)
     const currentBlock = await publicClient.getBlock()
@@ -78,10 +71,8 @@ export async function getTreasuryAirdropStatus(
       // Use saved metadata from IPFS (fast path!)
       lockupEndTime = treeWithMetadata.metadata.lockupEndTime
       lockupDuration = treeWithMetadata.metadata.lockupDuration
-      console.log('[AIRDROP] ✅ Using metadata from IPFS (fast path)')
     } else {
       // Fallback: Query contract (slower)
-      console.log('[AIRDROP] No metadata in IPFS, querying contract...')
       const airdropInfo = await publicClient.readContract({
         address: airdropAddress,
         abi: ClankerAirdropV2,
@@ -96,9 +87,6 @@ export async function getTreasuryAirdropStatus(
     // Calculate derived values from saved metadata
     const deploymentTimestamp = lockupEndTime - lockupDuration * 1000
     const lockupDurationHours = lockupDuration / 3600
-
-    console.log('[AIRDROP] Block time:', new Date(currentBlockTime).toISOString())
-    console.log('[AIRDROP] Lockup ends:', new Date(lockupEndTime).toISOString())
 
     // Process ALL recipients in the merkle tree
     const recipients: AirdropRecipient[] = []
@@ -118,8 +106,6 @@ export async function getTreasuryAirdropStatus(
         index: i,
       })
     }
-
-    console.log(`[AIRDROP] Found ${recipientEntries.length} recipients in merkle tree`)
 
     // Get current block number for claim event search
     const currentBlockNumber = await publicClient.getBlockNumber()
@@ -147,8 +133,6 @@ export async function getTreasuryAirdropStatus(
     const claimedAddresses = new Set(
       claimLogs.map((log) => (log.args.user as `0x${string}`).toLowerCase())
     )
-
-    console.log(`[AIRDROP] Found ${claimedAddresses.size} addresses that have claimed`)
 
     // Batch check available amounts for all recipients
     const availableAmounts = (await publicClient.multicall({
@@ -204,19 +188,7 @@ export async function getTreasuryAirdropStatus(
         isTreasury,
         error,
       })
-
-      console.log(
-        `[AIRDROP] Recipient ${i + 1}/${recipientEntries.length}:`,
-        entry.address.slice(0, 10) + '...',
-        isTreasury ? '(TREASURY)' : '',
-        `claimed: ${hasClaimed}`,
-        `allocated: ${entry.allocatedAmount}`,
-        `available: ${availableAmount}`,
-        error || '✅ Available'
-      )
     }
-
-    console.log('[AIRDROP] ✅ All recipients processed')
 
     return {
       recipients,

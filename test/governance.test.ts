@@ -9,7 +9,7 @@ import { Governance } from '../src/governance'
 import { proposal, proposals } from '../src/proposal'
 import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { Stake } from '../src/stake'
-import { getTreasuryAirdropStatus } from '../src/treasury'
+import { getAirdropStatus } from '../src/airdrop'
 import { setupTest, type SetupTestReturnType } from './helper'
 import { getBlockTimestamp, warpAnvil } from './util'
 
@@ -184,7 +184,7 @@ describe('#GOVERNANCE_TEST', () => {
 
       try {
         // Get airdrop status separately
-        const status = await getTreasuryAirdropStatus(
+        const status = await getAirdropStatus(
           publicClient,
           deployedTokenAddress,
           project.treasury,
@@ -196,35 +196,40 @@ describe('#GOVERNANCE_TEST', () => {
           throw new Error('No airdrop found for this treasury')
         }
 
+        // Find treasury recipient
+        const treasuryRecipient = status.recipients.find((r) => r.isTreasury)
+
         console.log('  Airdrop Status:', {
-          available: status.availableAmount.formatted,
-          allocated: status.allocatedAmount.formatted,
-          isAvailable: status.isAvailable,
-          error: status.error,
+          totalRecipients: status.recipients.length,
+          treasuryAvailable: treasuryRecipient?.availableAmount.formatted,
+          treasuryAllocated: treasuryRecipient?.allocatedAmount.formatted,
+          treasuryIsAvailable: treasuryRecipient?.isAvailable,
+          treasuryError: treasuryRecipient?.error,
         })
 
         // If we found an allocation, try to claim it (handles locked state automatically)
-        if (status.allocatedAmount.raw > 0n) {
+        if (treasuryRecipient && treasuryRecipient.allocatedAmount.raw > 0n) {
           console.log('\n🎯 Treasury airdrop found! Attempting to claim...')
 
-          let currentStatus = status
-          if (status.availableAmount.raw === 0n) {
+          let currentTreasuryRecipient = treasuryRecipient
+          if (treasuryRecipient.availableAmount.raw === 0n) {
             console.log('⏰ Airdrop may be locked, warping 1 day forward to pass lockup period...')
             const { warpAnvil } = await import('./util')
             await warpAnvil(86400 + 1) // 1 day + 1 second
 
             // Refetch status after warping
-            currentStatus = (await getTreasuryAirdropStatus(
+            const updatedStatus = (await getAirdropStatus(
               publicClient,
               deployedTokenAddress,
               project.treasury,
               project.token.decimals,
               null
             ))!
+            currentTreasuryRecipient = updatedStatus.recipients.find((r) => r.isTreasury)!
           }
 
           console.log('📥 Claiming airdrop for treasury...')
-          const claimReceipt = await governance.claimAirdrop(currentStatus)
+          const claimReceipt = await governance.claimAirdrop(currentTreasuryRecipient)
           expect(claimReceipt.status).toBe('success')
 
           const treasuryBalance = await publicClient.readContract({
@@ -991,7 +996,7 @@ describe('#GOVERNANCE_TEST', () => {
       // 13. Test airdrop status
       console.log('\n🎁 Checking airdrop status...')
       project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
-      const airdropStatus = await getTreasuryAirdropStatus(
+      const airdropStatus = await getAirdropStatus(
         publicClient,
         deployedTokenAddress,
         project.treasury,
@@ -999,8 +1004,9 @@ describe('#GOVERNANCE_TEST', () => {
         null
       )
       if (airdropStatus) {
-        console.log(`  Available airdrop: ${airdropStatus.availableAmount.formatted} tokens`)
-        expect(typeof airdropStatus.availableAmount.raw).toBe('bigint')
+        const treasuryRecipient = airdropStatus.recipients.find((r) => r.isTreasury)
+        console.log(`  Available airdrop: ${treasuryRecipient?.availableAmount.formatted} tokens`)
+        expect(typeof treasuryRecipient?.availableAmount.raw).toBe('bigint')
         console.log('  ✅ Airdrop status fetched successfully')
       } else {
         console.log('  ℹ️ No airdrop configured for this project')
@@ -1051,7 +1057,7 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Get current airdrop status
       project = (await getFullProject({ publicClient, clankerToken: deployedTokenAddress }))!
-      const statusBefore = await getTreasuryAirdropStatus(
+      const statusBefore = await getAirdropStatus(
         publicClient,
         deployedTokenAddress,
         project.treasury,
@@ -1064,23 +1070,25 @@ describe('#GOVERNANCE_TEST', () => {
         return
       }
 
+      const treasuryRecipientBefore = statusBefore.recipients.find((r) => r.isTreasury)
+
       console.log('Status before:', {
-        allocated: statusBefore.allocatedAmount.formatted,
-        available: statusBefore.availableAmount.formatted,
-        isAvailable: statusBefore.isAvailable,
-        error: statusBefore.error,
+        allocated: treasuryRecipientBefore?.allocatedAmount.formatted,
+        available: treasuryRecipientBefore?.availableAmount.formatted,
+        isAvailable: treasuryRecipientBefore?.isAvailable,
+        error: treasuryRecipientBefore?.error,
       })
 
       // If already claimed, we can still verify the status is correct
-      if (statusBefore.error?.includes('claimed')) {
+      if (treasuryRecipientBefore?.error?.includes('claimed')) {
         console.log('✅ Airdrop already claimed - status correctly shows as claimed')
 
         // Verify the allocated amount is one of the valid amounts (not an underflow artifact)
         const validAmounts = [30n, 40n, 50n, 60n, 70n, 80n, 90n].map((v) => v * 10n ** 27n) // In wei
-        const isValidAmount = validAmounts.includes(statusBefore.allocatedAmount.raw)
+        const isValidAmount = validAmounts.includes(treasuryRecipientBefore.allocatedAmount.raw)
 
         console.log(
-          `  Allocated amount: ${statusBefore.allocatedAmount.formatted} (${statusBefore.allocatedAmount.raw.toString()})`
+          `  Allocated amount: ${treasuryRecipientBefore.allocatedAmount.formatted} (${treasuryRecipientBefore.allocatedAmount.raw.toString()})`
         )
         console.log(`  Is valid predefined amount: ${isValidAmount}`)
 
@@ -1088,7 +1096,7 @@ describe('#GOVERNANCE_TEST', () => {
         console.log('✅ Claimed amount is correctly detected (no underflow artifacts)')
 
         // Verify available amount is 0
-        expect(statusBefore.availableAmount.raw).toBe(0n)
+        expect(treasuryRecipientBefore.availableAmount.raw).toBe(0n)
         console.log('✅ Available amount correctly shows as 0')
       } else {
         console.log('⏭️ Airdrop not claimed yet or not configured - skipping this specific test')

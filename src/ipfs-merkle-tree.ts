@@ -10,7 +10,7 @@ export type MerkleTreeMetadata = {
 
 // Type for StandardMerkleTree.dump() output
 export type StandardMerkleTreeDump = {
-  format: string
+  format: 'standard-v1'
   tree: string[]
   values: Array<{
     value: [string, string]
@@ -114,12 +114,9 @@ export async function retrieveMerkleTreeFromIPFS(
 
   try {
     const searchUrl = `${ipfsSearchUrl}?tokenAddress=${tokenAddress.toLowerCase()}&chainId=${chainId}`
-    console.log('[IPFS] Searching for merkle tree:', searchUrl)
 
     // Search for the CID using Pinata metadata query
     const searchResponse = await fetch(searchUrl)
-
-    console.log('[IPFS] Search response status:', searchResponse.status)
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text()
@@ -128,8 +125,6 @@ export async function retrieveMerkleTreeFromIPFS(
     }
 
     const result = await searchResponse.json()
-    console.log('[IPFS] Search result:', result)
-
     const { cid } = result
 
     if (!cid) {
@@ -138,8 +133,6 @@ export async function retrieveMerkleTreeFromIPFS(
       )
       return null
     }
-
-    console.log('[IPFS] CID found:', cid)
 
     // Fetch the merkle tree data using the CID
     return await fetchMerkleTreeByCID(cid, ipfsJsonUrl)
@@ -160,11 +153,7 @@ export async function fetchMerkleTreeByCID(
 ): Promise<RetrieveMerkleTreeResult> {
   try {
     const fetchUrl = `${ipfsJsonUrl}?cid=${cid}`
-    console.log('[IPFS] Fetching merkle tree by CID:', fetchUrl)
-
     const response = await fetch(fetchUrl)
-
-    console.log('[IPFS] Fetch response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -173,7 +162,6 @@ export async function fetchMerkleTreeByCID(
     }
 
     const data: StoredMerkleTreeData = await response.json()
-    console.log('[IPFS] Merkle tree data retrieved successfully')
 
     // Return tree data with metadata attached
     const treeWithMetadata: MerkleTreeWithMetadata = {

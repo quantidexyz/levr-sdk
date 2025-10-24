@@ -1,10 +1,10 @@
 import type { TransactionReceipt } from 'viem'
-import { decodeEventLog, parseUnits } from 'viem'
+import { decodeEventLog, encodeFunctionData, parseUnits } from 'viem'
 
 import type { Project } from '.'
-import { IClankerAirdrop, LevrGovernor_v1 } from './abis'
+import { IClankerAirdrop, LevrForwarder_v1, LevrGovernor_v1 } from './abis'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
-import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
+import type { BalanceResult, CallData, PopPublicClient, PopWalletClient } from './types'
 
 export type GovernanceConfig = {
   wallet: PopWalletClient
@@ -289,6 +289,67 @@ export class Governance {
 
     if (receipt.status === 'reverted') {
       throw new Error(`Claim airdrop transaction reverted: ${hash}`)
+    }
+
+    return receipt
+  }
+
+  async claimAirdropBatch(
+    recipients: {
+      address: `0x${string}`
+      allocatedAmount: { raw: bigint }
+      proof: `0x${string}`[]
+      isAvailable: boolean
+      error?: string
+    }[]
+  ): Promise<TransactionReceipt> {
+    const chainId = this.publicClient.chain?.id
+    const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
+
+    if (!airdropAddress) {
+      throw new Error(`No airdrop address found for chain ID ${chainId}`)
+    }
+
+    // Encode all claim calls, wrapping each one via executeTransaction
+    const callDataArray: CallData[] = recipients.map((recipient) => {
+      // Encode the claim call
+      const claimCallData = encodeFunctionData({
+        abi: IClankerAirdrop,
+        functionName: 'claim',
+        args: [
+          this.project.token.address,
+          recipient.address,
+          recipient.allocatedAmount.raw,
+          recipient.proof,
+        ],
+      })
+
+      // Wrap via executeTransaction of the forwarder
+      return {
+        target: this.project.forwarder,
+        allowFailure: false,
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrForwarder_v1,
+          functionName: 'executeTransaction',
+          args: [airdropAddress, claimCallData],
+        }),
+      }
+    })
+
+    // Execute all wrapped claims in a single multicall transaction
+    const hash = await this.wallet.writeContract({
+      address: this.project.forwarder,
+      abi: LevrForwarder_v1,
+      functionName: 'executeMulticall',
+      args: [callDataArray],
+      chain: this.wallet.chain,
+    })
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'reverted') {
+      throw new Error(`Claim airdrop batch transaction reverted: ${hash}`)
     }
 
     return receipt

@@ -12,7 +12,6 @@ import type {
   ProposeTransferConfig,
 } from '../../governance'
 import { Governance } from '../../governance'
-import type { AirdropStatus } from '../../treasury'
 import { useLevrContext } from '../levr-provider'
 
 // ========================================
@@ -173,6 +172,26 @@ export function useGovernance({
     onError: onClaimAirdropError,
   })
 
+  const claimAirdropBatch = useMutation({
+    mutationFn: async (recipients: {
+      address: `0x${string}`
+      allocatedAmount: { raw: bigint }
+      proof: `0x${string}`[]
+      isAvailable: boolean
+      error?: string
+    }[]) => {
+      if (!governance) throw new Error('Governance not initialized')
+      if (!wallet.data) throw new Error('Wallet is not connected')
+
+      return await governance.claimAirdropBatch(recipients)
+    },
+    onSuccess: async (receipt) => {
+      await refetch.afterAirdrop()
+      onClaimAirdropSuccess?.(receipt)
+    },
+    onError: onClaimAirdropError,
+  })
+
   // Helpers
   const buildProposeTransferConfig = ({
     recipient,
@@ -217,6 +236,7 @@ export function useGovernance({
     vote,
     executeProposal,
     claimAirdrop,
+    claimAirdropBatch,
 
     // Helpers
     buildProposeTransferConfig,
@@ -228,6 +248,6 @@ export function useGovernance({
     isProposing: proposeTransfer.isPending || proposeBoost.isPending,
     isVoting: vote.isPending,
     isExecuting: executeProposal.isPending,
-    isClaiming: claimAirdrop.isPending,
+    isClaiming: claimAirdrop.isPending || claimAirdropBatch.isPending,
   }
 }

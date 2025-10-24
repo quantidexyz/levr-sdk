@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 
 import type { AirdropStatus, Project } from '../..'
-import { getTreasuryAirdropStatus } from '../../treasury'
+import { getAirdropStatus } from '../../airdrop'
 
 export type UseAirdropStatusQueryParams = {
   project?: Project | null
@@ -33,7 +33,7 @@ export function useAirdropStatusQuery({
     enabled,
     queryFn: () => {
       if (!publicClient || !project) return null
-      return getTreasuryAirdropStatus(
+      return getAirdropStatus(
         publicClient,
         project.token.address,
         project.treasury,
