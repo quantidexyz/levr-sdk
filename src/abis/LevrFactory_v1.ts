@@ -52,6 +52,11 @@ export default [
             type: 'uint16',
             internalType: 'uint16',
           },
+          {
+            name: 'maxProposalAmountBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
         ],
       },
       {
@@ -283,6 +288,19 @@ export default [
   {
     type: 'function',
     name: 'maxActiveProposals',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'maxProposalAmountBps',
     inputs: [],
     outputs: [
       {
@@ -527,6 +545,11 @@ export default [
           },
           {
             name: 'minSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'maxProposalAmountBps',
             type: 'uint16',
             internalType: 'uint16',
           },

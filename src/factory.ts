@@ -3,7 +3,7 @@ import type { Address, PublicClient } from 'viem'
 import LevrFactory_v1 from './abis/LevrFactory_v1'
 import { GET_FACTORY_ADDRESS } from './constants'
 
-export type FactoryConfig = {
+export type FactoryConfig = Readonly<{
   protocolFeeBps: number
   protocolTreasury: Address
   streamWindowSeconds: number
@@ -13,7 +13,8 @@ export type FactoryConfig = {
   quorumBps: number
   approvalBps: number
   minSTokenBpsToSubmit: number
-}
+  maxProposalAmountBps: number
+}>
 
 /**
  * Fetches the factory configuration from the blockchain using multicall
@@ -78,6 +79,11 @@ export async function getFactoryConfig(
           abi: LevrFactory_v1,
           functionName: 'minSTokenBpsToSubmit',
         },
+        {
+          address: factoryAddress,
+          abi: LevrFactory_v1,
+          functionName: 'maxProposalAmountBps',
+        },
       ] as const,
     })
 
@@ -92,6 +98,7 @@ export async function getFactoryConfig(
       quorumBps,
       approvalBps,
       minSTokenBpsToSubmit,
+      maxProposalAmountBps,
     ] = results.map((result) => {
       if (result.status === 'failure') {
         throw new Error(`Contract call failed: ${result.error?.message}`)
@@ -109,6 +116,7 @@ export async function getFactoryConfig(
       quorumBps: quorumBps as number,
       approvalBps: approvalBps as number,
       minSTokenBpsToSubmit: minSTokenBpsToSubmit as number,
+      maxProposalAmountBps: maxProposalAmountBps as number,
     }
   } catch (error) {
     console.error('Failed to fetch factory config:', error)

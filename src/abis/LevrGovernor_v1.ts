@@ -656,6 +656,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'InsufficientTreasuryBalance',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InsufficientVotingPower',
     inputs: [],
   },
@@ -692,6 +697,11 @@ export default [
   {
     type: 'error',
     name: 'NotWinner',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ProposalAmountExceedsLimit',
     inputs: [],
   },
   {

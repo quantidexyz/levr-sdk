@@ -156,6 +156,18 @@ export async function getAirdropStatus(
       // Generate proof for this recipient
       const proof = tree.getProof(entry.index) as `0x${string}`[]
 
+      // Log for debugging single recipient case
+      if (recipientEntries.length === 1) {
+        console.log('[AIRDROP] Single recipient detected:', {
+          address: entry.address,
+          proofLength: proof.length,
+          proof,
+          index: entry.index,
+          allocatedAmount: entry.allocatedAmount.toString(),
+          availableAmount: availableAmount.toString(),
+        })
+      }
+
       // Determine status
       let error: string | undefined
       let isAvailable = availableAmount > 0n

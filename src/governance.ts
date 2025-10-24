@@ -272,6 +272,10 @@ export class Governance {
       throw new Error('No airdrop available to claim')
     }
 
+    // Ensure proof is properly typed as bytes32[] (even if empty)
+    const proofArray =
+      recipient.proof && recipient.proof.length > 0 ? recipient.proof : ([] as `0x${string}`[])
+
     const hash = await this.wallet.writeContract({
       address: airdropAddress,
       abi: IClankerAirdrop,
@@ -280,7 +284,7 @@ export class Governance {
         this.project.token.address,
         recipient.address,
         recipient.allocatedAmount.raw,
-        recipient.proof,
+        proofArray,
       ],
       chain: this.wallet.chain,
     })
@@ -310,8 +314,49 @@ export class Governance {
       throw new Error(`No airdrop address found for chain ID ${chainId}`)
     }
 
-    // Encode all claim calls, wrapping each one via executeTransaction
+    // Handle single recipient with direct call (bypass forwarder/multicall)
+    if (recipients.length === 1) {
+      const recipient = recipients[0]
+
+      if (recipient.error) {
+        throw new Error(recipient.error)
+      }
+
+      if (!recipient.isAvailable) {
+        throw new Error('No airdrop available to claim')
+      }
+
+      const proofArray =
+        recipient.proof && recipient.proof.length > 0 ? recipient.proof : ([] as `0x${string}`[])
+
+      const hash = await this.wallet.writeContract({
+        address: airdropAddress,
+        abi: IClankerAirdrop,
+        functionName: 'claim',
+        args: [
+          this.project.token.address,
+          recipient.address,
+          recipient.allocatedAmount.raw,
+          proofArray,
+        ],
+        chain: this.wallet.chain,
+      })
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+
+      if (receipt.status === 'reverted') {
+        throw new Error(`Claim airdrop transaction reverted: ${hash}`)
+      }
+
+      return receipt
+    }
+
+    // Handle multiple recipients with multicall + forwarder wrapper
     const callDataArray: CallData[] = recipients.map((recipient) => {
+      // Ensure proof is properly typed as bytes32[] (even if empty)
+      const proofArray =
+        recipient.proof && recipient.proof.length > 0 ? recipient.proof : ([] as `0x${string}`[])
+
       // Encode the claim call
       const claimCallData = encodeFunctionData({
         abi: IClankerAirdrop,
@@ -320,7 +365,7 @@ export class Governance {
           this.project.token.address,
           recipient.address,
           recipient.allocatedAmount.raw,
-          recipient.proof,
+          proofArray,
         ],
       })
 
