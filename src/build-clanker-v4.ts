@@ -160,7 +160,7 @@ const getRewards = (
 /**
  * Builds the metadata for the Clanker token using the Levr metadata
  * @param metadata - Levr metadata
- * @returns Clanker metadata
+ * @returns Clanker metadata with "Deployed on levr.world" appended to description
  */
 const getMetadata = (
   metadata: LevrClankerDeploymentSchemaType['metadata']
@@ -181,8 +181,13 @@ const getMetadata = (
     url: value,
   }))
 
+  // Append "Deployed on levr.world" to description
+  const enhancedDescription = description
+    ? `${description} Deployed on levr.world`
+    : 'Deployed on levr.world'
+
   return {
-    description,
+    description: enhancedDescription,
     socialMediaUrls,
   }
 }
