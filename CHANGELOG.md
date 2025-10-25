@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/quantidexyz/levr-sdk/compare/v0.2.2...v0.3.0) (2025-10-25)
+
+
+### Features
+
+* add airdrop functionality with batch claiming and status retrieval, enhancing user experience and contract interactions ([5aad132](https://github.com/quantidexyz/levr-sdk/commit/5aad1322c4fc4d1273c3953b8da296d8d1d074f4))
+* add block timestamp handling for accurate stream status and enhance airdrop status with lockup duration ([8c0b361](https://github.com/quantidexyz/levr-sdk/commit/8c0b3612b832a01d348d1473f021480aa64c9639))
+* add comprehensive architecture update summary and documentation for data flow verification, refetch analysis, and vote receipt feature ([ca9bbb0](https://github.com/quantidexyz/levr-sdk/commit/ca9bbb085eb606081f615bcf383a0344a4aca356))
+* add configureSplits and updateRecipientToSplitter functions for fee splitter management ([e50fbfe](https://github.com/quantidexyz/levr-sdk/commit/e50fbfee5facb6be984434177305ca7a85bd8c13))
+* add GET_FEE_SPLITTER_ADDRESS function to retrieve fee splitter address based on chain ID ([7632ec7](https://github.com/quantidexyz/levr-sdk/commit/7632ec711b98fc54ac592851ff45f0cb157fb1c2))
+* add governance cycle management to LevrProvider and related hooks, enabling selection and retrieval of proposals based on specified cycles ([655c5bc](https://github.com/quantidexyz/levr-sdk/commit/655c5bc263268db132be07bc62eab06f49d6eade))
+* add Levr team LP fee configuration and update reward calculations to include team fee deductions in Clanker rewards ([dcffb50](https://github.com/quantidexyz/levr-sdk/commit/dcffb505b24e5886f13741a051ceb6d3738a1dcf))
+* add LevrFeeSplitter_v1 contract and update related ABIs and scripts ([7aef4d4](https://github.com/quantidexyz/levr-sdk/commit/7aef4d4a590958cf1e5295b52db858244ff7cfce))
+* add new purchase option of 1.5 ETH to LevrDevBuy schema for enhanced deployment flexibility ([00acb98](https://github.com/quantidexyz/levr-sdk/commit/00acb987be12c1084bfcbaa81a932d5dfa75fd96))
+* complete fee splitter integration with comprehensive documentation and updates to project queries ([d48a94e](https://github.com/quantidexyz/levr-sdk/commit/d48a94e7ae4c1869a21b85d634e2f9b79bb9f7fe))
+* enhance airdrop functionality with single recipient handling and improve factory configuration by adding maxProposalAmountBps ([0243411](https://github.com/quantidexyz/levr-sdk/commit/0243411d6cf7123c193f3aa2155e56a8b305a4e0))
+* enhance Clanker metadata by appending "Deployed on levr.world" to the description for improved clarity ([5d81b9c](https://github.com/quantidexyz/levr-sdk/commit/5d81b9c0f8af03fa37148078dbb6d9e6bf79d685))
+* enhance devnet script to retrieve and update FEE_SPLITTER_ADDRESS in environment files ([75dc097](https://github.com/quantidexyz/levr-sdk/commit/75dc09757bd5173aa2b1bedeb44b482ca1816e9d))
+* enhance merkle tree storage with metadata support for lockup details, improving airdrop retrieval efficiency and fallback logic ([e94f291](https://github.com/quantidexyz/levr-sdk/commit/e94f2917554f3531d174cbddd97298dd28962df8))
+* enhance treasury and staking data retrieval by adding optional WETH balance support and improving cycle ID handling in proposals ([e5e1861](https://github.com/quantidexyz/levr-sdk/commit/e5e186144c7d98baf15b1e8d95a0c203cf5ff4bb))
+* enhance vault functionality by introducing vault status management, fetching complete vault data, and implementing hooks for improved token claim handling ([07bb311](https://github.com/quantidexyz/levr-sdk/commit/07bb311131f06de390afcd8fd6e96ed9b1d85cca))
+* implement Clanker vault functionality with allocation, claimable amounts, and vesting periods, enhancing token management and user experience ([bdd0d38](https://github.com/quantidexyz/levr-sdk/commit/bdd0d38a8aec198c7d105b4e45a7ca2f5ed34894))
+* implement factory configuration retrieval and related hooks, enhancing blockchain interaction and data management in LevrProvider ([6f2161e](https://github.com/quantidexyz/levr-sdk/commit/6f2161e43283b6ee330c1641a305378430ae807c))
+* implement fee splitter deployment and retrieval logic, enhancing fee management for Clanker tokens ([c085825](https://github.com/quantidexyz/levr-sdk/commit/c0858258d6a4acbd9cb1450a79312b6d4abefdd7))
+* implement fee splitter functionality with static and dynamic data retrieval in project queries ([fae7850](https://github.com/quantidexyz/levr-sdk/commit/fae785081546224e6f8ebedb41aabc13800f6905))
+* implement smart flow for configuring splits and updating recipient, optimizing transaction requests based on current state ([93375f9](https://github.com/quantidexyz/levr-sdk/commit/93375f95793721aea0d9ad7b8da1090e5477cde2))
+* implement useConfigureSplits hook and add fee splitter configuration schema ([15d3524](https://github.com/quantidexyz/levr-sdk/commit/15d3524f446cbeb1ae221ea994a5c5b2e80a72a2))
+* improve project contract handling by tracking token and treasury counts for each project, enhancing result parsing and data retrieval efficiency ([ca2d4cb](https://github.com/quantidexyz/levr-sdk/commit/ca2d4cb772f59c8167360f6f44072be916dc59dc))
+* integrate IPFS support for merkle tree storage and retrieval, enhancing airdrop functionality with multi-recipient proof generation ([3772ad8](https://github.com/quantidexyz/levr-sdk/commit/3772ad8540e73e4039130e2f953341fef4d7f0f9))
+* integrate publicClient for transaction confirmation in fee receiver updates and splits configuration ([fae55f3](https://github.com/quantidexyz/levr-sdk/commit/fae55f3efc5b67d9d52adc38567b08b570dd1cf3))
+* introduce ClankerAirdropV2 ABI and update treasury logic to utilize new airdrop events ([373e93d](https://github.com/quantidexyz/levr-sdk/commit/373e93df6f6a0b41fd9156f79f14ad13fc4a8406))
+* overhaul airdrop functionality to support multi-recipient claims, integrate IPFS for merkle tree retrieval, and enhance vault management with new hooks for status and claims ([9c3eb9e](https://github.com/quantidexyz/levr-sdk/commit/9c3eb9e07658a0a7db786358dd9b3e72d9c53524))
+* refine staking reward handling and enhance treasury airdrop logic with event definitions ([cc671cb](https://github.com/quantidexyz/levr-sdk/commit/cc671cb8d87b914021972af8f7b0b5c4073bdbc4))
+* update devnet script to parse and manage Fee Splitter Deployer address, enhancing environment file updates ([255572a](https://github.com/quantidexyz/levr-sdk/commit/255572ab855f870908d2a9f2fca9d9dac515d5c4))
+* update fee splitter address retrieval logic and add integration tests for fee splitter functionality ([58a6679](https://github.com/quantidexyz/levr-sdk/commit/58a6679d76bcc6636c921aa990995491aa0f689b))
+* update staking and fee distribution logic to support hybrid setups, allowing simultaneous rewards from both fee splitter and staking contract ([6594c98](https://github.com/quantidexyz/levr-sdk/commit/6594c98906c36802d9d141f130fc7cc4e33628d5))
+
+
+### Bug Fixes
+
+* refine getMetadata function to handle undefined metadata and ensure social media URLs are only included if present ([4e3d77f](https://github.com/quantidexyz/levr-sdk/commit/4e3d77f541d0937793097b3c9332ad38df7101d0))
+* update baseSepolia fee splitter factory address to a hardcoded value for consistency in deployment ([c870524](https://github.com/quantidexyz/levr-sdk/commit/c870524d868d458e75a86efd7216a7bfc8195495))
+
 ### [0.2.2](https://github.com/quantidexyz/levr-sdk/compare/v0.2.1...v0.2.2) (2025-10-16)
 
 
