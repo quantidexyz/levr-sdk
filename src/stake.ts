@@ -167,7 +167,7 @@ export class Stake {
       parsedAmount = currentStakedBalance
     }
 
-    const params = {
+    const simulateParams = {
       address: this.stakingAddress,
       abi: LevrStaking_v1,
       functionName: 'unstake',
@@ -176,8 +176,16 @@ export class Stake {
       chain: this.wallet.chain,
     } as const
 
-    const { result: newVotingPower } = await this.publicClient.simulateContract(params)
-    const hash = await this.wallet.writeContract(params)
+    const { result: newVotingPower } = await this.publicClient.simulateContract(simulateParams)
+    
+    // writeContract doesn't accept 'account' - it uses wallet.account automatically
+    const hash = await this.wallet.writeContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'unstake',
+      args: [parsedAmount, to ?? this.userAddress],
+      chain: this.wallet.chain,
+    })
 
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
 
