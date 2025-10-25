@@ -165,9 +165,8 @@ const getRewards = (
 const getMetadata = (
   metadata: LevrClankerDeploymentSchemaType['metadata']
 ): ClankerDeploymentSchemaType['metadata'] => {
-  if (!metadata) return undefined
-
-  const { description, ...socials } = metadata
+  const description = metadata?.description
+  const socials = metadata ? omit(metadata, 'description') : {}
 
   const platformMap: Record<string, string> = {
     telegramLink: 'telegram',
@@ -176,10 +175,12 @@ const getMetadata = (
     farcasterLink: 'farcaster',
   }
 
-  const socialMediaUrls = Object.entries(socials).map(([key, value]) => ({
-    platform: platformMap[key],
-    url: value,
-  }))
+  const socialMediaUrls = Object.entries(socials)
+    .filter(([_, value]) => value !== undefined)
+    .map(([key, value]) => ({
+      platform: platformMap[key],
+      url: value as string,
+    }))
 
   // Append "Deployed on levr.world" to description
   const enhancedDescription = description
@@ -188,7 +189,7 @@ const getMetadata = (
 
   return {
     description: enhancedDescription,
-    socialMediaUrls,
+    socialMediaUrls: socialMediaUrls.length > 0 ? socialMediaUrls : undefined,
   }
 }
 
