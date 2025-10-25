@@ -30,7 +30,7 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: '0x84B505Fc0386699BF8A16df17A91bB415b49691f',
+    [baseSepolia.id]: '0x13492BF907FA548f835F6fF5a5D353B608ef3291',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -44,7 +44,7 @@ export const GET_FEE_SPLITTER_FACTORY_ADDRESS = (chainId?: number): `0x${string}
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: '0xc75651e0A537CeD17F13F95897Bf22994a846451',
+    [baseSepolia.id]: '0x232A57FFb8fDE5E89A6a4fdebED5265D4C045339',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -207,6 +207,24 @@ export const GET_CLANKER_AIRDROP_ADDRESS = (chainId?: number): `0x${string}` | u
 }
 
 /**
+ * Get the Vault address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Vault address
+ */
+export const GET_VAULT_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  const chainMap = {
+    // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
+    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.related?.vault,
+    [base.id]: CLANKERS.clanker_v4.related.vault,
+    [baseSepolia.id]: CLANKERS.clanker_v4_sepolia.related.vault,
+  } as Record<number, `0x${string}` | undefined>
+
+  return chainMap?.[chainId]
+}
+
+/**
  * Contract balance representation, for use in Universal Router
  */
 export const CONTRACT_BALANCE = BigNumber.from(
@@ -269,6 +287,40 @@ export const STATIC_FEE_TIERS = {
   '1%': 100,
   '2%': 200,
   '3%': 300,
+} as const
+
+/**
+ * Vault lockup period options (in days)
+ * Tokens are locked for this period and cannot be claimed
+ */
+export const VAULT_LOCKUP_PERIODS = {
+  '30 days': 30,
+  '90 days': 90,
+  '180 days': 180,
+} as const
+
+/**
+ * Vault vesting period options (in days)
+ * Linear vesting occurs between end of lockup and end of vesting period
+ * 'instant' means tokens are claimable immediately once lockup ends (no vesting period)
+ */
+export const VAULT_VESTING_PERIODS = {
+  instant: 0,
+  '30 days': 30,
+  '180 days': 180,
+} as const
+
+/**
+ * Vault allocation percentage options
+ * Percentage of total token supply (100B tokens) allocated to vault
+ */
+export const VAULT_PERCENTAGES = {
+  '5%': 5,
+  '10%': 10,
+  '15%': 15,
+  '20%': 20,
+  '25%': 25,
+  '30%': 30,
 } as const
 
 /**

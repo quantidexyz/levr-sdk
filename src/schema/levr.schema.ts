@@ -5,6 +5,9 @@ import {
   STAKING_REWARDS,
   STATIC_FEE_TIERS,
   TREASURY_AIRDROP_AMOUNTS,
+  VAULT_LOCKUP_PERIODS,
+  VAULT_PERCENTAGES,
+  VAULT_VESTING_PERIODS,
 } from '../constants'
 import { EthereumAddress, NonEmptyString } from './base.schema'
 import { ClankerDeploymentSchema } from './clanker.schema'
@@ -111,6 +114,51 @@ const LevrStakingReward = Schema.Literal(
  */
 const MAX_TOTAL_REWARDS_PERCENTAGE = 100
 
+/**
+ * Vault lockup period schema
+ */
+const VaultLockupPeriod = Schema.Literal(
+  ...(Object.keys(VAULT_LOCKUP_PERIODS) as [keyof typeof VAULT_LOCKUP_PERIODS])
+).annotations({
+  description: 'Lockup period for vaulted tokens. Tokens cannot be claimed during this period.',
+})
+
+/**
+ * Vault vesting period schema
+ */
+const VaultVestingPeriod = Schema.Literal(
+  ...(Object.keys(VAULT_VESTING_PERIODS) as [keyof typeof VAULT_VESTING_PERIODS])
+).annotations({
+  description:
+    'Vesting period after lockup ends. "instant" makes tokens available immediately after lockup. Linear vesting occurs between end of lockup and end of vesting period.',
+})
+
+/**
+ * Vault percentage schema
+ */
+const VaultPercentage = Schema.Literal(
+  ...(Object.keys(VAULT_PERCENTAGES) as [keyof typeof VAULT_PERCENTAGES])
+).annotations({
+  description: 'Percentage of total token supply (100B tokens) allocated to vault.',
+})
+
+/**
+ * Vault configuration schema
+ */
+const LevrVault = Schema.Struct({
+  lockupPeriod: VaultLockupPeriod.annotations({
+    description: 'How long tokens are locked before vesting begins',
+  }),
+  vestingPeriod: VaultVestingPeriod.annotations({
+    description: 'Vesting duration after lockup. "instant" = no vesting period',
+  }),
+  percentage: VaultPercentage.annotations({
+    description: 'Percentage of total supply to allocate to vault',
+  }),
+}).annotations({
+  description: 'Vault configuration with lockup and linear vesting schedule',
+})
+
 export const LevrClankerDeploymentSchema = Schema.Struct({
   ...ClankerDeploymentSchema.pick('name', 'symbol').fields,
   image: NonEmptyString('Image is required').annotations({
@@ -119,6 +167,7 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   metadata: Schema.optional(LevrMetadata),
   devBuy: Schema.optional(LevrDevBuy),
   airdrop: Schema.optional(LevrAirdrop),
+  vault: Schema.optional(LevrVault),
   treasuryFunding: TreasuryFunding,
   fees: LevrFees,
   stakingReward: LevrStakingReward,
@@ -132,14 +181,17 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
       // Get treasury percentage (e.g., "30%" -> 30)
       const treasuryPercentage = parseFloat(data.treasuryFunding ?? '30%')
 
+      // Get vault percentage (e.g., "5%" -> 5)
+      const vaultPercentage = data.vault ? parseFloat(data.vault.percentage) : 0
+
       // Check if total allocation exceeds 90% (must leave minimum 10% for liquidity)
-      const totalAllocated = airdropTotal + treasuryPercentage
+      const totalAllocated = airdropTotal + treasuryPercentage + vaultPercentage
 
       return totalAllocated <= 90
     },
     {
       message: () =>
-        `Total allocation (airdrop + treasury funding) cannot exceed 90% (minimum 10% must be reserved for liquidity)`,
+        `Total allocation (airdrop + vault + treasury funding) cannot exceed 90% (minimum 10% must be reserved for liquidity)`,
     }
   ),
   Schema.filter(

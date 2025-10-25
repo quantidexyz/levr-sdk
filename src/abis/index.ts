@@ -22,6 +22,7 @@ export { default as V4Quoter } from './V4Quoter'
 // -----------------------------
 // Clanker
 export { default as ClankerAirdropV2 } from './ClankerAirdropV2'
+export { default as ClankerVault } from './ClankerVault'
 export { default as IClankerAirdrop } from './IClankerAirdrop'
 export { default as IClankerHookDynamicFee } from './IClankerHookDynamicFee'
 export { default as IClankerHookStaticFee } from './IClankerHookStaticFee'

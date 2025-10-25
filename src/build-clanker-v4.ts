@@ -9,6 +9,8 @@ import {
   STAKING_REWARDS,
   STATIC_FEE_TIERS,
   TREASURY_AIRDROP_AMOUNTS,
+  VAULT_LOCKUP_PERIODS,
+  VAULT_VESTING_PERIODS,
 } from './constants'
 import type { ClankerDeploymentSchemaType, LevrClankerDeploymentSchemaType } from './schema'
 
@@ -37,12 +39,14 @@ export const buildClankerV4 = ({
   const metadata = getMetadata(c.metadata)
   const fees = getFees(c.fees)
   const rewards = getRewards(deployer, staking, c.stakingReward, c.rewards)
+  const vault = getVault(c.vault)
 
   const config: ClankerTokenV4 = {
     ...omit(c, 'treasuryFunding', 'stakingReward'),
     tokenAdmin: deployer,
     devBuy,
     airdrop,
+    vault,
     metadata,
     fees,
     rewards,
@@ -77,6 +81,36 @@ const getFees = (
   }
 
   return FEE_CONFIGS.Dynamic3
+}
+
+/**
+ * Builds the vault for the Clanker token using the Levr vault
+ * Converts day strings and percentage strings to numbers (seconds and percentages)
+ * @param vault - Levr vault configuration
+ * @returns Clanker vault with durations in seconds
+ */
+const getVault = (
+  vault: LevrClankerDeploymentSchemaType['vault']
+): ClankerDeploymentSchemaType['vault'] => {
+  if (!vault) return undefined
+
+  // Convert lockup period from days to seconds
+  const lockupDurationSeconds = VAULT_LOCKUP_PERIODS[vault.lockupPeriod] * 24 * 60 * 60
+
+  // Convert vesting period from days to seconds (0 for instant means no vesting)
+  const vestingDurationSeconds =
+    vault.vestingPeriod === 'instant'
+      ? 0
+      : VAULT_VESTING_PERIODS[vault.vestingPeriod] * 24 * 60 * 60
+
+  // Convert percentage from string (e.g., "5%") to number (5)
+  const percentageNumber = parseFloat(vault.percentage)
+
+  return {
+    percentage: percentageNumber,
+    lockupDuration: lockupDurationSeconds,
+    vestingDuration: vestingDurationSeconds,
+  }
 }
 
 /**
