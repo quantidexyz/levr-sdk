@@ -198,6 +198,6 @@ async function checkVaultStatus(tokenAddress: `0x${string}`) {
 
 ## Related
 
-- [useVault](../../../client-hooks/query/use-vault.md) - React hook for vault status
-- [useVaultClaim](../../../client-hooks/mutation/use-vault-claim.md) - React hook to claim vaulted tokens
+- [useVault](../../client-hooks/query/use-vault.md) - React hook for vault status
+- [useVaultClaim](../../client-hooks/mutation/use-vault-claim.md) - React hook to claim vaulted tokens
 - [Constants](../utilities/constants.md) - `GET_VAULT_ADDRESS()` function

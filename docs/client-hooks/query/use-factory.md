@@ -103,4 +103,4 @@ function ProposalEligibility() {
 
 ## Related
 
-- [getFactoryConfig](../../../server-api/queries/factory.md) - Server-side factory config query
+- [getFactoryConfig](../../server-api/queries/factory.md) - Server-side factory config query

@@ -100,5 +100,5 @@ if (config) {
 
 ## Related
 
-- [useFactory](../../../client-hooks/query/use-factory.md) - React hook for factory config
+- [useFactory](../../client-hooks/query/use-factory.md) - React hook for factory config
 - [getProject](./project.md) - Get project data

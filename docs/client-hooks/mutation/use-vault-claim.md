@@ -80,4 +80,4 @@ function VaultClaimWithError() {
 ## Related
 
 - [useVault](../query/use-vault.md) - Query vault status
-- [fetchVaultData](../../../server-api/queries/vault.md) - Server-side vault query
+- [fetchVaultData](../../server-api/queries/vault.md) - Server-side vault query

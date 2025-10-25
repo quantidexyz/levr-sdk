@@ -85,5 +85,5 @@ enum VaultStatus {
 
 ## Related
 
-- [useVaultClaim](../../mutation/use-vault-claim.md) - Claim vaulted tokens
-- [fetchVaultData](../../../server-api/queries/vault.md) - Server-side vault query
+- [useVaultClaim](../mutation/use-vault-claim.md) - Claim vaulted tokens
+- [fetchVaultData](../../server-api/queries/vault.md) - Server-side vault query
