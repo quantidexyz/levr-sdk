@@ -30,7 +30,7 @@ export const GET_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | undefined
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: '0x13492BF907FA548f835F6fF5a5D353B608ef3291',
+    [baseSepolia.id]: '0xc304aBE8F4Aa825f173893656b37F02E746496Dc',
   }[chainId] as `0x${string}` | undefined
 }
 
@@ -44,7 +44,7 @@ export const GET_FEE_SPLITTER_FACTORY_ADDRESS = (chainId?: number): `0x${string}
 
   return {
     [anvil.id]: process.env.NEXT_PUBLIC_LEVR_FEE_SPLITTER_FACTORY_V1_ANVIL,
-    [baseSepolia.id]: '0x232A57FFb8fDE5E89A6a4fdebED5265D4C045339',
+    [baseSepolia.id]: '0xa21a487C3234bc1A6254299B348DcC2364C85fd6',
   }[chainId] as `0x${string}` | undefined
 }
 
