@@ -1,9 +1,70 @@
 # Documentation Update Summary
 
-**Date:** October 18, 2025  
+**Date:** October 25, 2025  
 **Status:** ✅ Complete
 
-## Latest Changes (October 18, 2025)
+## Latest Changes (October 25, 2025)
+
+### Airdrop API Overhaul
+
+- ✅ **Function renamed** - `getTreasuryAirdropStatus()` → `getAirdropStatus()`
+- ✅ **Multi-recipient support** - Airdrop now returns array of recipients with individual proofs
+- ✅ **IPFS integration** - Added required `ipfsSearchUrl` and `ipfsJsonUrl` parameters
+- ✅ **Enhanced data structure** - Now includes `deploymentTimestamp`, `lockupDurationHours`, and per-recipient details
+- ✅ **Context accessor** - `useAirdropStatus()` is now a simple context accessor (no parameters)
+- ✅ **Batch claiming** - Added `claimAirdropBatch()` method to Governance class
+- ✅ **Updated documentation**:
+  - `use-airdrop-status.md` - Context accessor pattern with multi-recipient examples
+  - `airdrop-status.md` - Server API with IPFS integration and new signature
+
+### Vault Integration
+
+- ✅ **Added `useVault(token, chainId?)` hook** - Query vault allocation status with computed vesting info
+- ✅ **Added `useVaultClaim()` hook** - Claim vaulted tokens via Clanker SDK
+- ✅ **Added server functions** - `fetchVaultData()` and `getVaultStatus()`
+- ✅ **Added vault types** - `VaultAllocation`, `VaultStatus`, `VaultStatusData`
+- ✅ **Added `GET_VAULT_ADDRESS()` constant** - Get vault contract by chain
+- ✅ **Created comprehensive documentation**:
+  - `use-vault.md` - Client hook for querying vault status
+  - `use-vault-claim.md` - Client hook for claiming vaulted tokens
+  - `vault.md` - Server API with vault functions and types
+
+### Factory Configuration
+
+- ✅ **Added `useFactory()` hook** - Access factory configuration from context
+- ✅ **Added `getFactoryConfig()` function** - Server-side factory config fetching
+- ✅ **Added to LevrProvider** - Factory config now fetched and cached in context
+- ✅ **Created comprehensive documentation**:
+  - `use-factory.md` - Client hook for accessing factory config
+  - `factory.md` - Server API for factory configuration
+
+### Governance Cycle Management
+
+- ✅ **Added `useGovernanceCycle()` hook** - Manage cycle selection for proposal viewing
+- ✅ **Added `selectedCycleId` to context** - State management for cycle selection
+- ✅ **Created comprehensive documentation**:
+  - `use-governance-cycle.md` - Utility hook for cycle selection
+
+### LevrProvider Enhancements
+
+- ✅ **Added `ipfsSearchUrl` prop** - Required for airdrop merkle tree retrieval
+- ✅ **Added `ipfsJsonUrl` prop** - Required for airdrop proof generation
+- ✅ **Updated getting-started.md** - LevrProvider configuration with IPFS props
+
+### Documentation Updates
+
+- ✅ **Updated all index files** - Added new hooks to categorized lists
+- ✅ **Updated QUICK-REFERENCE.md** - Added vault, factory, and updated airdrop patterns
+- ✅ **Updated MIGRATION-GUIDE.md** - Added airdrop API migration section
+- ✅ **Updated architecture.md** - Added factoryConfig and IPFS integration
+- ✅ **Updated README.md** - Complete hook list with new additions
+- ✅ **Updated constants.md** - Added vault-related constants
+
+**Result:** Complete documentation coverage for vault, factory config, governance cycles, and multi-recipient airdrops with IPFS integration.
+
+---
+
+## Previous Update (October 18, 2025)
 
 ### Fee Splitter Integration
 
@@ -262,5 +323,11 @@ All documentation now accurately reflects:
 6. Current function signatures and return types
 7. Fee splitter system for distributing fees among multiple recipients
 8. Fee preference system for token-specific fee routing
+9. Multi-recipient airdrop system with IPFS integration
+10. Vault allocation with lockup and vesting schedules
+11. Factory configuration management
+12. Governance cycle selection
 
 **Status: Production Ready** ✅
+
+**Latest Update:** October 25, 2025 - Added vault, factory config, governance cycles, and overhauled airdrop API with multi-recipient support

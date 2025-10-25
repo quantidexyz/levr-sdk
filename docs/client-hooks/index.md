@@ -14,7 +14,9 @@ Read-only data access hooks:
 - [usePool](./query/use-pool.md) - Pool state (liquidity, price, fees)
 - [useProposals](./query/use-proposals.md) - Governance proposals with vote receipts
 - [useProposal](./query/use-proposal.md) - Single proposal by ID
-- [useAirdropStatus](./query/use-airdrop-status.md) - Treasury airdrop status (separate query)
+- [useAirdropStatus](./query/use-airdrop-status.md) - Multi-recipient airdrop status (from context)
+- [useVault](./query/use-vault.md) - Vault allocation status with vesting info
+- [useFactory](./query/use-factory.md) - Factory configuration (governance parameters)
 
 ### Mutation Hooks
 
@@ -25,6 +27,7 @@ Hooks with both queries and mutations:
 - [useGovernance](./mutation/use-governance.md) - Governance operations (propose, vote, execute, airdrop)
 - [useFeeReceivers](./mutation/use-fee-receivers.md) - Fee receiver management
 - [useConfigureSplits](./mutation/use-configure-splits.md) - Configure fee splitting among multiple recipients
+- [useVaultClaim](./mutation/use-vault-claim.md) - Claim vaulted tokens
 - [useDeploy](./mutation/use-deploy.md) - Deploy and register Clanker tokens
 - [usePrepare](./mutation/use-prepare.md) - Prepare contracts for deployment
 - [useRegister](./mutation/use-register.md) - Register existing tokens
@@ -36,6 +39,7 @@ Helper hooks:
 - [useSetClankerToken](./utility/use-set-clanker-token.md) - Update global token
 - [useLevrRefetch](./utility/use-levr-refetch.md) - Manual refetch control
 - [useClanker](./utility/use-clanker.md) - Clanker SDK instance
+- [useGovernanceCycle](./utility/use-governance-cycle.md) - Manage governance cycle selection
 
 ## Quick Example
 

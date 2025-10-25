@@ -63,12 +63,17 @@ const LevrContext = createContext<LevrContextValue>({
   chainId,
   userAddress,
 
+  // Governance cycle management
+  selectedCycleId,
+  setSelectedCycleId,
+
   // Data queries (hierarchical)
   user: userQuery,
   project,
   pool: poolQuery,
   proposals: proposalsQuery,
   airdropStatus,
+  factoryConfig,
 
   // Action-based refetch methods
   refetch: {
@@ -79,6 +84,7 @@ const LevrContext = createContext<LevrContextValue>({
     proposals,
     afterTrade,
     afterStake,
+    afterUnstake,
     afterClaim,
     afterAccrue,
     afterVote,
@@ -88,6 +94,25 @@ const LevrContext = createContext<LevrContextValue>({
   },
 })
 ```
+
+**IPFS Integration:**
+
+Airdrop functionality requires IPFS endpoints in LevrProvider:
+
+```typescript
+<LevrProvider
+  ipfsSearchUrl="/api/ipfs-search"
+  ipfsJsonUrl="/api/ipfs-json"
+>
+  {children}
+</LevrProvider>
+```
+
+These endpoints enable:
+
+- Merkle tree retrieval for multi-recipient airdrops
+- Proof generation for each recipient
+- Single-recipient optimization (empty proof when merkleRoot = leaf hash)
 
 **3. Simple Consumption**
 

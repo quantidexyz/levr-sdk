@@ -14,7 +14,10 @@ Core data fetching functions:
 - [getUser()](./queries/user.md) - Get user data (balances, staking, voting power)
 - [proposals()](./queries/proposals.md) - Get governance proposals with vote receipts
 - [proposal()](./queries/proposal.md) - Get single proposal by ID
-- [getTreasuryAirdropStatus()](./queries/airdrop-status.md) - Get airdrop status (separate query)
+- [getAirdropStatus()](./queries/airdrop-status.md) - Get multi-recipient airdrop status with IPFS integration
+- [getFactoryConfig()](./queries/factory.md) - Get factory configuration (governance parameters)
+- [fetchVaultData()](./queries/vault.md) - Get vault allocation data
+- [getVaultStatus()](./queries/vault.md) - Compute vault status with messages
 - [balance()](./queries/balance.md) - Get token balances (used internally by getUser)
 - [feeReceivers()](./queries/fee-receivers.md) - Get fee receiver information
 - [configureSplits()](./queries/fee-receivers.md#configure-splits-params) - Configure fee splitter splits
@@ -40,7 +43,7 @@ Helper functions and constants:
 
 - [getUsdPrice()](./utilities/get-usd-price.md) - Get USD prices
 - [updateFeeReceiver()](./utilities/update-fee-receiver.md) - Update fee receiver address
-- [Constants](./utilities/constants.md) - Exported constants (includes `GET_FEE_SPLITTER_ADDRESS`)
+- [Constants](./utilities/constants.md) - Exported constants (includes `GET_VAULT_ADDRESS`, `GET_FEE_SPLITTER_ADDRESS`)
 
 ## Quick Example
 

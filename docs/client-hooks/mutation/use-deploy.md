@@ -10,9 +10,13 @@ import type { LevrClankerDeploymentSchemaType } from 'levr-sdk'
 
 function DeployInterface() {
   const { mutate: deploy, isPending } = useDeploy({
-    onSuccess: ({ receipt, address }) => {
+    ipfsJsonUploadUrl: '/api/ipfs-json', // Optional: for storing merkle tree
+    onSuccess: ({ receipt, address, merkleTreeCID }) => {
       console.log('Deployed:', address)
       console.log('Transaction:', receipt.transactionHash)
+      if (merkleTreeCID) {
+        console.log('Merkle Tree CID:', merkleTreeCID)
+      }
     },
     onError: (error) => {
       console.error('Deploy failed:', error)
@@ -50,14 +54,15 @@ function DeployInterface() {
 
 ## Options
 
-- `onSuccess`: Callback with receipt and deployed token address
+- `ipfsJsonUploadUrl` (optional): Full URL to /api/ipfs-json endpoint for storing merkle tree (required for airdrop retrieval later)
+- `onSuccess`: Callback with receipt, deployed token address, and optional merkle tree CID
 - `onError`: Callback on deployment error
 
 ## Returns
 
 - `mutate`: Deploy mutation function
 - `isPending`: Loading state
-- `data`: Deployment result (receipt + address)
+- `data`: Deployment result `{ receipt, address, merkleTreeCID? }`
 - `error`: Error if deployment failed
 
 ## Notes
@@ -66,3 +71,21 @@ function DeployInterface() {
 - Automatically calls `prepareForDeployment()`, deploys token, and registers with Levr
 - Uses `executeMulticall` on LevrForwarder for atomic execution
 - Returns deployed token address (computed deterministically with vanity enabled)
+- If `ipfsJsonUploadUrl` provided and airdrop exists, merkle tree is stored to IPFS
+- Merkle tree CID returned in `onSuccess` callback for later retrieval
+- IPFS storage enables multi-recipient airdrop proof generation via `getAirdropStatus()`
+
+## IPFS Integration
+
+When deploying with airdrops, provide `ipfsJsonUploadUrl` to enable later retrieval:
+
+```typescript
+const { mutate: deploy } = useDeploy({
+  ipfsJsonUploadUrl: '/api/ipfs-json',
+  onSuccess: ({ address, merkleTreeCID }) => {
+    console.log('Token deployed:', address)
+    console.log('Merkle tree stored at:', merkleTreeCID)
+    // Now airdrop can be queried via getAirdropStatus() with ipfsSearchUrl
+  },
+})
+```

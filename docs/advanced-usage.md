@@ -193,13 +193,13 @@ function renderWithProviders(ui: React.ReactElement) {
   })
 
   return render(
-    <WagmiProvider config={testConfig}>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={testConfig}>
         <LevrProvider>
           {ui}
         </LevrProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+      </WagmiProvider>
+    </QueryClientProvider>
   )
 }
 

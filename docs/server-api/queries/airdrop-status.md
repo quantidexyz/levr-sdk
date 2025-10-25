@@ -1,11 +1,11 @@
-# getTreasuryAirdropStatus()
+# getAirdropStatus()
 
-Get airdrop status for a treasury (called separately from project data).
+Get airdrop status with multi-recipient support (called separately from project data).
 
 ## Usage
 
 ```typescript
-import { getTreasuryAirdropStatus, getProject } from 'levr-sdk'
+import { getAirdropStatus, getProject } from 'levr-sdk'
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -24,22 +24,38 @@ if (!project) {
   throw new Error('Project not found')
 }
 
-// Then get airdrop status
+// Then get airdrop status with IPFS URLs
 const tokenUsdPrice = project.pricing ? parseFloat(project.pricing.tokenUsd) : null
 
-const airdropStatus = await getTreasuryAirdropStatus(
+const airdropStatus = await getAirdropStatus(
   publicClient,
   project.token.address,
   project.treasury,
   project.token.decimals,
-  tokenUsdPrice
+  tokenUsdPrice,
+  'https://your-app.com/api/ipfs-search', // Required for merkle tree retrieval
+  'https://your-app.com/api/ipfs-json' // Required for merkle tree data
 )
 
-if (airdropStatus?.isAvailable) {
-  console.log('Airdrop available:', airdropStatus.availableAmount.formatted)
-  console.log('USD Value:', airdropStatus.availableAmount.usd)
-} else {
-  console.log('No airdrop available')
+if (!airdropStatus) {
+  console.log('No airdrop found or IPFS URLs not configured')
+  return
+}
+
+// Process all recipients
+console.log(`Found ${airdropStatus.recipients.length} recipients`)
+console.log(`Deployment: ${new Date(airdropStatus.deploymentTimestamp!).toISOString()}`)
+
+for (const recipient of airdropStatus.recipients) {
+  console.log(`\nRecipient: ${recipient.address}`)
+  console.log(`  Is Treasury: ${recipient.isTreasury}`)
+  console.log(`  Allocated: ${recipient.allocatedAmount.formatted}`)
+  console.log(`  Available: ${recipient.availableAmount.formatted}`)
+  console.log(`  Can Claim: ${recipient.isAvailable}`)
+  console.log(`  Proof Length: ${recipient.proof.length}`)
+  if (recipient.error) {
+    console.log(`  Error: ${recipient.error}`)
+  }
 }
 ```
 
@@ -47,18 +63,27 @@ if (airdropStatus?.isAvailable) {
 
 - `publicClient` (required): Viem public client
 - `clankerToken` (required): Clanker token address
-- `treasury` (required): Treasury contract address
+- `treasury` (required): Treasury contract address (used to identify treasury recipient)
 - `tokenDecimals` (required): Token decimals for formatting
-- `tokenUsdPrice` (optional): Token USD price for USD value calculations
+- `tokenUsdPrice` (required): Token USD price for USD value calculations (or null)
+- `ipfsSearchUrl` (required): Full URL to /api/ipfs-search endpoint
+- `ipfsJsonUrl` (required): Full URL to /api/ipfs-json endpoint
 
 ## Returns
 
 ```typescript
 {
-  availableAmount: BalanceResult
-  allocatedAmount: BalanceResult
-  isAvailable: boolean
-  error?: string
+  recipients: Array<{
+    address: `0x${string}`
+    allocatedAmount: BalanceResult
+    availableAmount: BalanceResult
+    isAvailable: boolean
+    proof: `0x${string}`[]
+    isTreasury: boolean
+    error?: string
+  }>
+  deploymentTimestamp?: number
+  lockupDurationHours?: number
 } | null
 ```
 
@@ -66,23 +91,51 @@ Returns `null` if:
 
 - No airdrop contract found
 - Airdrop not allocated
+- IPFS URLs not provided
+- Merkle tree not found on IPFS
 - Error fetching data
 
 ## Example Response
 
 ```typescript
 {
-  availableAmount: {
-    raw: 30000000000000000000000000000n,
-    formatted: "30000000000.0",
-    usd: "1500000.00"
-  },
-  allocatedAmount: {
-    raw: 30000000000000000000000000000n,
-    formatted: "30000000000.0",
-    usd: "1500000.00"
-  },
-  isAvailable: true
+  recipients: [
+    {
+      address: '0xTreasury...',
+      allocatedAmount: {
+        raw: 30000000000000000000000000000n,
+        formatted: "30000000000.0",
+        usd: "1500000.00"
+      },
+      availableAmount: {
+        raw: 30000000000000000000000000000n,
+        formatted: "30000000000.0",
+        usd: "1500000.00"
+      },
+      isAvailable: true,
+      proof: [], // Empty for single-recipient airdrops
+      isTreasury: true
+    },
+    {
+      address: '0xRecipient2...',
+      allocatedAmount: {
+        raw: 5000000000000000000000000000n,
+        formatted: "5000000000.0",
+        usd: "250000.00"
+      },
+      availableAmount: {
+        raw: 0n,
+        formatted: "0.0",
+        usd: "0.00"
+      },
+      isAvailable: false,
+      proof: ['0xabc...', '0xdef...'], // Merkle proofs for multi-recipient
+      isTreasury: false,
+      error: 'Airdrop is still locked (lockup period not passed)'
+    }
+  ],
+  deploymentTimestamp: 1729800000000,
+  lockupDurationHours: 24
 }
 ```
 
@@ -90,9 +143,13 @@ Returns `null` if:
 
 - Airdrop data is **no longer** part of `getProject()` return value
 - This is a separate function that should be called when needed
-- Checks if treasury has an airdrop allocated via Clanker airdrop contract
-- Returns `isAvailable: true` only if airdrop exists and hasn't been fully claimed
+- Supports multiple recipients with individual proofs
+- Retrieves merkle tree from IPFS using provided endpoints
+- Each recipient has `isTreasury` flag to identify treasury allocation
+- Proofs are empty array for single-recipient airdrops (merkleRoot equals leaf hash)
+- Multi-recipient airdrops use merkle tree to generate individual proofs
 - USD values calculated if `tokenUsdPrice` provided
+- IPFS URLs are **required** - function returns null without them
 
 ## Why Separate?
 
@@ -103,7 +160,21 @@ Airdrop status is fetched separately to:
 3. Keep project query focused on core data
 4. Improve performance for common cases
 
+## IPFS Integration
+
+The function requires IPFS API endpoints to retrieve merkle tree data:
+
+- **ipfsSearchUrl**: Searches for merkle tree CID by tokenAddress and chainId
+- **ipfsJsonUrl**: Fetches merkle tree JSON data by CID
+
+These endpoints should:
+
+1. Store merkle trees during deployment via `deployV4({ ipfsJsonUploadUrl })`
+2. Query merkle trees by metadata (tokenAddress, chainId)
+3. Return merkle tree with recipients and proofs
+
 ## Related
 
 - [getProject()](./project.md) - Get full project data
 - [useAirdropStatus](../../client-hooks/query/use-airdrop-status.md) - React hook for airdrop status
+- [Governance.claimAirdrop()](../classes/governance.md) - Claim airdrop for a recipient

@@ -37,13 +37,22 @@ Returns the Levr Factory V1 address for the given chain.
 
 Returns the Clanker LP Locker address for the given chain.
 
-### `GET_FEE_SPLITTER_ADDRESS(chainId)`
+### `GET_FEE_SPLITTER_FACTORY_ADDRESS(chainId)`
 
-Returns the Levr Fee Splitter V1 address for the given chain. Used for splitting trading fees among multiple recipients.
+Returns the Levr Fee Splitter Factory V1 address for the given chain. Used for deploying fee splitters to split trading fees among multiple recipients.
 
 ```typescript
-const splitter = GET_FEE_SPLITTER_ADDRESS(8453) // Base
-// '0x...' - Fee splitter contract address
+const splitterFactory = GET_FEE_SPLITTER_FACTORY_ADDRESS(8453) // Base
+// '0xa21a487C3234bc1A6254299B348DcC2364C85fd6' - Fee splitter factory address (Base Sepolia)
+```
+
+### `GET_VAULT_ADDRESS(chainId)`
+
+Returns the Clanker Vault contract address for the given chain. Used for token vesting and lockup.
+
+```typescript
+const vault = GET_VAULT_ADDRESS(8453) // Base
+// '0x...' - Vault contract address
 ```
 
 ## Clanker Contracts
@@ -144,5 +153,44 @@ Static fee tier presets in basis points:
   '1%': 100,
   '2%': 200,
   '3%': 300,
+}
+```
+
+### `VAULT_LOCKUP_PERIODS`
+
+Vault lockup period options in days:
+
+```typescript
+{
+  '30 days': 30,
+  '90 days': 90,
+  '180 days': 180,
+}
+```
+
+### `VAULT_VESTING_PERIODS`
+
+Vault vesting period options in days:
+
+```typescript
+{
+  instant: 0,
+  '30 days': 30,
+  '180 days': 180,
+}
+```
+
+### `VAULT_PERCENTAGES`
+
+Vault allocation percentage options:
+
+```typescript
+{
+  '5%': 5,
+  '10%': 10,
+  '15%': 15,
+  '20%': 20,
+  '25%': 25,
+  '30%': 30,
 }
 ```

@@ -24,7 +24,9 @@ Complete reference for all React hooks:
 - [usePool](./client-hooks/query/use-pool.md) - Pool state
 - [useProposals](./client-hooks/query/use-proposals.md) - Proposals list
 - [useProposal](./client-hooks/query/use-proposal.md) - Single proposal
-- [useAirdropStatus](./client-hooks/query/use-airdrop-status.md) - Airdrop status
+- [useAirdropStatus](./client-hooks/query/use-airdrop-status.md) - Multi-recipient airdrop status
+- [useVault](./client-hooks/query/use-vault.md) - Vault allocation status
+- [useFactory](./client-hooks/query/use-factory.md) - Factory configuration
 
 **Mutation Hooks:**
 
@@ -33,6 +35,7 @@ Complete reference for all React hooks:
 - [useGovernance](./client-hooks/mutation/use-governance.md) - Governance operations
 - [useFeeReceivers](./client-hooks/mutation/use-fee-receivers.md) - Fee receiver management
 - [useConfigureSplits](./client-hooks/mutation/use-configure-splits.md) - Fee splitting configuration
+- [useVaultClaim](./client-hooks/mutation/use-vault-claim.md) - Claim vaulted tokens
 - [useDeploy](./client-hooks/mutation/use-deploy.md) - Deploy tokens
 - [usePrepare](./client-hooks/mutation/use-prepare.md) - Prepare deployment
 - [useRegister](./client-hooks/mutation/use-register.md) - Register tokens
@@ -42,6 +45,7 @@ Complete reference for all React hooks:
 - [useClanker](./client-hooks/utility/use-clanker.md) - Clanker SDK instance
 - [useSetClankerToken](./client-hooks/utility/use-set-clanker-token.md) - Set active token
 - [useLevrRefetch](./client-hooks/utility/use-levr-refetch.md) - Manual refetch control
+- [useGovernanceCycle](./client-hooks/utility/use-governance-cycle.md) - Manage cycle selection
 
 ### Server API
 
@@ -59,7 +63,10 @@ Server-side functions and classes:
 - [feeReceivers()](./server-api/queries/fee-receivers.md) - Get fee receivers
 - [configureSplits()](./server-api/queries/fee-receivers.md#configure-splits-params) - Configure fee splitter
 - [updateRecipientToSplitter()](./server-api/queries/fee-receivers.md#update-recipient-to-splitter-params) - Update to splitter
-- [getTreasuryAirdropStatus()](./server-api/queries/airdrop-status.md) - Get airdrop status
+- [getAirdropStatus()](./server-api/queries/airdrop-status.md) - Get multi-recipient airdrop status
+- [getFactoryConfig()](./server-api/queries/factory.md) - Get factory configuration
+- [fetchVaultData()](./server-api/queries/vault.md) - Get vault data
+- [getVaultStatus()](./server-api/queries/vault.md) - Compute vault status
 
 **Classes:**
 
@@ -95,22 +102,25 @@ PROJECT (Single Multicall)
 
 ### Data Sources
 
-| Data Type            | Source      | Where to Access                              |
-| -------------------- | ----------- | -------------------------------------------- |
-| Token info           | `project`   | `project.data.token`                         |
-| Contract addresses   | `project`   | `project.data.{treasury, governor, staking}` |
-| Pool info            | `project`   | `project.data.pool`                          |
-| Treasury stats       | `project`   | `project.data.treasuryStats`                 |
-| Staking stats (pool) | `project`   | `project.data.stakingStats`                  |
-| Governance stats     | `project`   | `project.data.governanceStats`               |
-| Fee receivers        | `project`   | `project.data.feeReceivers`                  |
-| Fee splitter         | `project`   | `project.data.feeSplitter`                   |
-| Pricing (USD)        | `project`   | `project.data.pricing` (dynamic)             |
-| User balances        | `user`      | `user.data.balances`                         |
-| User staking         | `user`      | `user.data.staking`                          |
-| User voting power    | `user`      | `user.data.votingPower`                      |
-| Pool state           | `pool`      | `pool.data`                                  |
-| Proposals            | `proposals` | `proposals.data`                             |
+| Data Type            | Source          | Where to Access                              |
+| -------------------- | --------------- | -------------------------------------------- |
+| Token info           | `project`       | `project.data.token`                         |
+| Contract addresses   | `project`       | `project.data.{treasury, governor, staking}` |
+| Pool info            | `project`       | `project.data.pool`                          |
+| Treasury stats       | `project`       | `project.data.treasuryStats`                 |
+| Staking stats (pool) | `project`       | `project.data.stakingStats`                  |
+| Governance stats     | `project`       | `project.data.governanceStats`               |
+| Fee receivers        | `project`       | `project.data.feeReceivers`                  |
+| Fee splitter         | `project`       | `project.data.feeSplitter`                   |
+| Pricing (USD)        | `project`       | `project.data.pricing` (dynamic)             |
+| User balances        | `user`          | `user.data.balances`                         |
+| User staking         | `user`          | `user.data.staking`                          |
+| User voting power    | `user`          | `user.data.votingPower`                      |
+| Pool state           | `pool`          | `pool.data`                                  |
+| Proposals            | `proposals`     | `proposals.data`                             |
+| Airdrop status       | `airdropStatus` | `airdropStatus.data.recipients`              |
+| Factory config       | `factoryConfig` | `factoryConfig.data`                         |
+| Vault status         | N/A (separate)  | `useVault(token).data`                       |
 
 ### Refetch Strategy
 

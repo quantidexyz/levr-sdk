@@ -187,10 +187,12 @@ Returns `Project | null` (null if project not registered)
 
 **Not included:**
 
-- ❌ Airdrop status - Use `getTreasuryAirdropStatus()` separately
+- ❌ Airdrop status - Use `getAirdropStatus()` separately
 
 ## Related
 
 - [getStaticProject()](./static-project.md) - Get static data only
-- [getTreasuryAirdropStatus()](./airdrop-status.md) - Get airdrop status
+- [getAirdropStatus()](./airdrop-status.md) - Get airdrop status with multi-recipient support
 - [getUser()](./user.md) - Get user data
+- [getFactoryConfig()](./factory.md) - Get factory configuration
+- [fetchVaultData()](./vault.md) - Get vault allocation data

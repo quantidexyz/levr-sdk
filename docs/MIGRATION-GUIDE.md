@@ -8,7 +8,101 @@ The SDK has been refactored to achieve **zero duplicate queries** and a **cleane
 
 ## Breaking Changes
 
-### 1. Removed Hooks
+### 1. Airdrop API Changes (October 2025)
+
+**Function Renamed:**
+
+- ❌ `getTreasuryAirdropStatus()` → ✅ `getAirdropStatus()`
+
+**New Required Parameters:**
+
+```typescript
+// ❌ Old way
+const airdrop = await getTreasuryAirdropStatus(
+  publicClient,
+  clankerToken,
+  treasury,
+  tokenDecimals,
+  tokenUsdPrice
+)
+
+// ✅ New way
+const airdrop = await getAirdropStatus(
+  publicClient,
+  clankerToken,
+  treasury,
+  tokenDecimals,
+  tokenUsdPrice,
+  'https://your-app.com/api/ipfs-search', // NEW: Required
+  'https://your-app.com/api/ipfs-json' // NEW: Required
+)
+```
+
+**Return Type Changed:**
+
+```typescript
+// ❌ Old way - single treasury recipient
+{
+  availableAmount: BalanceResult
+  allocatedAmount: BalanceResult
+  isAvailable: boolean
+  error?: string
+}
+
+// ✅ New way - multi-recipient support
+{
+  recipients: Array<{
+    address: `0x${string}`
+    allocatedAmount: BalanceResult
+    availableAmount: BalanceResult
+    isAvailable: boolean
+    proof: `0x${string}`[]
+    isTreasury: boolean
+    error?: string
+  }>
+  deploymentTimestamp?: number
+  lockupDurationHours?: number
+}
+```
+
+**Hook Usage Changed:**
+
+```typescript
+// ❌ Old way - hook with parameters
+const { data: airdrop } = useAirdropStatus({
+  clankerToken: project?.token.address,
+  treasury: project?.treasury,
+  tokenDecimals: project?.token.decimals,
+  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
+})
+
+// ✅ New way - context accessor (no parameters)
+const { data: airdrop } = useAirdropStatus()
+// Configure LevrProvider with ipfsSearchUrl and ipfsJsonUrl
+```
+
+**Claiming Airdrops:**
+
+```typescript
+// ❌ Old way - single claim
+if (airdrop?.isAvailable) {
+  await governance.claimAirdrop(airdrop)
+}
+
+// ✅ New way - claim specific recipient
+const treasuryRecipient = airdrop?.recipients.find((r) => r.isTreasury)
+if (treasuryRecipient?.isAvailable) {
+  await governance.claimAirdrop(treasuryRecipient)
+}
+
+// Or batch claim all available
+const availableRecipients = airdrop?.recipients.filter((r) => r.isAvailable) || []
+if (availableRecipients.length > 0) {
+  await governance.claimAirdropBatch(availableRecipients)
+}
+```
+
+### 2. Removed Hooks
 
 These hooks no longer exist:
 

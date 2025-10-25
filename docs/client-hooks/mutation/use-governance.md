@@ -54,14 +54,10 @@ function GovernanceInterface() {
   // Get data from context
   const { data: user } = useUser()
   const { data: project } = useProject()
+  const { data: airdrop } = useAirdropStatus()
 
-  // Get airdrop status separately
-  const { data: airdrop } = useAirdropStatus({
-    clankerToken: project?.token.address ?? null,
-    treasury: project?.treasury ?? null,
-    tokenDecimals: project?.token.decimals ?? null,
-    tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
-  })
+  // Find treasury airdrop
+  const treasuryRecipient = airdrop?.recipients.find(r => r.isTreasury)
 
   return (
     <div>
@@ -70,9 +66,19 @@ function GovernanceInterface() {
       <p>Treasury: {project?.treasury}</p>
       <p>Your Voting Power: {user?.votingPower} Token Days</p>
 
-      {airdrop?.isAvailable && (
-        <button onClick={() => claimAirdrop.mutate(airdrop)} disabled={isClaiming}>
-          Claim {airdrop.availableAmount.formatted} Tokens
+      {treasuryRecipient?.isAvailable && (
+        <button onClick={() => claimAirdrop.mutate(treasuryRecipient)} disabled={isClaiming}>
+          Claim {treasuryRecipient.availableAmount.formatted} Tokens
+        </button>
+      )}
+
+      {/* Batch claim all available recipients */}
+      {airdrop?.recipients.some(r => r.isAvailable) && (
+        <button
+          onClick={() => claimAirdropBatch.mutate(airdrop.recipients.filter(r => r.isAvailable))}
+          disabled={isClaiming}
+        >
+          Claim All Available Airdrops
         </button>
       )}
 
@@ -106,25 +112,19 @@ function GovernanceInterface() {
 - `proposeBoost.mutate(config)`: Propose staking boost
 - `vote.mutate({ proposalId, support })`: Vote on a proposal
 - `executeProposal.mutate(config)`: Execute a passed proposal
-- `claimAirdrop.mutate(airdropStatus)`: Claim airdrop tokens (requires airdrop status)
+- `claimAirdrop.mutate(recipient)`: Claim airdrop for a single recipient
+- `claimAirdropBatch.mutate(recipients)`: Claim airdrops for multiple recipients in one transaction
 
 ## Data Access
 
-All governance data comes from `user`, `project`, and `airdrop` queries:
+All governance data comes from `user`, `project`, and `airdropStatus` context queries:
 
 ```typescript
 import { useUser, useProject, useAirdropStatus } from 'levr-sdk/client'
 
 const { data: user } = useUser()
 const { data: project } = useProject()
-
-// Airdrop status (separate query)
-const { data: airdrop } = useAirdropStatus({
-  clankerToken: project?.token.address ?? null,
-  treasury: project?.treasury ?? null,
-  tokenDecimals: project?.token.decimals ?? null,
-  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
-})
+const { data: airdrop } = useAirdropStatus()
 
 // From project context
 project?.governanceStats?.currentCycleId // Current governance cycle
@@ -137,7 +137,10 @@ project?.factory // Factory contract address
 // From user context
 user?.votingPower // User's voting power in Token Days (string)
 
-// From airdrop query
-airdrop?.isAvailable // Is airdrop available
-airdrop?.availableAmount // Available amount to claim
+// From airdrop context (multi-recipient support)
+airdrop?.recipients // Array of all recipients
+airdrop?.recipients[0].isAvailable // Is this recipient available
+airdrop?.recipients[0].availableAmount // Available amount for recipient
+airdrop?.recipients[0].proof // Merkle proof for recipient
+airdrop?.recipients.find((r) => r.isTreasury) // Find treasury recipient
 ```

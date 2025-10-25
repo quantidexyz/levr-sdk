@@ -145,36 +145,73 @@ console.log('Votes:', receipt.votes.toString())
 }
 ```
 
-### `claimAirdrop(airdropStatus)`
+### `claimAirdrop(recipient)`
 
-Claim treasury airdrop.
+Claim airdrop for a single recipient.
 
 ```typescript
-import { getTreasuryAirdropStatus } from 'levr-sdk'
+import { getAirdropStatus } from 'levr-sdk'
 
 // First fetch airdrop status
-const airdropStatus = await getTreasuryAirdropStatus(
+const airdropStatus = await getAirdropStatus(
   publicClient,
   projectData.token.address,
   projectData.treasury,
   projectData.token.decimals,
-  null // or tokenUsdPrice
+  null, // or tokenUsdPrice
+  'https://your-app.com/api/ipfs-search',
+  'https://your-app.com/api/ipfs-json'
 )
 
-if (airdropStatus?.isAvailable) {
-  const receipt = await governance.claimAirdrop(airdropStatus)
+if (!airdropStatus) {
+  console.log('No airdrop found')
+  return
+}
+
+// Claim treasury airdrop
+const treasuryRecipient = airdropStatus.recipients.find((r) => r.isTreasury)
+if (treasuryRecipient?.isAvailable) {
+  const receipt = await governance.claimAirdrop(treasuryRecipient)
   console.log('Claimed airdrop:', receipt.transactionHash)
 }
 ```
 
 **Parameters:**
 
-- `airdropStatus` (required): Airdrop status from `getTreasuryAirdropStatus()`
+- `recipient` (required): Airdrop recipient from `getAirdropStatus().recipients`
+
+**Returns:** `TransactionReceipt`
+
+### `claimAirdropBatch(recipients)`
+
+Claim airdrops for multiple recipients in a single transaction.
+
+```typescript
+import { getAirdropStatus } from 'levr-sdk'
+
+const airdropStatus = await getAirdropStatus(/* ... */)
+
+if (!airdropStatus) return
+
+// Filter available recipients
+const availableRecipients = airdropStatus.recipients.filter((r) => r.isAvailable)
+
+if (availableRecipients.length > 0) {
+  const receipt = await governance.claimAirdropBatch(availableRecipients)
+  console.log('Claimed', availableRecipients.length, 'airdrops:', receipt.transactionHash)
+}
+```
+
+**Parameters:**
+
+- `recipients` (required): Array of airdrop recipients from `getAirdropStatus().recipients`
 
 **Returns:** `TransactionReceipt`
 
 **Notes:**
 
-- Requires airdrop status to be fetched first using `getTreasuryAirdropStatus()`
-- Validates airdrop availability before claiming
-- Throws error if airdrop has errors or is not available
+- Single recipient: Direct claim transaction
+- Multiple recipients: Uses forwarder multicall for batch execution
+- Each recipient must have valid proof and be available
+- Validates availability before claiming
+- Throws error if any recipient has errors or is not available

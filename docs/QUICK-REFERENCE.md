@@ -109,22 +109,63 @@ pool?.lpFee // LP fee
 pool?.feeDisplay // Fee display string
 ```
 
-### Airdrop Data (separate query)
+### Airdrop Data (from context)
 
 ```typescript
 import { useAirdropStatus } from 'levr-sdk/client'
-const { data: project } = useProject()
 
-const { data: airdrop } = useAirdropStatus({
-  clankerToken: project?.token.address,
-  treasury: project?.treasury,
-  tokenDecimals: project?.token.decimals,
-  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
-})
+const { data: airdrop, isLoading } = useAirdropStatus()
 
-airdrop?.availableAmount.formatted
-airdrop?.allocatedAmount.formatted
-airdrop?.isAvailable
+// Multi-recipient support
+airdrop?.recipients // Array of recipients
+airdrop?.recipients[0].address
+airdrop?.recipients[0].allocatedAmount.formatted
+airdrop?.recipients[0].availableAmount.formatted
+airdrop?.recipients[0].isAvailable
+airdrop?.recipients[0].isTreasury
+airdrop?.recipients[0].proof // Merkle proof
+airdrop?.recipients[0].error
+
+// Deployment info
+airdrop?.deploymentTimestamp
+airdrop?.lockupDurationHours
+```
+
+### Vault Data
+
+```typescript
+import { useVault } from 'levr-sdk/client'
+
+const { data: vault } = useVault(tokenAddress)
+
+vault?.status // 'locked' | 'vesting' | 'vested'
+vault?.statusMessage // "Tokens Locked", etc.
+vault?.descriptionMessage // Detailed explanation
+vault?.daysRemaining // Days until next milestone
+vault?.claimable // Amount claimable now
+vault?.total // Total allocation
+vault?.claimed // Already claimed
+vault?.lockupEndTime
+vault?.vestingEndTime
+```
+
+### Factory Config
+
+```typescript
+import { useFactory } from 'levr-sdk/client'
+
+const { data: factory } = useFactory()
+
+factory?.protocolFeeBps // Protocol fee
+factory?.protocolTreasury
+factory?.proposalWindowSeconds
+factory?.votingWindowSeconds
+factory?.quorumBps
+factory?.approvalBps
+factory?.maxActiveProposals
+factory?.minSTokenBpsToSubmit
+factory?.maxProposalAmountBps
+factory?.streamWindowSeconds
 ```
 
 ### Proposals Data
@@ -348,13 +389,21 @@ const hasVotingPower = user && parseFloat(user.votingPower) > 0
 ### Check if Airdrop Available
 
 ```typescript
-const { data: airdrop } = useAirdropStatus({
-  clankerToken: project?.token.address,
-  treasury: project?.treasury,
-  tokenDecimals: project?.token.decimals,
-  tokenUsdPrice: project?.pricing ? parseFloat(project.pricing.tokenUsd) : null,
-})
-const canClaimAirdrop = airdrop?.isAvailable === true
+const { data: airdrop } = useAirdropStatus()
+const hasClaimableAirdrop = airdrop?.recipients.some((r) => r.isAvailable) ?? false
+
+// Get treasury airdrop specifically
+const treasuryRecipient = airdrop?.recipients.find((r) => r.isTreasury)
+const canClaimTreasury = treasuryRecipient?.isAvailable === true
+```
+
+### Check Vault Status
+
+```typescript
+const { data: vault } = useVault(tokenAddress)
+const canClaimVault = vault && vault.claimable > 0n
+const isVesting = vault?.status === 'vesting'
+const isLocked = vault?.status === 'locked'
 ```
 
 ### Check if Rewards Available
@@ -425,6 +474,11 @@ import type {
   BalanceResult,
   PricingResult,
   PoolKey,
+  AirdropStatus,
+  AirdropRecipient,
+  FactoryConfig,
+  VaultStatusData,
+  VaultStatus,
 } from 'levr-sdk'
 ```
 

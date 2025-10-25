@@ -59,16 +59,27 @@ const queryClient = new QueryClient()
 
 export function App() {
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <LevrProvider>
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={wagmiConfig}>
+        <LevrProvider
+          ipfsSearchUrl="/api/ipfs-search"  // Required for airdrop proof generation
+          ipfsJsonUrl="/api/ipfs-json"      // Required for airdrop merkle trees
+        >
           <YourApp />
         </LevrProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+      </WagmiProvider>
+    </QueryClientProvider>
   )
 }
 ```
+
+**LevrProvider Props:**
+
+- `ipfsSearchUrl` (optional): Full URL to IPFS search endpoint (required for airdrop functionality)
+- `ipfsJsonUrl` (optional): Full URL to IPFS JSON endpoint (required for airdrop functionality)
+- `oracleChainId` (optional): Chain ID for price oracle (default: 8453 - Base mainnet)
+- `oracleRpcUrl` (optional): RPC URL for oracle client (uses public RPC if not provided)
+- `enabled` (optional): Enable/disable all queries (default: true)
 
 ### 2. Set Active Token
 
