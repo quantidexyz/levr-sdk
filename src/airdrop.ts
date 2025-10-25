@@ -39,7 +39,6 @@ export async function getAirdropStatus(
   }
 
   if (!ipfsSearchUrl || !ipfsJsonUrl) {
-    console.warn('[AIRDROP] IPFS URLs not provided, cannot fetch airdrop data')
     return null
   }
 

@@ -136,14 +136,43 @@ export class Stake {
     receipt: TransactionReceipt
     newVotingPower: bigint
   }> {
-    const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+    let parsedAmount: bigint
+
+    if (typeof amount === 'bigint') {
+      parsedAmount = amount
+    } else {
+      // Parse the amount
+      parsedAmount = parseUnits(amount.toString(), this.tokenDecimals)
+    }
+
+    // Get current staked balance to prevent rounding errors on 100% unstake
+    const currentStakedBalance = await this.publicClient.readContract({
+      address: this.stakingAddress,
+      abi: LevrStaking_v1,
+      functionName: 'stakedBalanceOf',
+      args: [this.userAddress],
+    })
+
+    // If trying to unstake an amount very close to the total (within 0.01%), use exact balance
+    // This prevents "InsufficientStake" errors from floating-point rounding
+    const diff =
+      parsedAmount > currentStakedBalance
+        ? parsedAmount - currentStakedBalance
+        : currentStakedBalance - parsedAmount
+
+    const tolerance = currentStakedBalance / 10000n // 0.01% tolerance
+
+    if (diff <= tolerance && parsedAmount >= (currentStakedBalance * 99n) / 100n) {
+      // User is trying to unstake ~100%, use exact balance to avoid rounding errors
+      parsedAmount = currentStakedBalance
+    }
 
     const params = {
       address: this.stakingAddress,
       abi: LevrStaking_v1,
       functionName: 'unstake',
       args: [parsedAmount, to ?? this.userAddress],
+      account: this.userAddress,
       chain: this.wallet.chain,
     } as const
 

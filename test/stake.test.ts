@@ -462,4 +462,147 @@ describe('#STAKE_TEST', () => {
       timeout: 60000,
     }
   )
+
+  it(
+    'Should unstake tokens (partial and full)',
+    async () => {
+      console.log('\n🔓 Testing unstake functionality...')
+
+      // Get current staked balance
+      const stakedBalanceBefore = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('\n📊 Current staked balance:', `${formatEther(stakedBalanceBefore)} tokens`)
+      expect(stakedBalanceBefore).toBeGreaterThan(0n)
+
+      // Get user's token balance before unstaking
+      const userTokenBalanceBefore = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('💰 User token balance before unstake:', `${formatEther(userTokenBalanceBefore)} tokens`)
+
+      // Test 1: Partial unstake (25%)
+      console.log('\n📉 Test 1: Unstaking 25%...')
+      const partialUnstakeAmount = stakedBalanceBefore / 4n
+
+      // DEBUG: Check actual balance RIGHT before unstaking
+      const actualBalanceRightNow = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+
+      console.log('  🔍 DEBUG: Staked balance RIGHT NOW:', `${formatEther(actualBalanceRightNow)} tokens`)
+      console.log('  🔍 DEBUG: Staked balance (raw wei):', actualBalanceRightNow.toString())
+      console.log('  🔍 DEBUG: Amount to unstake:', `${formatEther(partialUnstakeAmount)} tokens`)
+      console.log('  🔍 DEBUG: Amount to unstake (raw wei):', partialUnstakeAmount.toString())
+      console.log('  🔍 DEBUG: Balance sufficient?', actualBalanceRightNow >= partialUnstakeAmount)
+      console.log('  🔍 DEBUG: Difference (wei):', (actualBalanceRightNow - partialUnstakeAmount).toString())
+
+      // Check claimable rewards for the underlying token
+      const claimableUnderlying = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'claimableRewards',
+        args: [wallet.account.address, deployedTokenAddress],
+      })
+
+      console.log('  🔍 DEBUG: Claimable underlying rewards:', `${formatEther(claimableUnderlying)} tokens`)
+
+      // Check reward reserve for underlying
+      const escrowBalance = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'escrowBalance',
+        args: [deployedTokenAddress],
+      })
+
+      console.log('  🔍 DEBUG: Escrow balance:', `${formatEther(escrowBalance)} tokens`)
+      console.log('  🔍 DEBUG: Escrow sufficient for unstake?', escrowBalance >= partialUnstakeAmount)
+
+      const { receipt: partialReceipt, newVotingPower: vpAfterPartial } = await staking.unstake({
+        amount: partialUnstakeAmount,
+        to: wallet.account.address,
+      })
+
+      expect(partialReceipt.status).toBe('success')
+      console.log('  ✅ Partial unstake successful')
+      console.log('  📊 New voting power:', vpAfterPartial.toString(), 'VP')
+
+      // Verify staked balance decreased
+      const stakedBalanceAfterPartial = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+
+      expect(stakedBalanceAfterPartial).toBe(stakedBalanceBefore - partialUnstakeAmount)
+      console.log('  📊 Staked balance after partial:', `${formatEther(stakedBalanceAfterPartial)} tokens`)
+
+      // Verify user received tokens
+      const userTokenBalanceAfterPartial = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      expect(userTokenBalanceAfterPartial).toBe(userTokenBalanceBefore + partialUnstakeAmount)
+      console.log('  💰 User received:', `${formatEther(partialUnstakeAmount)} tokens`)
+
+      // Test 2: Full unstake (100% of remaining)
+      console.log('\n📉 Test 2: Unstaking remaining 100%...')
+      console.log('  Amount to unstake:', `${formatEther(stakedBalanceAfterPartial)} tokens`)
+
+      const { receipt: fullReceipt, newVotingPower: vpAfterFull } = await staking.unstake({
+        amount: stakedBalanceAfterPartial, // Use exact BigInt amount
+        to: wallet.account.address,
+      })
+
+      expect(fullReceipt.status).toBe('success')
+      console.log('  ✅ Full unstake successful')
+      console.log('  📊 New voting power:', vpAfterFull.toString(), 'VP (should be 0)')
+
+      // Verify staked balance is now 0
+      const stakedBalanceFinal = await publicClient.readContract({
+        address: project.staking,
+        abi: LevrStaking_v1,
+        functionName: 'stakedBalanceOf',
+        args: [wallet.account.address],
+      })
+
+      expect(stakedBalanceFinal).toBe(0n)
+      console.log('  📊 Final staked balance:', `${formatEther(stakedBalanceFinal)} tokens (ZERO ✓)`)
+
+      // Verify user received all remaining tokens
+      const userTokenBalanceFinal = await publicClient.readContract({
+        address: deployedTokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address],
+      })
+
+      const totalUnstaked = stakedBalanceBefore
+      expect(userTokenBalanceFinal).toBe(userTokenBalanceBefore + totalUnstaked)
+      console.log(
+        '  💰 User final balance:',
+        `${formatEther(userTokenBalanceFinal)} tokens (recovered all staked tokens ✓)`
+      )
+
+      console.log('\n✅ Unstake test complete: Both partial and full unstake work correctly!')
+    },
+    {
+      timeout: 60000,
+    }
+  )
 })
