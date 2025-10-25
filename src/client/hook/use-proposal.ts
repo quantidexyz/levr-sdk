@@ -34,22 +34,27 @@ export function useProposalsQuery({
   const { address: userAddress } = useAccount()
 
   // Use provided cycleId or fall back to current cycle
-  const effectiveCycleId = cycleId ?? project?.governanceStats?.currentCycleId
+  const userFacingCycleId = cycleId ?? project?.governanceStats?.currentCycleId
+  // Only subtract 1 if we're at cycle 1 and the contract's actual cycle is 0
+  const contractCycleId =
+    userFacingCycleId === 1n && project?.governanceStats?.currentCycleId === 0n
+      ? 0n
+      : userFacingCycleId
 
   return useQuery({
-    queryKey: queryKeys.proposals(project?.chainId, effectiveCycleId?.toString(), userAddress),
+    queryKey: queryKeys.proposals(project?.chainId, userFacingCycleId?.toString(), userAddress),
     queryFn: async () => {
       return proposals({
         publicClient: publicClient!,
         governorAddress: project!.governor,
         tokenDecimals: project!.token.decimals,
         pricing: project!.pricing,
-        cycleId: effectiveCycleId,
+        cycleId: contractCycleId,
         pageSize: 50,
         userAddress, // Include vote receipts if user is connected
       })
     },
-    enabled: e && !!publicClient && !!project! && effectiveCycleId !== undefined,
+    enabled: e && !!publicClient && !!project! && contractCycleId !== undefined,
     retry: 1,
     staleTime: 5000,
     refetchInterval: 30000,

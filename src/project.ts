@@ -44,6 +44,8 @@ export type TreasuryStats = {
   balance: BalanceResult
   totalAllocated: BalanceResult
   utilization: number // percentage (0-100)
+  stakingContractBalance: BalanceResult
+  stakingContractWethBalance?: BalanceResult
 }
 
 export type StakingStats = {
@@ -160,7 +162,8 @@ type FactoryContractsResult = [
 
 type TreasuryContractsResult = [
   MulticallResult<bigint>, // treasury balance
-  MulticallResult<bigint>, // staking balance
+  MulticallResult<bigint>, // staking balance (clanker token)
+  MulticallResult<bigint>?, // staking balance (weth) - optional
 ]
 
 type GovernanceContractsResult = [
@@ -262,9 +265,10 @@ function getFactoryContracts(factoryAddress: `0x${string}`, clankerToken: `0x${s
 function getTreasuryContracts(
   clankerToken: `0x${string}`,
   treasury: `0x${string}`,
-  staking: `0x${string}`
+  staking: `0x${string}`,
+  wethAddress?: `0x${string}`
 ) {
-  return [
+  const contracts = [
     {
       address: clankerToken,
       abi: erc20Abi,
@@ -278,6 +282,17 @@ function getTreasuryContracts(
       args: [staking],
     },
   ]
+
+  if (wethAddress) {
+    contracts.push({
+      address: wethAddress,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: [staking],
+    })
+  }
+
+  return contracts
 }
 
 function getGovernanceContracts(governor: `0x${string}`) {
@@ -417,12 +432,14 @@ function parseTreasuryStats(
   results: TreasuryContractsResult,
   tokenDecimals: number,
   totalSupply: bigint,
-  tokenUsdPrice: number | null
+  tokenUsdPrice: number | null,
+  wethUsdPrice?: number | null
 ): TreasuryStats {
-  const [treasuryBalance, stakingBalance] = results
+  const [treasuryBalance, stakingBalance, stakingWethBalance] = results
 
   const treasuryBalanceRaw = treasuryBalance.result
   const stakingBalanceRaw = stakingBalance.result
+  const stakingWethBalanceRaw = stakingWethBalance ? stakingWethBalance.result : null
 
   // Total allocated = treasury + staking balances (protocol-controlled tokens)
   const totalAllocatedRaw = treasuryBalanceRaw + stakingBalanceRaw
@@ -435,13 +452,17 @@ function parseTreasuryStats(
     balance: formatBalanceWithUsd(treasuryBalanceRaw, tokenDecimals, tokenUsdPrice),
     totalAllocated: formatBalanceWithUsd(totalAllocatedRaw, tokenDecimals, tokenUsdPrice),
     utilization,
+    stakingContractBalance: formatBalanceWithUsd(stakingBalanceRaw, tokenDecimals, tokenUsdPrice),
+    stakingContractWethBalance: stakingWethBalanceRaw
+      ? formatBalanceWithUsd(stakingWethBalanceRaw, 18, wethUsdPrice ?? null)
+      : undefined,
   }
 }
 
 function parseGovernanceData(results: GovernanceContractsResult): GovernanceData {
   const [currentCycleId, boostCount, transferCount] = results
   return {
-    currentCycleId: currentCycleId.result,
+    currentCycleId: currentCycleId.result === 0n ? 1n : currentCycleId.result,
     activeProposalCount: {
       boost: boostCount.result,
       transfer: transferCount.result,
@@ -614,7 +635,8 @@ export async function getProjects({
     ...getTreasuryContracts(
       projectInfo.clankerToken,
       projectInfo.project.treasury,
-      projectInfo.project.staking
+      projectInfo.project.staking,
+      WETH(projectInfo.chainId)?.address
     ),
   ])
 
@@ -845,7 +867,12 @@ export async function getProject({
 
   // Fetch only dynamic data (treasury, governance, staking stats, and fee splitter dynamic)
   const contracts = [
-    ...getTreasuryContracts(clankerToken, staticProject.treasury, staticProject.staking),
+    ...getTreasuryContracts(
+      clankerToken,
+      staticProject.treasury,
+      staticProject.staking,
+      wethAddress
+    ),
     ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
     ...(feeSplitterAddress && staticProject.feeSplitter?.isActive
@@ -856,7 +883,7 @@ export async function getProject({
   const results = await publicClient.multicall({ contracts })
 
   // Calculate slice indices for dynamic data
-  const treasuryCount = 2
+  const treasuryCount = wethAddress ? 3 : 2
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
   const feeSplitterDynamicCount =
@@ -907,7 +934,8 @@ export async function getProject({
     treasuryResults,
     staticProject.token.decimals,
     staticProject.token.totalSupply,
-    tokenUsdPrice
+    tokenUsdPrice,
+    wethUsdPrice
   )
 
   const stakingStats = parseStakingStats(

@@ -110,7 +110,7 @@ export function LevrProvider({
   ipfsJsonUrl,
 }: LevrProviderProps) {
   const [clankerToken, setClankerToken] = React.useState<Address | null>(null)
-  const [selectedCycleId, setSelectedCycleId] = React.useState<bigint | null>(null)
+  const [selectedCycleId, setSelectedCycleId] = React.useState<bigint | null>(1n)
   const queryClient = useQueryClient()
   const { address: userAddress } = useAccount()
   const chainId = useChainId()
