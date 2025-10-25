@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.3.1](https://github.com/quantidexyz/levr-sdk/compare/v0.3.0...v0.3.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* update LEVR_TEAM_WALLET address to the new wallet for LP fee allocation ([bbff44e](https://github.com/quantidexyz/levr-sdk/commit/bbff44ea62a5c58d033f7007a46c253cc71ace30))
+
 ## [0.3.0](https://github.com/quantidexyz/levr-sdk/compare/v0.2.2...v0.3.0) (2025-10-25)
 
 
