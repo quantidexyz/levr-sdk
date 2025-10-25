@@ -82,4 +82,9 @@ export const queryKeys = {
    * Factory config query keys (static per chain)
    */
   factoryConfig: (chainId?: number) => ['factory-config', chainId] as const,
+
+  /**
+   * Vault query keys
+   */
+  vault: (token?: Address, chainId?: number) => ['vault', token, chainId] as const,
 } as const

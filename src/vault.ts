@@ -32,57 +32,104 @@ export type VaultClaimableState = {
 }
 
 /**
- * Retrieve the vault allocation state for a token
- * @param publicClient - Viem public client
- * @param tokenAddress - Token address to query
- * @param chainId - Chain ID (optional, can be inferred from publicClient)
- * @returns Vault allocation data or undefined if not found
+ * Vault status enum
  */
-export const getVaultAllocation = async (
-  publicClient: PublicClient,
-  tokenAddress: `0x${string}`,
-  chainId?: number
-): Promise<VaultAllocation | undefined> => {
-  const actualChainId = chainId || publicClient.chain?.id
-  if (!actualChainId) throw new Error('Chain ID not found')
+export enum VaultStatus {
+  LOCKED = 'locked',
+  VESTING = 'vesting',
+  VESTED = 'vested',
+}
 
-  const vaultAddress = GET_VAULT_ADDRESS(actualChainId)
-  if (!vaultAddress) throw new Error(`Vault not configured for chain ${actualChainId}`)
+/**
+ * Type representing vault status with computed information
+ */
+export type VaultStatusData = {
+  status: VaultStatus
+  statusMessage: string
+  descriptionMessage: string
+  daysRemaining: number
+  claimable: bigint
+  total: bigint
+  claimed: bigint
+  lockupEndTime: bigint
+  vestingEndTime: bigint
+}
 
-  try {
-    const allocation = (await publicClient.readContract({
+/**
+ * Build contract calls for vault data
+ * @param vaultAddress - Vault contract address
+ * @param tokenAddress - Token address to query
+ * @returns Array of contract calls
+ */
+function getVaultContracts(vaultAddress: `0x${string}`, tokenAddress: `0x${string}`) {
+  return [
+    {
       address: vaultAddress,
       abi: ClankerVault,
-      functionName: 'allocation',
+      functionName: 'allocation' as const,
       args: [tokenAddress],
-    })) as [`0x${string}`, bigint, bigint, bigint, bigint, `0x${string}`]
+    },
+    {
+      address: vaultAddress,
+      abi: ClankerVault,
+      functionName: 'amountAvailableToClaim' as const,
+      args: [tokenAddress],
+    },
+  ]
+}
 
-    return {
+/**
+ * Parse vault contract results
+ * @param results - Array of contract call results
+ * @returns Parsed vault state or undefined if allocation doesn't exist
+ */
+function parseVaultData(
+  results: readonly any[]
+): { allocation: VaultAllocation; claimable: bigint } | undefined {
+  const allocationResult = results[0]
+  const claimableResult = results[1]
+
+  // Check if allocation call failed
+  if (allocationResult.status === 'failure') {
+    return undefined
+  }
+
+  const allocation = allocationResult.result as [
+    `0x${string}`,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    `0x${string}`,
+  ]
+
+  const claimable = (claimableResult.result ?? 0n) as bigint
+
+  return {
+    allocation: {
       token: allocation[0],
       amountTotal: allocation[1],
       amountClaimed: allocation[2],
       lockupEndTime: allocation[3],
       vestingEndTime: allocation[4],
       admin: allocation[5],
-    }
-  } catch (error) {
-    // Allocation may not exist
-    return undefined
+    },
+    claimable,
   }
 }
 
 /**
- * Retrieve the amount of tokens available to claim from the vault
+ * Fetch vault data using multicall
  * @param publicClient - Viem public client
  * @param tokenAddress - Token address to query
  * @param chainId - Chain ID (optional, can be inferred from publicClient)
- * @returns Amount claimable or 0n if not available
+ * @returns Parsed vault data or undefined if allocation doesn't exist
  */
-export const getVaultClaimableAmount = async (
+export async function fetchVaultData(
   publicClient: PublicClient,
   tokenAddress: `0x${string}`,
   chainId?: number
-): Promise<bigint> => {
+): Promise<{ allocation: VaultAllocation; claimable: bigint } | undefined> {
   const actualChainId = chainId || publicClient.chain?.id
   if (!actualChainId) throw new Error('Chain ID not found')
 
@@ -90,45 +137,67 @@ export const getVaultClaimableAmount = async (
   if (!vaultAddress) throw new Error(`Vault not configured for chain ${actualChainId}`)
 
   try {
-    const claimable = (await publicClient.readContract({
-      address: vaultAddress,
-      abi: ClankerVault,
-      functionName: 'amountAvailableToClaim',
-      args: [tokenAddress],
-    })) as bigint
-
-    return claimable
-  } catch (error) {
-    // If not claimable, return 0
-    return 0n
+    const contracts = getVaultContracts(vaultAddress, tokenAddress)
+    const results = await publicClient.multicall({ contracts })
+    return parseVaultData(results)
+  } catch {
+    return undefined
   }
 }
 
 /**
- * Retrieve complete vault state including both allocation and claimable amount
- * @param publicClient - Viem public client
- * @param tokenAddress - Token address to query
- * @param chainId - Chain ID (optional, can be inferred from publicClient)
- * @returns Complete vault state or undefined if allocation doesn't exist
+ * Get vault status with computed messages
+ * @param data - Vault data from fetchVaultData
+ * @param blockTimestamp - Current block timestamp in seconds (for consistency)
+ * @returns Vault status data with messages
  */
-export const getVaultState = async (
-  publicClient: PublicClient,
-  tokenAddress: `0x${string}`,
-  chainId?: number
-): Promise<VaultClaimableState | undefined> => {
-  const actualChainId = chainId || publicClient.chain?.id
-  if (!actualChainId) throw new Error('Chain ID not found')
+export function getVaultStatus(
+  data: {
+    allocation: VaultAllocation
+    claimable: bigint
+  },
+  blockTimestamp: number
+): VaultStatusData {
+  const lockupEndTime = Number(data.allocation.lockupEndTime)
+  const vestingEndTime = Number(data.allocation.vestingEndTime)
 
-  const allocation = await getVaultAllocation(publicClient, tokenAddress, actualChainId)
-  if (!allocation) return undefined
+  let status: VaultStatus
+  let statusMessage: string
+  let descriptionMessage: string
+  let daysRemaining: number
 
-  const claimable = await getVaultClaimableAmount(publicClient, tokenAddress, actualChainId)
+  if (blockTimestamp < lockupEndTime) {
+    // Still in lockup
+    status = VaultStatus.LOCKED
+    daysRemaining = Math.ceil((lockupEndTime - blockTimestamp) / (24 * 60 * 60))
+    statusMessage = 'Tokens Locked'
+    descriptionMessage = `Your tokens will be available to claim in ${daysRemaining} days.`
+  } else if (blockTimestamp < vestingEndTime) {
+    // In vesting period
+    status = VaultStatus.VESTING
+    daysRemaining = Math.ceil((vestingEndTime - blockTimestamp) / (24 * 60 * 60))
+    statusMessage = 'Vesting in Progress'
+    descriptionMessage = `Tokens are vesting linearly. ${daysRemaining} days until fully vested.`
+  } else {
+    // Fully vested
+    status = VaultStatus.VESTED
+    daysRemaining = 0
+    statusMessage = 'Vesting Complete'
+    descriptionMessage =
+      data.claimable > 0n
+        ? 'All tokens are now available to claim.'
+        : 'All tokens in this vault have been claimed.'
+  }
 
   return {
-    claimable,
-    total: allocation.amountTotal,
-    claimed: allocation.amountClaimed,
-    lockupEndTime: allocation.lockupEndTime,
-    vestingEndTime: allocation.vestingEndTime,
+    status,
+    statusMessage,
+    descriptionMessage,
+    daysRemaining,
+    claimable: data.claimable,
+    total: data.allocation.amountTotal,
+    claimed: data.allocation.amountClaimed,
+    lockupEndTime: data.allocation.lockupEndTime,
+    vestingEndTime: data.allocation.vestingEndTime,
   }
 }
