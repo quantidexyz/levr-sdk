@@ -312,7 +312,8 @@ export class Stake {
         )
       }
 
-      calls = tokenAddresses.map((tokenAddress) => ({
+      // Call distribute() for each token (fee splitter's portion + auto-accrue)
+      const distributeCalls = tokenAddresses.map((tokenAddress) => ({
         target: feeSplitterAddress, // Per-project splitter, not deployer!
         allowFailure: false,
         value: 0n,
@@ -322,6 +323,22 @@ export class Stake {
           args: [tokenAddress],
         }),
       }))
+
+      // ALSO call accrueRewards() for each token (staking's direct portion from ClankerFeeLocker)
+      // This handles hybrid setups where staking receives fees both via splitter AND directly
+      const accrueCalls = tokenAddresses.map((tokenAddress) => ({
+        target: this.stakingAddress,
+        allowFailure: false,
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrStaking_v1,
+          functionName: 'accrueRewards',
+          args: [tokenAddress],
+        }),
+      }))
+
+      // Execute both sets of calls in a single multicall transaction
+      calls = [...distributeCalls, ...accrueCalls]
     } else {
       // Direct mode: Call accrueRewards() on staking contract
       calls = tokenAddresses.map((tokenAddress) => ({

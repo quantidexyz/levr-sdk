@@ -525,18 +525,18 @@ function parseStakingStats(
   // Calculate if stream is active using blockchain timestamp
   const isStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
 
-  // When fee splitter is active, REPLACE staking's pending with fee splitter's pending
-  // (staking is no longer the fee recipient - fee splitter is!)
-  // When fee splitter is NOT active, use staking's pending from ClankerFeeLocker
+  // When fee splitter is active, ADD both fee splitter's pending AND staking's pending
+  // (hybrid setup: fee splitter gets some %, staking gets rest % directly from ClankerFeeLocker)
+  // When fee splitter is NOT active, use only staking's pending from ClankerFeeLocker
   const tokenPendingTotal = feeSplitterPending
-    ? feeSplitterPending.token // Use ONLY fee splitter pending (it's the recipient)
-    : outstandingRewardsTokenRaw[1] // Use staking's pending (it's the recipient)
+    ? feeSplitterPending.token + outstandingRewardsTokenRaw[1] // ADD both portions
+    : outstandingRewardsTokenRaw[1] // Use staking's pending (it's the only recipient)
 
   const wethPendingTotal =
     feeSplitterPending?.weth !== undefined
-      ? feeSplitterPending.weth // Use ONLY fee splitter pending (it's the recipient)
+      ? (feeSplitterPending.weth ?? 0n) + (outstandingRewardsWethRaw?.[1] ?? 0n) // ADD both portions
       : outstandingRewardsWethRaw
-        ? outstandingRewardsWethRaw[1] // Use staking's pending (it's the recipient)
+        ? outstandingRewardsWethRaw[1] // Use staking's pending (it's the only recipient)
         : null
 
   return {
