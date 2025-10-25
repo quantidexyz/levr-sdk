@@ -629,16 +629,26 @@ export async function getProjects({
     }
   }
 
+  // Track contracts and their mapping per project for correct result parsing
+  const contractsPerProject: { tokenCount: number; treasuryCount: number }[] = []
+
   // Build contract calls for all projects (token data + treasury balances)
-  const contracts = projectsData.flatMap((projectInfo) => [
-    ...getTokenContracts(projectInfo.clankerToken),
-    ...getTreasuryContracts(
+  const contracts = projectsData.flatMap((projectInfo) => {
+    const tokenContracts = getTokenContracts(projectInfo.clankerToken)
+    const treasuryContracts = getTreasuryContracts(
       projectInfo.clankerToken,
       projectInfo.project.treasury,
       projectInfo.project.staking,
-      WETH(chainId)?.address
-    ),
-  ])
+      undefined
+    )
+
+    contractsPerProject.push({
+      tokenCount: tokenContracts.length,
+      treasuryCount: treasuryContracts.length,
+    })
+
+    return [...tokenContracts, ...treasuryContracts]
+  })
 
   const results = await publicClient.multicall({ contracts })
 
@@ -654,15 +664,25 @@ export async function getProjects({
     | 'airdrop'
     | 'blockTimestamp'
   >[] = []
-  const callsPerProject = 7 // 5 token + 2 treasury (no governance for list view)
+  let currentOffset = 0
 
   for (let i = 0; i < projectsData.length; i++) {
     const projectInfo = projectsData[i]
-    const offset = i * callsPerProject
+    const tokenCount = contractsPerProject[i].tokenCount
+    const treasuryCount = contractsPerProject[i].treasuryCount
 
     // Extract results for this project
-    const tokenResults = results.slice(offset, offset + 5) as TokenContractsResult
-    const treasuryResults = results.slice(offset + 5, offset + 7) as TreasuryContractsResult
+    const tokenResults = results.slice(
+      currentOffset,
+      currentOffset + tokenCount
+    ) as TokenContractsResult
+    currentOffset += tokenCount
+
+    const treasuryResults = results.slice(
+      currentOffset,
+      currentOffset + treasuryCount
+    ) as TreasuryContractsResult
+    currentOffset += treasuryCount
 
     // Parse using our type-safe parsers
     const tokenData = parseTokenData(tokenResults, projectInfo.clankerToken)
