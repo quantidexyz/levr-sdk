@@ -487,7 +487,10 @@ describe('#STAKE_TEST', () => {
         args: [wallet.account.address],
       })
 
-      console.log('💰 User token balance before unstake:', `${formatEther(userTokenBalanceBefore)} tokens`)
+      console.log(
+        '💰 User token balance before unstake:',
+        `${formatEther(userTokenBalanceBefore)} tokens`
+      )
 
       // Test 1: Partial unstake (25%)
       console.log('\n📉 Test 1: Unstaking 25%...')
@@ -511,7 +514,10 @@ describe('#STAKE_TEST', () => {
       })
 
       expect(stakedBalanceAfterPartial).toBe(stakedBalanceBefore - partialUnstakeAmount)
-      console.log('  📊 Staked balance after partial:', `${formatEther(stakedBalanceAfterPartial)} tokens`)
+      console.log(
+        '  📊 Staked balance after partial:',
+        `${formatEther(stakedBalanceAfterPartial)} tokens`
+      )
 
       // Verify user received tokens
       const userTokenBalanceAfterPartial = await publicClient.readContract({
@@ -546,7 +552,10 @@ describe('#STAKE_TEST', () => {
       })
 
       expect(stakedBalanceFinal).toBe(0n)
-      console.log('  📊 Final staked balance:', `${formatEther(stakedBalanceFinal)} tokens (ZERO ✓)`)
+      console.log(
+        '  📊 Final staked balance:',
+        `${formatEther(stakedBalanceFinal)} tokens (ZERO ✓)`
+      )
 
       // Verify user received all remaining tokens
       const userTokenBalanceFinal = await publicClient.readContract({
