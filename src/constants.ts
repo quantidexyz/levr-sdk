@@ -262,7 +262,7 @@ export const TREASURY_AIRDROP_AMOUNTS = {
 /**
  * Levr team wallet address that receives LP fees from deployments
  */
-export const LEVR_TEAM_WALLET = '0x5AeeA3DF830529a61695A63ba020F01191E0aECb' as const
+export const LEVR_TEAM_WALLET = '0x4B7ddAc59cEeC3dE4706C460f34Bbce758a58bED' as const
 
 /**
  * Percentage of LP fees allocated to Levr team (0-100)
