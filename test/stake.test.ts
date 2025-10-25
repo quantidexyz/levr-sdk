@@ -493,42 +493,6 @@ describe('#STAKE_TEST', () => {
       console.log('\n📉 Test 1: Unstaking 25%...')
       const partialUnstakeAmount = stakedBalanceBefore / 4n
 
-      // DEBUG: Check actual balance RIGHT before unstaking
-      const actualBalanceRightNow = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
-        args: [wallet.account.address],
-      })
-
-      console.log('  🔍 DEBUG: Staked balance RIGHT NOW:', `${formatEther(actualBalanceRightNow)} tokens`)
-      console.log('  🔍 DEBUG: Staked balance (raw wei):', actualBalanceRightNow.toString())
-      console.log('  🔍 DEBUG: Amount to unstake:', `${formatEther(partialUnstakeAmount)} tokens`)
-      console.log('  🔍 DEBUG: Amount to unstake (raw wei):', partialUnstakeAmount.toString())
-      console.log('  🔍 DEBUG: Balance sufficient?', actualBalanceRightNow >= partialUnstakeAmount)
-      console.log('  🔍 DEBUG: Difference (wei):', (actualBalanceRightNow - partialUnstakeAmount).toString())
-
-      // Check claimable rewards for the underlying token
-      const claimableUnderlying = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'claimableRewards',
-        args: [wallet.account.address, deployedTokenAddress],
-      })
-
-      console.log('  🔍 DEBUG: Claimable underlying rewards:', `${formatEther(claimableUnderlying)} tokens`)
-
-      // Check reward reserve for underlying
-      const escrowBalance = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'escrowBalance',
-        args: [deployedTokenAddress],
-      })
-
-      console.log('  🔍 DEBUG: Escrow balance:', `${formatEther(escrowBalance)} tokens`)
-      console.log('  🔍 DEBUG: Escrow sufficient for unstake?', escrowBalance >= partialUnstakeAmount)
-
       const { receipt: partialReceipt, newVotingPower: vpAfterPartial } = await staking.unstake({
         amount: partialUnstakeAmount,
         to: wallet.account.address,

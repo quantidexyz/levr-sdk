@@ -177,7 +177,7 @@ export class Stake {
     } as const
 
     const { result: newVotingPower } = await this.publicClient.simulateContract(simulateParams)
-    
+
     // writeContract doesn't accept 'account' - it uses wallet.account automatically
     const hash = await this.wallet.writeContract({
       address: this.stakingAddress,
