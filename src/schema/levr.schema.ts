@@ -54,7 +54,7 @@ const LevrAirdrop = Schema.Array(
     'Custom token airdrops at deployment. Each recipient receives a percentage of the total 100B supply. Combined with treasury funding, total cannot exceed 90% of supply (minimum 10% reserved for liquidity).',
 })
 
-const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH').annotations({
+const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH', '1.5 ETH').annotations({
   description: 'Amount to buy during deployment',
 })
 
