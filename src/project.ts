@@ -636,7 +636,7 @@ export async function getProjects({
       projectInfo.clankerToken,
       projectInfo.project.treasury,
       projectInfo.project.staking,
-      WETH(projectInfo.chainId)?.address
+      WETH(chainId)?.address
     ),
   ])
 

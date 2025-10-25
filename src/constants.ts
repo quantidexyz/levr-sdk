@@ -240,17 +240,29 @@ export const TREASURY_AIRDROP_AMOUNTS = {
 } as const
 
 /**
+ * Levr team wallet address that receives LP fees from deployments
+ */
+export const LEVR_TEAM_WALLET = '0x5AeeA3DF830529a61695A63ba020F01191E0aECb' as const
+
+/**
+ * Percentage of LP fees allocated to Levr team (0-100)
+ * This is automatically included in all deployments via the UI
+ */
+export const LEVR_TEAM_LP_FEE_PERCENTAGE = 2 as const
+
+/**
  * Staking rewards in basis points
- * The amount of rewards that are distributed to the staking contract
+ * User-facing percentages of LP fees allocated to staking (before team fee is subtracted)
+ * Note: Team fee is automatically deducted in the deployment logic
  */
 export const STAKING_REWARDS = {
-  '100%': 10_000, // 100% of rewards are distributed to the staking contract
-  '90%': 9_000, // 90% of rewards are distributed to the staking contract
-  '80%': 8_000, // 80% of rewards are distributed to the staking contract
-  '70%': 7_000, // 70% of rewards are distributed to the staking contract
-  '60%': 6_000, // 60% of rewards are distributed to the staking contract
-  '50%': 5_000, // 50% of rewards are distributed to the staking contract
-  '40%': 4_000, // 40% of rewards are distributed to the staking contract
+  '100%': 10_000, // 100% of rewards to staking
+  '90%': 9_000, // 90% of rewards to staking
+  '80%': 8_000, // 80% of rewards to staking
+  '70%': 7_000, // 70% of rewards to staking
+  '60%': 6_000, // 60% of rewards to staking
+  '50%': 5_000, // 50% of rewards to staking
+  '40%': 4_000, // 40% of rewards to staking
 } as const
 
 export const STATIC_FEE_TIERS = {

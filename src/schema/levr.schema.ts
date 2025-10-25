@@ -1,6 +1,11 @@
 import { Schema } from 'effect'
 
-import { STAKING_REWARDS, STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from '../constants'
+import {
+  LEVR_TEAM_LP_FEE_PERCENTAGE,
+  STAKING_REWARDS,
+  STATIC_FEE_TIERS,
+  TREASURY_AIRDROP_AMOUNTS,
+} from '../constants'
 import { EthereumAddress, NonEmptyString } from './base.schema'
 import { ClankerDeploymentSchema } from './clanker.schema'
 
@@ -92,14 +97,13 @@ const LevrRewardRecipients = Schema.Array(
   })
 ).annotations({
   description:
-    'Custom reward recipients who receive a portion of the trading fees. Combined with staking rewards, total allocation cannot exceed 100%.',
+    'Custom reward recipients who receive a portion of the trading fees. Combined with staking rewards, total must equal 100%.',
 })
 
 const LevrStakingReward = Schema.Literal(
   ...(Object.keys(STAKING_REWARDS) as [keyof typeof STAKING_REWARDS])
 ).annotations({
-  description:
-    'Percentage of trading fees distributed to token stakers as rewards. Combined with custom reward recipients, total cannot exceed 100%.',
+  description: `Percentage of trading fees distributed to token stakers as rewards. Note: ${LEVR_TEAM_LP_FEE_PERCENTAGE}% is automatically allocated to Levr Protocol (deducted from this amount). Combined with custom reward recipients, total must equal 100%.`,
 })
 
 /**
@@ -140,21 +144,23 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   ),
   Schema.filter(
     (data) => {
-      // Convert staking reward from percentage string (e.g., "50%") to number (e.g., 50)
-      const stakingRewardPercentageStr = data.stakingReward // e.g., "50%"
-      const stakingRewardPercentage = parseFloat(stakingRewardPercentageStr) // e.g., 50
+      // Convert staking reward from percentage string (e.g., "100%") to number (e.g., 100)
+      const stakingRewardPercentageStr = data.stakingReward // e.g., "100%"
+      const stakingRewardPercentage = parseFloat(stakingRewardPercentageStr) // e.g., 100
 
       // Calculate total rewards recipients percentage (already in 0-100 format)
       const rewardRecipientsTotal =
         data.rewards?.reduce((sum, entry) => sum + entry.percentage, 0) ?? 0
 
       // Check if the sum equals 100%
+      // Note: Team fee is deducted automatically from staking rewards on the backend
       const totalRewards = stakingRewardPercentage + rewardRecipientsTotal
 
       return totalRewards === MAX_TOTAL_REWARDS_PERCENTAGE
     },
     {
-      message: () => 'Total rewards (staking reward + reward recipients) must equal 100%',
+      message: () =>
+        `Total rewards (staking reward + reward recipients) must equal 100%. Note: ${LEVR_TEAM_LP_FEE_PERCENTAGE}% Levr Protocol fee is automatically deducted from staking rewards.`,
     }
   )
 )

@@ -3,7 +3,13 @@ import type { ClankerTokenV4 } from 'clanker-sdk'
 import { createMerkleTree, FEE_CONFIGS } from 'clanker-sdk'
 import { omit } from 'lodash'
 
-import { STAKING_REWARDS, STATIC_FEE_TIERS, TREASURY_AIRDROP_AMOUNTS } from './constants'
+import {
+  LEVR_TEAM_LP_FEE_PERCENTAGE,
+  LEVR_TEAM_WALLET,
+  STAKING_REWARDS,
+  STATIC_FEE_TIERS,
+  TREASURY_AIRDROP_AMOUNTS,
+} from './constants'
 import type { ClankerDeploymentSchemaType, LevrClankerDeploymentSchemaType } from './schema'
 
 type BuildClankerV4Params = {
@@ -75,8 +81,11 @@ const getFees = (
 
 /**
  * Builds the rewards for the Clanker token using the Levr rewards
- * @param rewards - Levr rewards
- * @returns Clanker rewards
+ * @param admin - Admin address
+ * @param staking - Staking contract address
+ * @param stakingReward - Staking reward percentage key (user-facing, before team fee)
+ * @param rewards - Levr custom rewards
+ * @returns Clanker rewards with team LP fee automatically included
  */
 const getRewards = (
   admin: `0x${string}`,
@@ -94,10 +103,20 @@ const getRewards = (
       }))
     : []
 
+  // Add Levr team LP fee (always included for UI deployments)
+  recipients.push({
+    admin: LEVR_TEAM_WALLET,
+    recipient: LEVR_TEAM_WALLET,
+    bps: LEVR_TEAM_LP_FEE_PERCENTAGE * 100, // Convert percentage to basis points
+    token: 'Both' as const,
+  })
+
+  // Add staking rewards (subtract team fee from user-facing percentage)
+  const stakingBps = STAKING_REWARDS[stakingReward] - LEVR_TEAM_LP_FEE_PERCENTAGE * 100
   recipients.push({
     admin,
     recipient: staking,
-    bps: STAKING_REWARDS[stakingReward],
+    bps: stakingBps,
     token: 'Both' as const,
   })
 
