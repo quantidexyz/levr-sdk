@@ -45,6 +45,7 @@ export type TreasuryStats = {
   totalAllocated: BalanceResult
   utilization: number // percentage (0-100)
   stakingContractBalance: BalanceResult
+  escrowBalance: BalanceResult // Staked principal only (excludes unaccounted rewards)
   stakingContractWethBalance?: BalanceResult
 }
 
@@ -163,6 +164,7 @@ type FactoryContractsResult = [
 type TreasuryContractsResult = [
   MulticallResult<bigint>, // treasury balance
   MulticallResult<bigint>, // staking balance (clanker token)
+  MulticallResult<bigint>, // escrow balance (clanker token - staked principal only)
   MulticallResult<bigint>?, // staking balance (weth) - optional
 ]
 
@@ -280,6 +282,12 @@ function getTreasuryContracts(
       abi: erc20Abi,
       functionName: 'balanceOf' as const,
       args: [staking],
+    },
+    {
+      address: staking,
+      abi: LevrStaking_v1,
+      functionName: 'escrowBalance' as const,
+      args: [clankerToken],
     },
   ]
 
@@ -435,10 +443,11 @@ function parseTreasuryStats(
   tokenUsdPrice: number | null,
   wethUsdPrice?: number | null
 ): TreasuryStats {
-  const [treasuryBalance, stakingBalance, stakingWethBalance] = results
+  const [treasuryBalance, stakingBalance, escrowBalance, stakingWethBalance] = results
 
   const treasuryBalanceRaw = treasuryBalance.result
   const stakingBalanceRaw = stakingBalance.result
+  const escrowBalanceRaw = escrowBalance.result
   const stakingWethBalanceRaw = stakingWethBalance ? stakingWethBalance.result : null
 
   // Total allocated = treasury + staking balances (protocol-controlled tokens)
@@ -453,6 +462,7 @@ function parseTreasuryStats(
     totalAllocated: formatBalanceWithUsd(totalAllocatedRaw, tokenDecimals, tokenUsdPrice),
     utilization,
     stakingContractBalance: formatBalanceWithUsd(stakingBalanceRaw, tokenDecimals, tokenUsdPrice),
+    escrowBalance: formatBalanceWithUsd(escrowBalanceRaw, tokenDecimals, tokenUsdPrice),
     stakingContractWethBalance: stakingWethBalanceRaw
       ? formatBalanceWithUsd(stakingWethBalanceRaw, 18, wethUsdPrice ?? null)
       : undefined,
@@ -903,7 +913,7 @@ export async function getProject({
   const results = await publicClient.multicall({ contracts })
 
   // Calculate slice indices for dynamic data
-  const treasuryCount = wethAddress ? 3 : 2
+  const treasuryCount = wethAddress ? 4 : 3 // treasury balance, staking balance, escrow balance, (optional weth balance)
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
   const feeSplitterDynamicCount =
