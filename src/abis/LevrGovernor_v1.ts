@@ -194,6 +194,21 @@ export default [
             type: 'bool',
             internalType: 'bool',
           },
+          {
+            name: 'totalSupplySnapshot',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'quorumBpsSnapshot',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'approvalBpsSnapshot',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
         ],
       },
     ],
@@ -647,6 +662,11 @@ export default [
   {
     type: 'error',
     name: 'CycleStillActive',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ExecutableProposalsRemaining',
     inputs: [],
   },
   {
