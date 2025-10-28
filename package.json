@@ -21,7 +21,7 @@
     "devnet": "bash script/devnet.sh",
     "devnet:redeploy": "bash script/devnet.sh --redeploy",
     "update-abis": "bun run script/update-abis.ts && prettier --write src/abis/**/*.ts",
-    "update-airdrop-treasury": "bun run script/update-airdrop-treasury.ts",
+    "execute-airdrop-update": "bun run script/execute-airdrop-update.ts",
     "watch": "bun run script/tsgo-watch.ts",
     "type-check": "tsgo --noEmit --pretty",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\" && eslint --fix --quiet",
