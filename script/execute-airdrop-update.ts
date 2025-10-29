@@ -53,7 +53,6 @@ async function executeAirdropUpdate() {
     process.exit(1)
   }
 
-  let allChecksPass = true
   const issues: string[] = []
 
   console.log('\n📍 STEP 1: ADDRESS VALIDATION')
@@ -75,7 +74,6 @@ async function executeAirdropUpdate() {
     } catch (e) {
       console.log(`  ${name.padEnd(20)}: ${addr} ❌ INVALID`)
       issues.push(`${name} is not a valid Ethereum address`)
-      allChecksPass = false
     }
   }
 
@@ -114,7 +112,6 @@ async function executeAirdropUpdate() {
       issues.push(
         `Recipient ${i + 1} amount mismatch: expected ${r.expectedBillions}B, got ${billions}B`
       )
-      allChecksPass = false
     }
   })
 
@@ -124,7 +121,6 @@ async function executeAirdropUpdate() {
   )
   if (!totalMatch) {
     issues.push(`Total amount mismatch: expected 75B, got ${totalBillions}B`)
-    allChecksPass = false
   }
 
   console.log('\n🌳 STEP 3: MERKLE TREE GENERATION')
@@ -141,7 +137,6 @@ async function executeAirdropUpdate() {
 
   if (newMerkleRoot.length !== 66) {
     issues.push('Merkle root has invalid length (should be 66 chars including 0x)')
-    allChecksPass = false
   }
 
   console.log('\n🔐 STEP 4: MERKLE PROOF GENERATION')
@@ -214,12 +209,10 @@ async function executeAirdropUpdate() {
 
   if (totalClaimed > 0n) {
     issues.push('BLOCKER: totalClaimed > 0, contract will reject the update')
-    allChecksPass = false
   }
 
   if (adminClaimed) {
     issues.push('BLOCKER: Admin has already claimed, cannot update')
-    allChecksPass = false
   }
 
   if (
@@ -227,7 +220,6 @@ async function executeAirdropUpdate() {
     currentMerkleRoot !== '0x0000000000000000000000000000000000000000000000000000000000000000'
   ) {
     issues.push('BLOCKER: Update window not open yet and merkle root is not zero')
-    allChecksPass = false
   }
 
   console.log('\n📋 STEP 6: SAFE MULTISIG VERIFICATION')
@@ -238,7 +230,6 @@ async function executeAirdropUpdate() {
 
   if (!safeInList) {
     issues.push('CRITICAL: Safe multisig is not in the recipient list!')
-    allChecksPass = false
   }
 
   const safeRecipient = recipients.find(
@@ -252,7 +243,6 @@ async function executeAirdropUpdate() {
     )
     if (!correctAmount) {
       issues.push(`Safe multisig allocation incorrect: expected 20B, got ${safeAmount}B`)
-      allChecksPass = false
     }
   }
 
@@ -315,7 +305,6 @@ async function executeAirdropUpdate() {
       console.log('    ❌ Call 1: updateMerkleRoot() FAILED')
       console.log(`       Error: ${updateResult.error}`)
       issues.push('updateMerkleRoot simulation failed')
-      allChecksPass = false
     }
 
     allClaimsSucceeded = true
@@ -357,14 +346,12 @@ async function executeAirdropUpdate() {
     } else {
       console.log('      ⚠️  Some claims failed - review errors above')
       issues.push('Claim simulations failed')
-      allChecksPass = false
     }
   } catch (error) {
     console.log('  ❌ SIMULATION FAILED')
     const errorMsg = error instanceof Error ? error.message : String(error)
     console.log(`      Error: ${errorMsg}`)
     issues.push('simulateCalls failed')
-    allChecksPass = false
   }
 
   console.log('\n' + '='.repeat(80))

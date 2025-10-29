@@ -92,6 +92,7 @@ export function parseProposalData(
     id: proposalData.id,
     proposalType: proposalData.proposalType,
     proposer: proposalData.proposer,
+    token: proposalData.token,
     amount: {
       raw: proposalData.amount,
       formatted: amountFormatted,

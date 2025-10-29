@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { erc20Abi, formatEther, parseEther } from 'viem'
+import { formatEther } from 'viem'
 
 import { deployV4 } from '../src/deploy-v4'
 import type { Project } from '../src/project'
@@ -8,22 +8,6 @@ import type { LevrClankerDeploymentSchemaType } from '../src/schema'
 import { fetchVaultData } from '../src/vault'
 import { setupTest, type SetupTestReturnType } from './helper'
 import { warpAnvil } from './util'
-
-// Helper function to get full project data (static + dynamic)
-async function getFullProject(
-  params: Parameters<typeof getStaticProject>[0] & {
-    oraclePublicClient?: Parameters<typeof getProject>[0]['oraclePublicClient']
-  }
-) {
-  const { oraclePublicClient, ...staticParams } = params
-  const staticProject = await getStaticProject(staticParams)
-  if (!staticProject) return null
-  return getProject({
-    publicClient: params.publicClient,
-    staticProject,
-    oraclePublicClient,
-  })
-}
 
 /**
  * Vault Deployment and Claiming Tests
@@ -122,12 +106,15 @@ describe('#VAULT_TEST', () => {
     expect(staticProject).toBeDefined()
     if (!staticProject) throw new Error('Static project not found')
 
-    project = await getProject({
+    const fullProject = await getProject({
       publicClient,
       staticProject,
     })
 
-    expect(project).toBeDefined()
+    expect(fullProject).toBeDefined()
+    if (!fullProject) throw new Error('Project not found')
+
+    project = fullProject
     expect(project.token.address).toBe(deployedTokenAddress)
 
     console.log('✅ Project loaded:', {
@@ -141,9 +128,6 @@ describe('#VAULT_TEST', () => {
 
     expect(vaultData).toBeDefined()
     expect(vaultData?.allocation.amountTotal).toBeGreaterThan(0n)
-
-    // 15% of 100B tokens = 15B tokens
-    const expectedVaultAmount = parseEther('15') * 1000000000n // 15B in wei
 
     console.log('✅ Vault allocation verified:', {
       totalVaulted: formatEther(vaultData?.allocation.amountTotal ?? 0n),

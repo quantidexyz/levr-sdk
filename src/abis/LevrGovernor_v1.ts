@@ -37,6 +37,39 @@ export default [
   },
   {
     type: 'function',
+    name: '_executeProposal',
+    inputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'proposalType',
+        type: 'uint8',
+        internalType: 'enum ILevrGovernor_v1.ProposalType',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'recipient',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'activeProposalCount',
     inputs: [
       {
@@ -121,6 +154,11 @@ export default [
           },
           {
             name: 'proposer',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'token',
             type: 'address',
             internalType: 'address',
           },
@@ -355,6 +393,11 @@ export default [
     name: 'proposeBoost',
     inputs: [
       {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
@@ -373,6 +416,11 @@ export default [
     type: 'function',
     name: 'proposeTransfer',
     inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
       {
         name: 'recipient',
         type: 'address',
@@ -561,6 +609,12 @@ export default [
         internalType: 'enum ILevrGovernor_v1.ProposalType',
       },
       {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
         name: 'amount',
         type: 'uint256',
         indexed: false,
@@ -609,6 +663,25 @@ export default [
         type: 'address',
         indexed: true,
         internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProposalExecutionFailed',
+    inputs: [
+      {
+        name: 'proposalId',
+        type: 'uint256',
+        indexed: true,
+        internalType: 'uint256',
+      },
+      {
+        name: 'reason',
+        type: 'string',
+        indexed: false,
+        internalType: 'string',
       },
     ],
     anonymous: false,

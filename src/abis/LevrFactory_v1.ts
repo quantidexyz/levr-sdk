@@ -57,6 +57,11 @@ export default [
             type: 'uint16',
             internalType: 'uint16',
           },
+          {
+            name: 'maxRewardTokens',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
         ],
       },
       {
@@ -313,6 +318,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'maxRewardTokens',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'minSTokenBpsToSubmit',
     inputs: [],
     outputs: [
@@ -550,6 +568,11 @@ export default [
           },
           {
             name: 'maxProposalAmountBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'maxRewardTokens',
             type: 'uint16',
             internalType: 'uint16',
           },

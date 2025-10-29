@@ -16,6 +16,7 @@ export type ProposalDetails = {
   id: bigint
   proposalType: number
   proposer: `0x${string}`
+  token: `0x${string}`
   amount: bigint
   recipient: `0x${string}`
   description: string
@@ -33,6 +34,7 @@ export type FormattedProposalDetails = {
   id: bigint
   proposalType: number
   proposer: `0x${string}`
+  token: `0x${string}`
   amount: BalanceResult
   recipient: `0x${string}`
   description: string
@@ -92,7 +94,7 @@ export class Governance {
       address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'proposeTransfer',
-      args: [recipient, parsedAmount, description],
+      args: [this.project.token.address, recipient, parsedAmount, description],
       chain: this.wallet.chain,
     })
 
@@ -146,7 +148,7 @@ export class Governance {
       address: this.project.governor,
       abi: LevrGovernor_v1,
       functionName: 'proposeBoost',
-      args: [parsedAmount],
+      args: [this.project.token.address, parsedAmount],
       chain: this.wallet.chain,
     })
 

@@ -225,3 +225,4 @@ The combined script uses [`simulateCalls`](https://viem.sh/docs/actions/public/s
 **YOU ARE CLEAR TO EXECUTE WHEN READY** ✅
 
 **Recommended**: Use `bun run execute-airdrop-update` for maximum safety
+

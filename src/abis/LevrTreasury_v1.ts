@@ -20,6 +20,11 @@ export default [
     name: 'applyBoost',
     inputs: [
       {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
@@ -122,6 +127,11 @@ export default [
     name: 'transfer',
     inputs: [
       {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'to',
         type: 'address',
         internalType: 'address',
@@ -182,12 +192,22 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyInitialized',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InsufficientStake',
     inputs: [],
   },
   {
     type: 'error',
     name: 'InvalidAmount',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'OnlyFactory',
     inputs: [],
   },
   {

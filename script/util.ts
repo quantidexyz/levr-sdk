@@ -1,5 +1,5 @@
 import type { Account, Chain, HttpTransport, PublicClient, Transport, WalletClient } from 'viem'
-import { createPublicClient, createWalletClient, fallback, http } from 'viem'
+import { createPublicClient, createWalletClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as internalChains from 'viem/chains'
 

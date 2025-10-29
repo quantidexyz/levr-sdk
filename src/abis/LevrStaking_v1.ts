@@ -103,6 +103,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'cleanupFinishedRewardToken',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'escrowBalance',
     inputs: [
       {
@@ -167,6 +180,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'getWhitelistedTokens',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'initialize',
     inputs: [
       {
@@ -192,6 +218,25 @@ export default [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'isTokenWhitelisted',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -435,6 +480,32 @@ export default [
     stateMutability: 'nonpayable',
   },
   {
+    type: 'function',
+    name: 'whitelistToken',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    name: 'RewardTokenRemoved',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
     type: 'event',
     name: 'RewardsAccrued',
     inputs: [
@@ -530,6 +601,19 @@ export default [
         type: 'uint64',
         indexed: false,
         internalType: 'uint64',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'TokenWhitelisted',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
     ],
     anonymous: false,
