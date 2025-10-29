@@ -14,6 +14,7 @@ export type FactoryConfig = Readonly<{
   approvalBps: number
   minSTokenBpsToSubmit: number
   maxProposalAmountBps: number
+  maxRewardTokens: number
 }>
 
 /**
@@ -84,6 +85,11 @@ export async function getFactoryConfig(
           abi: LevrFactory_v1,
           functionName: 'maxProposalAmountBps',
         },
+        {
+          address: factoryAddress,
+          abi: LevrFactory_v1,
+          functionName: 'maxRewardTokens',
+        },
       ] as const,
     })
 
@@ -99,6 +105,7 @@ export async function getFactoryConfig(
       approvalBps,
       minSTokenBpsToSubmit,
       maxProposalAmountBps,
+      maxRewardTokens,
     ] = results.map((result) => {
       if (result.status === 'failure') {
         throw new Error(`Contract call failed: ${result.error?.message}`)
@@ -117,6 +124,7 @@ export async function getFactoryConfig(
       approvalBps: approvalBps as number,
       minSTokenBpsToSubmit: minSTokenBpsToSubmit as number,
       maxProposalAmountBps: maxProposalAmountBps as number,
+      maxRewardTokens: maxRewardTokens as number,
     }
   } catch (error) {
     console.error('Failed to fetch factory config:', error)
