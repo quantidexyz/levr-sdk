@@ -184,7 +184,10 @@ export function LevrProvider({
         ])
       },
       afterClaim: async () => {
-        await userQuery.refetch() // Balances, claimable rewards changed
+        await Promise.all([
+          userQuery.refetch(), // Balances, claimable rewards changed
+          project.refetch(), // Treasury might have changed
+        ])
       },
       afterAccrue: async () => {
         await Promise.all([
