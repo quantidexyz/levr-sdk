@@ -3,8 +3,14 @@ import type { TransactionReceipt } from 'viem'
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 
 import type { Project } from '.'
-import { LevrFeeSplitter_v1, LevrForwarder_v1, LevrStaking_v1 } from './abis'
-import { WETH } from './constants'
+import {
+  IClankerFeeLocker,
+  IClankerLPLocker,
+  LevrFeeSplitter_v1,
+  LevrForwarder_v1,
+  LevrStaking_v1,
+} from './abis'
+import { GET_FEE_LOCKER_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from './constants'
 import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
@@ -228,27 +234,43 @@ export class Stake {
   }
 
   /**
-   * Accrue rewards by triggering manual accrual from balance delta detection
+   * Accrue rewards for a single token using forwarder multicall
    *
-   * NOTE: If fee splitter is configured, call distributeFromFeeSplitter() FIRST.
-   * The fee splitter transfers tokens to staking, then accrueRewards() detects the balance increase.
+   * SECURITY FIX (External Audit 2): Fee collection now handled via SDK using executeMulticall
+   * This prevents arbitrary code execution risk from external contract calls in contracts
+   *
+   * Flow:
+   * 1. Call LP locker collectRewards() via forwarder.executeTransaction (wrapped external call)
+   * 2. Call fee locker claim() via forwarder.executeTransaction (wrapped external call)
+   * 3. If fee splitter: call distribute() (distributes to receivers including staking)
+   * 4. Call accrueRewards() on staking contract (detects balance increase)
+   *
+   * @param tokenAddress The reward token to accrue (defaults to clankerToken)
    */
   async accrueRewards(tokenAddress?: `0x${string}`): Promise<TransactionReceipt> {
-    const hash = await this.wallet.writeContract({
-      address: this.stakingAddress,
-      abi: LevrStaking_v1,
-      functionName: 'accrueRewards',
-      args: [tokenAddress ?? this.tokenAddress],
-      chain: this.wallet.chain,
-    })
+    // If no forwarder, fall back to simple accrueRewards call
+    if (!this.trustedForwarder) {
+      const hash = await this.wallet.writeContract({
+        address: this.stakingAddress,
+        abi: LevrStaking_v1,
+        functionName: 'accrueRewards',
+        args: [tokenAddress ?? this.tokenAddress],
+        chain: this.wallet.chain,
+      })
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
 
-    if (receipt.status === 'reverted') {
-      throw new Error('Accrue rewards transaction reverted')
+      if (receipt.status === 'reverted') {
+        throw new Error('Accrue rewards transaction reverted')
+      }
+
+      return receipt
     }
 
-    return receipt
+    // Use accrueAllRewards with single token for complete flow
+    return this.accrueAllRewards({
+      tokens: [tokenAddress ?? this.tokenAddress],
+    })
   }
 
   /**
@@ -297,12 +319,14 @@ export class Stake {
   /**
    * Accrue rewards for multiple tokens in a single transaction using forwarder multicall
    *
-   * If fee splitter is configured and active, this will:
-   * 1. Call distribute() on fee splitter for each token
-   * 2. Fee splitter automatically calls accrueRewards() after distribution
+   * SECURITY FIX (External Audit 2): Fee collection now handled via SDK using executeMulticall
+   * This prevents arbitrary code execution risk from external contract calls in contracts
    *
-   * If fee splitter is NOT configured, this will:
-   * 1. Directly call accrueRewards() for each token on staking contract
+   * Flow:
+   * 1. Call LP locker collectRewards() via factory.executeTransaction (wrapped external call)
+   * 2. Call fee locker claim() via factory.executeTransaction (wrapped external call)
+   * 3. If fee splitter: call distribute() (distributes to receivers including staking)
+   * 4. Call accrueRewards() on staking contract (detects balance increase)
    *
    * @param params.tokens - Array of token addresses to accrue (defaults to [clankerToken, WETH])
    * @param params.useFeeSplitter - If true, uses fee splitter distribute (auto-detected if not provided)
@@ -323,19 +347,87 @@ export class Stake {
     }
     const tokenAddresses = params?.tokens ?? defaultTokens
 
+    // Get LP locker and fee locker addresses
+    const lpLockerAddress = GET_LP_LOCKER_ADDRESS(this.chainId)
+    const feeLockerAddress = GET_FEE_LOCKER_ADDRESS(this.chainId)
+
+    if (!lpLockerAddress || !feeLockerAddress) {
+      throw new Error('LP locker or fee locker address not found for this chain')
+    }
+
     // Detect if fee splitter should be used (can be overridden)
     const useFeeSplitter = params?.useFeeSplitter ?? this._shouldUseFeeSplitter()
 
-    let calls: Array<{
+    const calls: Array<{
       target: `0x${string}`
       allowFailure: boolean
       value: bigint
       callData: `0x${string}`
-    }>
+    }> = []
 
+    // For each token, add fee collection calls
+    for (const tokenAddress of tokenAddresses) {
+      // Step 1: Collect rewards from LP locker (V4 pool → fee locker)
+      // Wrapped in forwarder.executeTransaction to prevent arbitrary code execution
+      calls.push({
+        target: this.trustedForwarder,
+        allowFailure: true, // Allow failure (might not have fees to collect)
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrForwarder_v1,
+          functionName: 'executeTransaction',
+          args: [
+            lpLockerAddress,
+            encodeFunctionData({
+              abi: IClankerLPLocker,
+              functionName: 'collectRewards',
+              args: [this.tokenAddress], // Note: collectRewards takes the CLANKER token, not reward token
+            }),
+          ],
+        }),
+      })
+
+      // Step 2: Claim fees from fee locker (fee locker → staking or fee splitter)
+      // Determine the recipient: fee splitter if active, otherwise staking
+      let feeRecipient: `0x${string}`
+      if (useFeeSplitter) {
+        const { getFeeSplitter } = await import('./fee-splitter')
+        const feeSplitterAddress = await getFeeSplitter({
+          publicClient: this.publicClient,
+          clankerToken: this.tokenAddress,
+          chainId: this.chainId,
+        })
+        if (!feeSplitterAddress) {
+          throw new Error(
+            'Fee splitter not deployed for this token. Deploy it first or use useFeeSplitter: false'
+          )
+        }
+        feeRecipient = feeSplitterAddress
+      } else {
+        feeRecipient = this.stakingAddress
+      }
+
+      calls.push({
+        target: this.trustedForwarder,
+        allowFailure: true, // Allow failure (might not have fees to claim)
+        value: 0n,
+        callData: encodeFunctionData({
+          abi: LevrForwarder_v1,
+          functionName: 'executeTransaction',
+          args: [
+            feeLockerAddress,
+            encodeFunctionData({
+              abi: IClankerFeeLocker,
+              functionName: 'claim',
+              args: [feeRecipient, tokenAddress],
+            }),
+          ],
+        }),
+      })
+    }
+
+    // Step 3: If using fee splitter, call distribute() for each token
     if (useFeeSplitter) {
-      // Fee splitter mode: Get the deployed splitter for this token, then call distribute()
-      // The fee splitter will automatically call accrueRewards() after distributing
       const { getFeeSplitter } = await import('./fee-splitter')
       const feeSplitterAddress = await getFeeSplitter({
         publicClient: this.publicClient,
@@ -344,26 +436,27 @@ export class Stake {
       })
 
       if (!feeSplitterAddress) {
-        throw new Error(
-          'Fee splitter not deployed for this token. Deploy it first or use useFeeSplitter: false'
-        )
+        throw new Error('Fee splitter not deployed')
       }
 
-      // Call distribute() for each token (fee splitter's portion + auto-accrue)
-      const distributeCalls = tokenAddresses.map((tokenAddress) => ({
-        target: feeSplitterAddress, // Per-project splitter, not deployer!
-        allowFailure: false,
-        value: 0n,
-        callData: encodeFunctionData({
-          abi: LevrFeeSplitter_v1,
-          functionName: 'distribute',
-          args: [tokenAddress],
-        }),
-      }))
+      for (const tokenAddress of tokenAddresses) {
+        calls.push({
+          target: feeSplitterAddress,
+          allowFailure: false,
+          value: 0n,
+          callData: encodeFunctionData({
+            abi: LevrFeeSplitter_v1,
+            functionName: 'distribute',
+            args: [tokenAddress],
+          }),
+        })
+      }
+    }
 
-      // ALSO call accrueRewards() for each token (staking's direct portion from ClankerFeeLocker)
-      // This handles hybrid setups where staking receives fees both via splitter AND directly
-      const accrueCalls = tokenAddresses.map((tokenAddress) => ({
+    // Step 4: Call accrueRewards() for each token
+    // This detects the balance increase from fee collection and credits rewards
+    for (const tokenAddress of tokenAddresses) {
+      calls.push({
         target: this.stakingAddress,
         allowFailure: false,
         value: 0n,
@@ -372,22 +465,7 @@ export class Stake {
           functionName: 'accrueRewards',
           args: [tokenAddress],
         }),
-      }))
-
-      // Execute both sets of calls in a single multicall transaction
-      calls = [...distributeCalls, ...accrueCalls]
-    } else {
-      // Direct mode: Call accrueRewards() on staking contract
-      calls = tokenAddresses.map((tokenAddress) => ({
-        target: this.stakingAddress,
-        allowFailure: false,
-        value: 0n,
-        callData: encodeFunctionData({
-          abi: LevrStaking_v1,
-          functionName: 'accrueRewards',
-          args: [tokenAddress],
-        }),
-      }))
+      })
     }
 
     const hash = await this.wallet.writeContract({

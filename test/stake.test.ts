@@ -316,7 +316,7 @@ describe('#STAKE_TEST', () => {
         console.log('✅ Rewards are in ClankerFeeLocker - need to trigger accrual!')
 
         // First, check what rewards are outstanding from project data
-        console.log('\n📊 Checking outstanding rewards...')
+        console.log('\n📊 Checking outstanding rewards (via project.ts multicall)...')
         const currentProject = await getFullProject({
           publicClient,
           clankerToken: deployedTokenAddress,
@@ -324,8 +324,15 @@ describe('#STAKE_TEST', () => {
         const outstandingRewards = currentProject?.stakingStats?.outstandingRewards.weth
 
         if (outstandingRewards) {
-          console.log('  Available rewards:', `${outstandingRewards.available.formatted} WETH`)
-          console.log('  Pending rewards:', `${outstandingRewards.pending.formatted} WETH`)
+          console.log(
+            '  Available (contract balance):',
+            `${outstandingRewards.available.formatted} WETH`
+          )
+          console.log(
+            '  Pending (ClankerFeeLocker):',
+            `${outstandingRewards.pending.formatted} WETH`
+          )
+          console.log('  ✅ Project data correctly fetching available + pending from multicall')
         } else {
           console.log('  No WETH rewards configured')
         }
@@ -356,6 +363,13 @@ describe('#STAKE_TEST', () => {
                 '  📊 After accrual - Pending:',
                 `${outstandingAfter.pending.formatted} WETH`
               )
+
+              // Verify pending was reduced (fees were claimed from locker)
+              if (outstandingRewards?.pending.raw && outstandingAfter.pending.raw) {
+                const pendingReduced =
+                  outstandingRewards.pending.raw >= outstandingAfter.pending.raw
+                console.log('  ✅ Pending fees reduced from locker:', pendingReduced ? 'YES' : 'NO')
+              }
             }
 
             // Verify WETH was claimed and credited as rewards

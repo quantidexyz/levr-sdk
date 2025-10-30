@@ -1,8 +1,14 @@
 import { erc20Abi, zeroAddress } from 'viem'
 
-import { IClankerToken, LevrFactory_v1, LevrGovernor_v1, LevrStaking_v1 } from './abis'
+import {
+  IClankerFeeLocker,
+  IClankerToken,
+  LevrFactory_v1,
+  LevrGovernor_v1,
+  LevrStaking_v1,
+} from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { GET_FACTORY_ADDRESS, WETH } from './constants'
+import { GET_FACTORY_ADDRESS, GET_FEE_LOCKER_ADDRESS, WETH } from './constants'
 import type { FeeReceiverAdmin, FeeSplitterDynamic, FeeSplitterStatic } from './fee-receivers'
 import {
   getFeeReceiverContracts,
@@ -177,13 +183,18 @@ type GovernanceContractsResult = [
 type StakingContractsResult = [
   MulticallResult<bigint>, // totalStaked
   MulticallResult<bigint>, // aprBps
-  MulticallResult<[bigint, bigint]>, // outstandingRewards (token)
+  MulticallResult<bigint>, // outstandingRewards (token) - now returns only available
   MulticallResult<bigint>, // rewardRatePerSecond (token)
   MulticallResult<number>, // streamWindowSeconds
   MulticallResult<bigint>, // streamStart
   MulticallResult<bigint>, // streamEnd
-  MulticallResult<[bigint, bigint]>?, // outstandingRewards (weth) - optional
+  MulticallResult<bigint>?, // outstandingRewards (weth) - optional, returns only available
   MulticallResult<bigint>?, // rewardRatePerSecond (weth) - optional
+]
+
+type PendingFeesContractsResult = [
+  MulticallResult<bigint>, // pending fees for token (staking recipient)
+  MulticallResult<bigint>?, // pending fees for weth (staking recipient) - optional
 ]
 
 type TokenData = {
@@ -390,6 +401,35 @@ function getStakingContracts(
   return [...baseContracts, ...wethContracts]
 }
 
+function getPendingFeesContracts(
+  feeLockerAddress: `0x${string}`,
+  feeRecipient: `0x${string}`,
+  clankerToken: `0x${string}`,
+  wethAddress?: `0x${string}`
+) {
+  const baseContracts = [
+    {
+      address: feeLockerAddress,
+      abi: IClankerFeeLocker,
+      functionName: 'availableFees' as const,
+      args: [feeRecipient, clankerToken],
+    },
+  ]
+
+  const wethContracts = wethAddress
+    ? [
+        {
+          address: feeLockerAddress,
+          abi: IClankerFeeLocker,
+          functionName: 'availableFees' as const,
+          args: [feeRecipient, wethAddress],
+        },
+      ]
+    : []
+
+  return [...baseContracts, ...wethContracts]
+}
+
 // ---
 // Parsers
 
@@ -482,6 +522,7 @@ function parseGovernanceData(results: GovernanceContractsResult): GovernanceData
 
 function parseStakingStats(
   results: StakingContractsResult,
+  pendingFeesResults: PendingFeesContractsResult | null,
   tokenDecimals: number,
   tokenUsdPrice: number | null,
   wethUsdPrice: number | null,
@@ -491,7 +532,7 @@ function parseStakingStats(
 ): StakingStats {
   const totalStakedRaw = results[0].result
   const aprBpsRaw = results[1].result
-  const outstandingRewardsTokenRaw = results[2].result
+  const outstandingRewardsTokenAvailable = results[2].result // Now returns only available
   const tokenRewardRateRaw = results[3].result
   const streamWindowSecondsRaw = results[4].result
   const streamStartRaw = results[5].result
@@ -499,8 +540,12 @@ function parseStakingStats(
 
   // Check if WETH data is present
   const hasWethData = results.length > 7
-  const outstandingRewardsWethRaw = hasWethData && results[7] ? results[7].result : null
+  const outstandingRewardsWethAvailable = hasWethData && results[7] ? results[7].result : null
   const wethRewardRateRaw = hasWethData && results[8] ? results[8].result : null
+
+  // Get pending fees from ClankerFeeLocker (staking recipient)
+  const stakingPendingToken = pendingFeesResults?.[0]?.result ?? 0n
+  const stakingPendingWeth = pendingFeesResults?.[1]?.result ?? 0n
 
   // Calculate WETH APR if available
   let wethApr: { raw: bigint; percentage: number } | null = null
@@ -535,19 +580,12 @@ function parseStakingStats(
   // Calculate if stream is active using blockchain timestamp
   const isStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
 
-  // When fee splitter is active, ADD both fee splitter's pending AND staking's pending
-  // (hybrid setup: fee splitter gets some %, staking gets rest % directly from ClankerFeeLocker)
-  // When fee splitter is NOT active, use only staking's pending from ClankerFeeLocker
-  const tokenPendingTotal = feeSplitterPending
-    ? feeSplitterPending.token + outstandingRewardsTokenRaw[1] // ADD both portions
-    : outstandingRewardsTokenRaw[1] // Use staking's pending (it's the only recipient)
-
-  const wethPendingTotal =
-    feeSplitterPending?.weth !== undefined
-      ? (feeSplitterPending.weth ?? 0n) + (outstandingRewardsWethRaw?.[1] ?? 0n) // ADD both portions
-      : outstandingRewardsWethRaw
-        ? outstandingRewardsWethRaw[1] // Use staking's pending (it's the only recipient)
-        : null
+  // SECURITY FIX: Pending fees now queried for correct recipient
+  // When fee splitter is active: stakingPendingToken = fee splitter's pending from ClankerFeeLocker
+  // When fee splitter is NOT active: stakingPendingToken = staking's pending from ClankerFeeLocker
+  // Note: feeSplitterPending is now local balance only (not from ClankerFeeLocker), so we don't add it
+  const tokenPendingTotal = stakingPendingToken // Already queried for correct recipient
+  const wethPendingTotal = stakingPendingWeth // Already queried for correct recipient
 
   return {
     totalStaked: formatBalanceWithUsd(totalStakedRaw, tokenDecimals, tokenUsdPrice),
@@ -561,18 +599,19 @@ function parseStakingStats(
     outstandingRewards: {
       staking: {
         available: formatBalanceWithUsd(
-          outstandingRewardsTokenRaw[0],
+          outstandingRewardsTokenAvailable,
           tokenDecimals,
           tokenUsdPrice
         ),
         pending: formatBalanceWithUsd(tokenPendingTotal, tokenDecimals, tokenUsdPrice),
       },
-      weth: outstandingRewardsWethRaw
-        ? {
-            available: formatBalanceWithUsd(outstandingRewardsWethRaw[0], 18, wethUsdPrice),
-            pending: formatBalanceWithUsd(wethPendingTotal ?? 0n, 18, wethUsdPrice),
-          }
-        : null,
+      weth:
+        outstandingRewardsWethAvailable !== null
+          ? {
+              available: formatBalanceWithUsd(outstandingRewardsWethAvailable, 18, wethUsdPrice),
+              pending: formatBalanceWithUsd(wethPendingTotal, 18, wethUsdPrice),
+            }
+          : null,
     },
     rewardRates: {
       token: formatBalanceWithUsd(tokenRewardRateRaw, tokenDecimals, tokenUsdPrice),
@@ -895,7 +934,18 @@ export async function getProject({
   const block = await publicClient.getBlock()
   const blockTimestamp = block.timestamp
 
-  // Fetch only dynamic data (treasury, governance, staking stats, and fee splitter dynamic)
+  // Get fee locker address to query pending fees
+  const feeLockerAddress = GET_FEE_LOCKER_ADDRESS(chainId)
+
+  // Determine fee recipient for pending fees query
+  // If fee splitter is active, query pending for fee splitter (it receives fees before distribution)
+  // If fee splitter is NOT active, query pending for staking (direct recipient)
+  const stakingFeeRecipient =
+    feeSplitterAddress && staticProject.feeSplitter?.isActive
+      ? feeSplitterAddress // Fee splitter is the ClankerFeeLocker recipient
+      : staticProject.staking // Staking is the direct ClankerFeeLocker recipient
+
+  // Fetch only dynamic data (treasury, governance, staking stats, pending fees, and fee splitter dynamic)
   const contracts = [
     ...getTreasuryContracts(
       clankerToken,
@@ -905,6 +955,9 @@ export async function getProject({
     ),
     ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
+    ...(feeLockerAddress
+      ? getPendingFeesContracts(feeLockerAddress, stakingFeeRecipient, clankerToken, wethAddress)
+      : []),
     ...(feeSplitterAddress && staticProject.feeSplitter?.isActive
       ? getFeeSplitterDynamicContracts(clankerToken, feeSplitterAddress, rewardTokens)
       : []),
@@ -916,6 +969,7 @@ export async function getProject({
   const treasuryCount = wethAddress ? 4 : 3 // treasury balance, staking balance, escrow balance, (optional weth balance)
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
   const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
+  const pendingFeesCount = feeLockerAddress ? (wethAddress ? 2 : 1) : 0 // Pending fees from ClankerFeeLocker
   const feeSplitterDynamicCount =
     feeSplitterAddress && staticProject.feeSplitter?.isActive ? rewardTokens.length : 0
 
@@ -928,6 +982,12 @@ export async function getProject({
 
   const stakingResults = results.slice(idx, idx + stakingCount) as StakingContractsResult
   idx += stakingCount
+
+  const pendingFeesResults =
+    pendingFeesCount > 0
+      ? (results.slice(idx, idx + pendingFeesCount) as PendingFeesContractsResult)
+      : null
+  idx += pendingFeesCount
 
   const feeSplitterDynamicResults =
     feeSplitterDynamicCount > 0 ? results.slice(idx, idx + feeSplitterDynamicCount) : null
@@ -970,6 +1030,7 @@ export async function getProject({
 
   const stakingStats = parseStakingStats(
     stakingResults,
+    pendingFeesResults,
     staticProject.token.decimals,
     tokenUsdPrice,
     wethUsdPrice,

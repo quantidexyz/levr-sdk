@@ -21,6 +21,24 @@ export const GET_LP_LOCKER_ADDRESS = (chainId?: number): `0x${string}` | undefin
 }
 
 /**
+ * Get the Fee locker address for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The Fee locker address
+ */
+export const GET_FEE_LOCKER_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
+  if (!chainId) return undefined
+
+  const chainMap = {
+    // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
+    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.related?.feeLocker,
+    [base.id]: CLANKERS.clanker_v4.related.feeLocker,
+    [baseSepolia.id]: CLANKERS.clanker_v4_sepolia.related.feeLocker,
+  } as Record<number, `0x${string}` | undefined>
+
+  return chainMap?.[chainId]
+}
+
+/**
  * Get the factory address for a given chain ID
  * @param chainId - The chain ID
  * @returns The factory address

@@ -12,6 +12,58 @@ export default [
   },
   {
     type: 'function',
+    name: 'BASIS_POINTS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'MIN_REWARD_AMOUNT',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'PRECISION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'SECONDS_PER_DAY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'accrueFromTreasury',
     inputs: [
       {
@@ -148,19 +200,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'getClankerFeeLocker',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'getVotingPower',
     inputs: [
       {
@@ -270,11 +309,6 @@ export default [
     outputs: [
       {
         name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'pending',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -494,6 +528,106 @@ export default [
   },
   {
     type: 'event',
+    name: 'ClaimFailed',
+    inputs: [
+      {
+        name: 'locker',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'reason',
+        type: 'string',
+        indexed: false,
+        internalType: 'string',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'DebtIncreased',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'int256',
+        indexed: false,
+        internalType: 'int256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'DebtUpdated',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newDebt',
+        type: 'int256',
+        indexed: false,
+        internalType: 'int256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'RewardShortfall',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RewardTokenRemoved',
     inputs: [
       {
@@ -522,7 +656,7 @@ export default [
         internalType: 'uint256',
       },
       {
-        name: 'newAccPerShare',
+        name: 'newPoolTotal',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
