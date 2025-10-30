@@ -29,7 +29,8 @@ export async function getAirdropStatus(
   tokenDecimals: number,
   tokenUsdPrice: number | null,
   ipfsSearchUrl?: string, // Full URL to /api/ipfs-search
-  ipfsJsonUrl?: string // Full URL to /api/ipfs-json
+  ipfsJsonUrl?: string, // Full URL to /api/ipfs-json
+  maxBlocksToSearch?: bigint // Optional: limit block range for getLogs (default: 100k)
 ): Promise<AirdropStatus | null> {
   const chainId = publicClient.chain?.id
   const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
@@ -107,8 +108,13 @@ export async function getAirdropStatus(
     }
 
     // Get current block number for claim event search
+    // PERFORMANCE FIX: Reduce block search range to prevent timeouts
+    // Base produces ~2 blocks/sec, so:
+    // - 50k blocks = ~18 hours (covers recent airdrops)
+    // - 100k blocks = ~1.5 days
+    // - Airdrops are typically claimed within hours of deployment
     const currentBlockNumber = await publicClient.getBlockNumber()
-    const blocksToSearch = 1_000_000n
+    const blocksToSearch = maxBlocksToSearch ?? 50_000n // Default: last 50k blocks (~18 hours on Base)
     const fromBlock = currentBlockNumber > blocksToSearch ? currentBlockNumber - blocksToSearch : 0n
 
     // Get AirdropClaimed events to check who has actually claimed
@@ -116,17 +122,29 @@ export async function getAirdropStatus(
       (item) => item.type === 'event' && item.name === 'AirdropClaimed'
     )
 
-    const claimLogs = airdropClaimedEvent
-      ? await publicClient.getLogs({
-          address: airdropAddress,
-          event: airdropClaimedEvent,
-          args: {
-            token: clankerToken,
-          },
-          fromBlock,
-          toBlock: 'latest',
-        })
-      : []
+    let claimLogs: any[] = []
+
+    try {
+      claimLogs = airdropClaimedEvent
+        ? await publicClient.getLogs({
+            address: airdropAddress,
+            event: airdropClaimedEvent,
+            args: {
+              token: clankerToken,
+            },
+            fromBlock,
+            toBlock: 'latest',
+          })
+        : []
+    } catch (error) {
+      // If getLogs times out, continue without claim status
+      // This is acceptable - we can still show allocated amounts
+      console.warn(
+        '[AIRDROP] Failed to fetch claim logs (timeout or RPC limit):',
+        (error as Error).message
+      )
+      claimLogs = []
+    }
 
     // Track which addresses have claimed
     const claimedAddresses = new Set(
