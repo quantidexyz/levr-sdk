@@ -89,6 +89,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'addTrustedClankerFactory',
+    inputs: [
+      {
+        name: 'factory',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'approvalBps',
     inputs: [],
     outputs: [
@@ -254,6 +267,38 @@ export default [
         name: 'total',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getTrustedClankerFactories',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'isTrustedClankerFactory',
+    inputs: [
+      {
+        name: 'factory',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
       },
     ],
     stateMutability: 'view',
@@ -468,6 +513,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'removeTrustedClankerFactory',
+    inputs: [
+      {
+        name: 'factory',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'renounceOwnership',
     inputs: [],
     outputs: [],
@@ -677,6 +735,32 @@ export default [
         name: 'stakedToken',
         type: 'address',
         indexed: false,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'TrustedClankerFactoryAdded',
+    inputs: [
+      {
+        name: 'factory',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'TrustedClankerFactoryRemoved',
+    inputs: [
+      {
+        name: 'factory',
+        type: 'address',
+        indexed: true,
         internalType: 'address',
       },
     ],

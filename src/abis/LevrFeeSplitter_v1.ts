@@ -213,44 +213,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'pendingFees',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'pending',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'pendingFeesInclBalance',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'pending',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'recoverDust',
     inputs: [
       {
