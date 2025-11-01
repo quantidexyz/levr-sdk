@@ -200,6 +200,35 @@ export default [
   },
   {
     type: 'function',
+    name: 'getTokenStreamInfo',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'streamStart',
+        type: 'uint64',
+        internalType: 'uint64',
+      },
+      {
+        name: 'streamEnd',
+        type: 'uint64',
+        internalType: 'uint64',
+      },
+      {
+        name: 'streamTotal',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'getVotingPower',
     inputs: [
       {
@@ -400,32 +429,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'streamEnd',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'streamStart',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'streamWindowSeconds',
     inputs: [],
     outputs: [
@@ -528,106 +531,6 @@ export default [
   },
   {
     type: 'event',
-    name: 'ClaimFailed',
-    inputs: [
-      {
-        name: 'locker',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'reason',
-        type: 'string',
-        indexed: false,
-        internalType: 'string',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'DebtIncreased',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'int256',
-        indexed: false,
-        internalType: 'int256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'DebtUpdated',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'newDebt',
-        type: 'int256',
-        indexed: false,
-        internalType: 'int256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'RewardShortfall',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'RewardTokenRemoved',
     inputs: [
       {
@@ -718,6 +621,12 @@ export default [
     type: 'event',
     name: 'StreamReset',
     inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
       {
         name: 'windowSeconds',
         type: 'uint32',

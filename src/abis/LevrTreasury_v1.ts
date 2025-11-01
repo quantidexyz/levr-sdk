@@ -197,11 +197,6 @@ export default [
   },
   {
     type: 'error',
-    name: 'InsufficientStake',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'InvalidAmount',
     inputs: [],
   },

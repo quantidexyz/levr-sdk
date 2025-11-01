@@ -58,6 +58,11 @@ export default [
             internalType: 'uint16',
           },
           {
+            name: 'minimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
             name: 'maxRewardTokens',
             type: 'uint16',
             internalType: 'uint16',
@@ -71,11 +76,6 @@ export default [
       },
       {
         name: 'trustedForwarder_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'clankerFactory_',
         type: 'address',
         internalType: 'address',
       },
@@ -103,25 +103,18 @@ export default [
   {
     type: 'function',
     name: 'approvalBps',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
         type: 'uint16',
         internalType: 'uint16',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'clankerFactory',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -203,6 +196,11 @@ export default [
             type: 'address',
             internalType: 'address',
           },
+          {
+            name: 'verified',
+            type: 'bool',
+            internalType: 'bool',
+          },
         ],
       },
     ],
@@ -258,6 +256,11 @@ export default [
                 name: 'stakedToken',
                 type: 'address',
                 internalType: 'address',
+              },
+              {
+                name: 'verified',
+                type: 'bool',
+                internalType: 'bool',
               },
             ],
           },
@@ -338,7 +341,13 @@ export default [
   {
     type: 'function',
     name: 'maxActiveProposals',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -351,7 +360,13 @@ export default [
   {
     type: 'function',
     name: 'maxProposalAmountBps',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -364,7 +379,13 @@ export default [
   {
     type: 'function',
     name: 'maxRewardTokens',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -377,7 +398,32 @@ export default [
   {
     type: 'function',
     name: 'minSTokenBpsToSubmit',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'uint16',
+        internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'minimumQuorumBps',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -421,7 +467,13 @@ export default [
   {
     type: 'function',
     name: 'proposalWindowSeconds',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -460,7 +512,13 @@ export default [
   {
     type: 'function',
     name: 'quorumBps',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -506,6 +564,11 @@ export default [
             type: 'address',
             internalType: 'address',
           },
+          {
+            name: 'verified',
+            type: 'bool',
+            internalType: 'bool',
+          },
         ],
       },
     ],
@@ -534,7 +597,13 @@ export default [
   {
     type: 'function',
     name: 'streamWindowSeconds',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -569,6 +638,19 @@ export default [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'unverifyProject',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -630,6 +712,11 @@ export default [
             internalType: 'uint16',
           },
           {
+            name: 'minimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
             name: 'maxRewardTokens',
             type: 'uint16',
             internalType: 'uint16',
@@ -642,8 +729,97 @@ export default [
   },
   {
     type: 'function',
+    name: 'updateProjectConfig',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'cfg',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.ProjectConfig',
+        components: [
+          {
+            name: 'streamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'proposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'votingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'maxActiveProposals',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'quorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'approvalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'maxProposalAmountBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'maxRewardTokens',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'verifyProject',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'votingWindowSeconds',
-    inputs: [],
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [
       {
         name: '',
@@ -698,6 +874,45 @@ export default [
         name: 'staking',
         type: 'address',
         indexed: false,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProjectConfigUpdated',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProjectUnverified',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProjectVerified',
+    inputs: [
+      {
+        name: 'clankerToken',
+        type: 'address',
+        indexed: true,
         internalType: 'address',
       },
     ],
@@ -787,6 +1002,16 @@ export default [
         internalType: 'address',
       },
     ],
+  },
+  {
+    type: 'error',
+    name: 'ProjectNotFound',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ProjectNotVerified',
+    inputs: [],
   },
   {
     type: 'error',

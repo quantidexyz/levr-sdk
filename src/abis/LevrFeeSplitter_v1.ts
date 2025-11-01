@@ -419,11 +419,6 @@ export default [
   },
   {
     type: 'error',
-    name: 'ClankerMetadataNotFound',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'DuplicateReceiver',
     inputs: [],
   },
@@ -434,22 +429,7 @@ export default [
   },
   {
     type: 'error',
-    name: 'InvalidSplits',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'InvalidTotalBps',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LpLockerNotConfigured',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'NoPendingFees',
     inputs: [],
   },
   {

@@ -779,27 +779,12 @@ export default [
   },
   {
     type: 'error',
-    name: 'NoActiveCycle',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'NotAuthorized',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'NotWinner',
     inputs: [],
   },
   {
     type: 'error',
     name: 'ProposalAmountExceedsLimit',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProposalNotSucceeded',
     inputs: [],
   },
   {
@@ -815,6 +800,11 @@ export default [
   {
     type: 'error',
     name: 'VotingNotActive',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'VotingNotEnded',
     inputs: [],
   },
 ] as const

@@ -185,11 +185,10 @@ type StakingContractsResult = [
   MulticallResult<bigint>, // aprBps
   MulticallResult<bigint>, // outstandingRewards (token) - now returns only available
   MulticallResult<bigint>, // rewardRatePerSecond (token)
-  MulticallResult<number>, // streamWindowSeconds
-  MulticallResult<bigint>, // streamStart
-  MulticallResult<bigint>, // streamEnd
+  MulticallResult<[bigint, bigint, bigint]>, // getTokenStreamInfo (token) - returns (streamStart, streamEnd, streamTotal)
   MulticallResult<bigint>?, // outstandingRewards (weth) - optional, returns only available
   MulticallResult<bigint>?, // rewardRatePerSecond (weth) - optional
+  MulticallResult<[bigint, bigint, bigint]>?, // getTokenStreamInfo (weth) - optional, returns (streamStart, streamEnd, streamTotal)
 ]
 
 type PendingFeesContractsResult = [
@@ -367,17 +366,8 @@ function getStakingContracts(
     {
       address: staking,
       abi: LevrStaking_v1,
-      functionName: 'streamWindowSeconds' as const,
-    },
-    {
-      address: staking,
-      abi: LevrStaking_v1,
-      functionName: 'streamStart' as const,
-    },
-    {
-      address: staking,
-      abi: LevrStaking_v1,
-      functionName: 'streamEnd' as const,
+      functionName: 'getTokenStreamInfo' as const,
+      args: [clankerToken],
     },
   ]
 
@@ -393,6 +383,12 @@ function getStakingContracts(
           address: staking,
           abi: LevrStaking_v1,
           functionName: 'rewardRatePerSecond' as const,
+          args: [wethAddress],
+        },
+        {
+          address: staking,
+          abi: LevrStaking_v1,
+          functionName: 'getTokenStreamInfo' as const,
           args: [wethAddress],
         },
       ]
@@ -534,14 +530,32 @@ function parseStakingStats(
   const aprBpsRaw = results[1].result
   const outstandingRewardsTokenAvailable = results[2].result // Now returns only available
   const tokenRewardRateRaw = results[3].result
-  const streamWindowSecondsRaw = results[4].result
-  const streamStartRaw = results[5].result
-  const streamEndRaw = results[6].result
+  // Extract stream info from getTokenStreamInfo tuple (streamStart, streamEnd, streamTotal)
+  const streamInfoRaw = results[4].result as [bigint, bigint, bigint]
+  let streamStartRaw = streamInfoRaw[0]
+  let streamEndRaw = streamInfoRaw[1]
 
   // Check if WETH data is present
-  const hasWethData = results.length > 7
-  const outstandingRewardsWethAvailable = hasWethData && results[7] ? results[7].result : null
-  const wethRewardRateRaw = hasWethData && results[8] ? results[8].result : null
+  const hasWethData = results.length > 5
+  const outstandingRewardsWethAvailable = hasWethData && results[5] ? results[5].result : null
+  const wethRewardRateRaw = hasWethData && results[6] ? results[6].result : null
+
+  // Get WETH stream info if available and compare
+  if (hasWethData && results[7]) {
+    const wethStreamInfoRaw = results[7].result as [bigint, bigint, bigint]
+    const wethStreamStart = wethStreamInfoRaw[0]
+    const wethStreamEnd = wethStreamInfoRaw[1]
+
+    // Compare stream durations and use the longer one
+    const tokenStreamDuration = streamEndRaw - streamStartRaw
+    const wethStreamDuration = wethStreamEnd - wethStreamStart
+
+    if (wethStreamDuration > tokenStreamDuration) {
+      // WETH stream is longer, use it
+      streamStartRaw = wethStreamStart
+      streamEndRaw = wethStreamEnd
+    }
+  }
 
   // Get pending fees from ClankerFeeLocker (staking recipient)
   const stakingPendingToken = pendingFeesResults?.[0]?.result ?? 0n
@@ -579,6 +593,9 @@ function parseStakingStats(
 
   // Calculate if stream is active using blockchain timestamp
   const isStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
+
+  // Calculate stream window from the stream time range
+  const streamWindowSecondsRaw = Number(streamEndRaw - streamStartRaw)
 
   // SECURITY FIX: Pending fees now queried for correct recipient
   // When fee splitter is active: stakingPendingToken = fee splitter's pending from ClankerFeeLocker
@@ -621,7 +638,7 @@ function parseStakingStats(
           : null,
     },
     streamParams: {
-      windowSeconds: Number(streamWindowSecondsRaw),
+      windowSeconds: streamWindowSecondsRaw,
       streamStart: streamStartRaw,
       streamEnd: streamEndRaw,
       isActive: isStreamActive,
@@ -968,7 +985,7 @@ export async function getProject({
   // Calculate slice indices for dynamic data
   const treasuryCount = wethAddress ? 4 : 3 // treasury balance, staking balance, escrow balance, (optional weth balance)
   const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
-  const stakingCount = wethAddress ? 9 : 7 // Added 3 stream-related calls
+  const stakingCount = wethAddress ? 8 : 5 // 5 base + 3 optional weth (including getTokenStreamInfo for weth)
   const pendingFeesCount = feeLockerAddress ? (wethAddress ? 2 : 1) : 0 // Pending fees from ClankerFeeLocker
   const feeSplitterDynamicCount =
     feeSplitterAddress && staticProject.feeSplitter?.isActive ? rewardTokens.length : 0
