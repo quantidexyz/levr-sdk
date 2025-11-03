@@ -354,6 +354,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'CannotModifyUnderlying',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'ERC20InsufficientAllowance',
     inputs: [
       {
@@ -437,5 +442,15 @@ export default [
         internalType: 'address',
       },
     ],
+  },
+  {
+    type: 'error',
+    name: 'OnlyFactory',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ZeroAddress',
+    inputs: [],
   },
 ] as const

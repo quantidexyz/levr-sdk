@@ -283,6 +283,11 @@ export default [
         type: 'address',
         internalType: 'address',
       },
+      {
+        name: 'initialWhitelistedTokens',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -518,6 +523,19 @@ export default [
   },
   {
     type: 'function',
+    name: 'unwhitelistToken',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'whitelistToken',
     inputs: [
       {
@@ -650,6 +668,19 @@ export default [
   },
   {
     type: 'event',
+    name: 'TokenUnwhitelisted',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'TokenWhitelisted',
     inputs: [
       {
@@ -693,6 +724,46 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyWhitelisted',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotModifyUnderlying',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotRemoveUnderlying',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotRemoveWhitelisted',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotUnwhitelistUnderlying',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotUnwhitelistWithPendingRewards',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CannotWhitelistWithPendingRewards',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InsufficientAvailable',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InsufficientEscrow',
     inputs: [],
   },
@@ -713,12 +784,32 @@ export default [
   },
   {
     type: 'error',
+    name: 'NotWhitelisted',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'OnlyFactory',
     inputs: [],
   },
   {
     type: 'error',
+    name: 'OnlyTokenAdmin',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'RewardTooSmall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'RewardsTillPending',
     inputs: [],
   },
   {
@@ -731,6 +822,21 @@ export default [
         internalType: 'address',
       },
     ],
+  },
+  {
+    type: 'error',
+    name: 'TokenNotRegistered',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'TokenNotWhitelisted',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'UnauthorizedCaller',
+    inputs: [],
   },
   {
     type: 'error',

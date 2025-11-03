@@ -1,3 +1,5 @@
 [test]
 root = "./test"
 preload = "./test/setup-happydom.ts"
+testNamePattern = ".*"
+timeout = 30000

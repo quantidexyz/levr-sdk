@@ -759,6 +759,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'InternalOnly',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'InvalidAmount',
     inputs: [],
   },

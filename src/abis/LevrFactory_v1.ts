@@ -62,11 +62,6 @@ export default [
             type: 'uint16',
             internalType: 'uint16',
           },
-          {
-            name: 'maxRewardTokens',
-            type: 'uint16',
-            internalType: 'uint16',
-          },
         ],
       },
       {
@@ -83,6 +78,11 @@ export default [
         name: 'levrDeployer_',
         type: 'address',
         internalType: 'address',
+      },
+      {
+        name: 'initialWhitelistedTokens_',
+        type: 'address[]',
+        internalType: 'address[]',
       },
     ],
     stateMutability: 'nonpayable',
@@ -105,7 +105,7 @@ export default [
     name: 'approvalBps',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -131,7 +131,7 @@ export default [
     ],
     outputs: [
       {
-        name: 'metadata',
+        name: '',
         type: 'tuple',
         internalType: 'struct ILevrFactory_v1.ClankerMetadata',
         components: [
@@ -156,6 +156,19 @@ export default [
             internalType: 'bool',
           },
         ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getInitialWhitelist',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address[]',
+        internalType: 'address[]',
       },
     ],
     stateMutability: 'view',
@@ -343,7 +356,7 @@ export default [
     name: 'maxActiveProposals',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -362,26 +375,7 @@ export default [
     name: 'maxProposalAmountBps',
     inputs: [
       {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint16',
-        internalType: 'uint16',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'maxRewardTokens',
-    inputs: [
-      {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -400,7 +394,7 @@ export default [
     name: 'minSTokenBpsToSubmit',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -419,7 +413,7 @@ export default [
     name: 'minimumQuorumBps',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -469,7 +463,7 @@ export default [
     name: 'proposalWindowSeconds',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -514,7 +508,7 @@ export default [
     name: 'quorumBps',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -599,7 +593,7 @@ export default [
     name: 'streamWindowSeconds',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -716,12 +710,20 @@ export default [
             type: 'uint16',
             internalType: 'uint16',
           },
-          {
-            name: 'maxRewardTokens',
-            type: 'uint16',
-            internalType: 'uint16',
-          },
         ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'updateInitialWhitelist',
+    inputs: [
+      {
+        name: 'tokens',
+        type: 'address[]',
+        internalType: 'address[]',
       },
     ],
     outputs: [],
@@ -786,11 +788,6 @@ export default [
             type: 'uint16',
             internalType: 'uint16',
           },
-          {
-            name: 'maxRewardTokens',
-            type: 'uint16',
-            internalType: 'uint16',
-          },
         ],
       },
     ],
@@ -815,7 +812,7 @@ export default [
     name: 'votingWindowSeconds',
     inputs: [
       {
-        name: 'clankerToken',
+        name: 'c',
         type: 'address',
         internalType: 'address',
       },
@@ -833,6 +830,19 @@ export default [
     type: 'event',
     name: 'ConfigUpdated',
     inputs: [],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'InitialWhitelistUpdated',
+    inputs: [
+      {
+        name: 'tokens',
+        type: 'address[]',
+        indexed: false,
+        internalType: 'address[]',
+      },
+    ],
     anonymous: false,
   },
   {
@@ -983,6 +993,41 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyRegistered',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AlreadyTrusted',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AlreadyVerified',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'DeployFailed',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InvalidConfig',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'NoTrustedFactories',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'NotTrusted',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'OwnableInvalidOwner',
     inputs: [
       {
@@ -1020,7 +1065,17 @@ export default [
   },
   {
     type: 'error',
+    name: 'TokenNotTrusted',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'UnauthorizedCaller',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ZeroAddress',
     inputs: [],
   },
 ] as const

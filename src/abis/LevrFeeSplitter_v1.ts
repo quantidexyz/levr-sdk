@@ -470,6 +470,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'TokenNotTrusted',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'TooManyReceivers',
     inputs: [],
   },
