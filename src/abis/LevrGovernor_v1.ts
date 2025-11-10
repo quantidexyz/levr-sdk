@@ -3,37 +3,30 @@ export default [
     type: 'constructor',
     inputs: [
       {
-        name: 'factory_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'treasury_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'staking_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'stakedToken_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'underlying_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'trustedForwarder',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'factory_',
         type: 'address',
         internalType: 'address',
       },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'EXECUTION_ATTEMPT_DELAY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint32',
+        internalType: 'uint32',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -112,6 +105,37 @@ export default [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executionAttempts',
+    inputs: [
+      {
+        name: 'proposalId',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        internalType: 'struct ILevrGovernor_v1.ExecutionAttemptInfo',
+        components: [
+          {
+            name: 'count',
+            type: 'uint8',
+            internalType: 'uint8',
+          },
+          {
+            name: 'lastAttemptTime',
+            type: 'uint64',
+            internalType: 'uint64',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -330,6 +354,34 @@ export default [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'initialize',
+    inputs: [
+      {
+        name: 'treasury_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'staking_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'stakedToken_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'underlying_',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -724,6 +776,11 @@ export default [
   },
   {
     type: 'error',
+    name: 'AlreadyInitialized',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'AlreadyProposedInCycle',
     inputs: [],
   },
@@ -740,6 +797,11 @@ export default [
   {
     type: 'error',
     name: 'ExecutableProposalsRemaining',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ExecutionAttemptTooSoon',
     inputs: [],
   },
   {
@@ -789,7 +851,17 @@ export default [
   },
   {
     type: 'error',
+    name: 'OnlyFactory',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'ProposalAmountExceedsLimit',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ProposalNotInCurrentCycle',
     inputs: [],
   },
   {
@@ -800,6 +872,11 @@ export default [
   {
     type: 'error',
     name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'StakeActionTooRecent',
     inputs: [],
   },
   {

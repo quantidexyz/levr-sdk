@@ -445,7 +445,7 @@ export default [
   },
   {
     type: 'error',
-    name: 'OnlyFactory',
+    name: 'OnlyStaking',
     inputs: [],
   },
   {

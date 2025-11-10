@@ -121,47 +121,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'getClankerMetadata',
-    inputs: [
-      {
-        name: 'clankerToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'tuple',
-        internalType: 'struct ILevrFactory_v1.ClankerMetadata',
-        components: [
-          {
-            name: 'feeLocker',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'lpLocker',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'hook',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'exists',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'getInitialWhitelist',
     inputs: [],
     outputs: [

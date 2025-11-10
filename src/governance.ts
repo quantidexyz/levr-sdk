@@ -155,6 +155,7 @@ export class Governance {
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
 
     if (receipt.status === 'reverted') {
+      console.error(receipt)
       throw new Error('Propose boost transaction reverted')
     }
 

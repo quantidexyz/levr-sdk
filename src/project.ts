@@ -540,21 +540,33 @@ function parseStakingStats(
   const outstandingRewardsWethAvailable = hasWethData && results[5] ? results[5].result : null
   const wethRewardRateRaw = hasWethData && results[6] ? results[6].result : null
 
-  // Get WETH stream info if available and compare
+  // Check if token stream is currently active
+  const isTokenStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
+
+  // Check if WETH stream is active (if available) and get longest active stream window
+  let isWethStreamActive = false
+  let wethStreamStartRaw = 0n
+  let wethStreamEndRaw = 0n
+
   if (hasWethData && results[7]) {
     const wethStreamInfoRaw = results[7].result as [bigint, bigint, bigint]
-    const wethStreamStart = wethStreamInfoRaw[0]
-    const wethStreamEnd = wethStreamInfoRaw[1]
+    wethStreamStartRaw = wethStreamInfoRaw[0]
+    wethStreamEndRaw = wethStreamInfoRaw[1]
 
-    // Compare stream durations and use the longer one
-    const tokenStreamDuration = streamEndRaw - streamStartRaw
-    const wethStreamDuration = wethStreamEnd - wethStreamStart
+    isWethStreamActive = wethStreamStartRaw <= blockTimestamp && blockTimestamp <= wethStreamEndRaw
+  }
 
-    if (wethStreamDuration > tokenStreamDuration) {
-      // WETH stream is longer, use it
-      streamStartRaw = wethStreamStart
-      streamEndRaw = wethStreamEnd
-    }
+  // Stream is active if either token or WETH reward stream is active
+  const isStreamActive = isTokenStreamActive || isWethStreamActive
+
+  // Use the longest stream window for display (whether active or not)
+  const tokenStreamDuration = streamEndRaw - streamStartRaw
+  const wethStreamDuration = wethStreamStartRaw > 0n ? wethStreamEndRaw - wethStreamStartRaw : 0n
+
+  if (wethStreamDuration > tokenStreamDuration) {
+    // Update the stored stream times to the longer one for consistent display
+    streamStartRaw = wethStreamStartRaw
+    streamEndRaw = wethStreamEndRaw
   }
 
   // Get pending fees from ClankerFeeLocker (staking recipient)
@@ -590,9 +602,6 @@ function parseStakingStats(
       }
     }
   }
-
-  // Calculate if stream is active using blockchain timestamp
-  const isStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
 
   // Calculate stream window from the stream time range
   const streamWindowSecondsRaw = Number(streamEndRaw - streamStartRaw)
