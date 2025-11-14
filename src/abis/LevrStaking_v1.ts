@@ -30,7 +30,7 @@ export default [
   },
   {
     type: 'function',
-    name: 'SECONDS_PER_DAY',
+    name: 'MIN_REWARD_AMOUNT',
     inputs: [],
     outputs: [
       {
@@ -43,7 +43,20 @@ export default [
   },
   {
     type: 'function',
-    name: 'TARGET_DECIMALS',
+    name: 'PRECISION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'SECONDS_PER_DAY',
     inputs: [],
     outputs: [
       {
@@ -72,29 +85,6 @@ export default [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accrueFromTreasury',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'pullFromTreasury',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -182,7 +172,7 @@ export default [
     name: 'escrowBalance',
     inputs: [
       {
-        name: 'token',
+        name: '',
         type: 'address',
         internalType: 'address',
       },
@@ -341,7 +331,7 @@ export default [
     name: 'lastStakeBlock',
     inputs: [
       {
-        name: 'user',
+        name: '',
         type: 'address',
         internalType: 'address',
       },
@@ -368,19 +358,6 @@ export default [
     outputs: [
       {
         name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'precision',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -464,25 +441,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'stakedBalanceOf',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'stakedToken',
     inputs: [],
     outputs: [
@@ -490,19 +448,6 @@ export default [
         name: '',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'streamWindowSeconds',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint32',
-        internalType: 'uint32',
       },
     ],
     stateMutability: 'view',
@@ -561,19 +506,6 @@ export default [
   },
   {
     type: 'function',
-    name: 'underlyingDecimals',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'unstake',
     inputs: [
       {
@@ -621,6 +553,31 @@ export default [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    name: 'Initialized',
+    inputs: [
+      {
+        name: 'underlying',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'stakedToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'treasury',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',
@@ -834,11 +791,6 @@ export default [
   },
   {
     type: 'error',
-    name: 'InsufficientAvailable',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'InsufficientEscrow',
     inputs: [],
   },
@@ -864,11 +816,6 @@ export default [
   },
   {
     type: 'error',
-    name: 'NotWhitelisted',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'OnlyFactory',
     inputs: [],
   },
@@ -889,7 +836,7 @@ export default [
   },
   {
     type: 'error',
-    name: 'RewardsTillPending',
+    name: 'RewardsStillPending',
     inputs: [],
   },
   {
@@ -911,11 +858,6 @@ export default [
   {
     type: 'error',
     name: 'TokenNotWhitelisted',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'UnauthorizedCaller',
     inputs: [],
   },
   {

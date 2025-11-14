@@ -65,6 +65,7 @@ export class Stake {
   private publicClient: PopPublicClient
   private stakingAddress: `0x${string}`
   private tokenAddress: `0x${string}`
+  private stakedTokenAddress: `0x${string}`
   private tokenDecimals: number
   private chainId: number
   private userAddress: `0x${string}`
@@ -80,6 +81,7 @@ export class Stake {
     this.publicClient = config.publicClient
     this.stakingAddress = config.project.staking
     this.tokenAddress = config.project.token.address
+    this.stakedTokenAddress = config.project.stakedToken
     this.tokenDecimals = config.project.token.decimals
     this.chainId = config.publicClient.chain?.id ?? 1 // Get chainId from publicClient
     this.userAddress = config.wallet.account.address
@@ -153,9 +155,9 @@ export class Stake {
 
     // Get current staked balance to prevent rounding errors on 100% unstake
     const currentStakedBalance = await this.publicClient.readContract({
-      address: this.stakingAddress,
-      abi: LevrStaking_v1,
-      functionName: 'stakedBalanceOf',
+      address: this.stakedTokenAddress,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
       args: [this.userAddress],
     })
 

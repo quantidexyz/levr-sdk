@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { erc20Abi, formatEther, parseEther } from 'viem'
 
-import { LevrStaking_v1 } from '../src/abis'
 import { deployV4 } from '../src/deploy-v4'
 import type { Project } from '../src/project'
 import { getProject, getStaticProject } from '../src/project'
@@ -159,9 +158,9 @@ describe('#STAKE_TEST', () => {
 
       // Verify staking balance
       const stakedBalance = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
       expect(stakedBalance).toBe(stakeAmount)
@@ -484,9 +483,9 @@ describe('#STAKE_TEST', () => {
 
       // Get current staked balance
       const stakedBalanceBefore = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
@@ -521,9 +520,9 @@ describe('#STAKE_TEST', () => {
 
       // Verify staked balance decreased
       const stakedBalanceAfterPartial = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 
@@ -559,9 +558,9 @@ describe('#STAKE_TEST', () => {
 
       // Verify staked balance is now 0
       const stakedBalanceFinal = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
 

@@ -640,6 +640,37 @@ export default [
   },
   {
     type: 'event',
+    name: 'Initialized',
+    inputs: [
+      {
+        name: 'treasury',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'staking',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'stakedToken',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'underlying',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'ProposalCreated',
     inputs: [
       {
@@ -857,6 +888,11 @@ export default [
   {
     type: 'error',
     name: 'ProposalAmountExceedsLimit',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ProposalNotFound',
     inputs: [],
   },
   {

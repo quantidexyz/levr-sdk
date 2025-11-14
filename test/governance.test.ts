@@ -3,7 +3,6 @@ import { erc20Abi, formatEther } from 'viem'
 
 import type { Project } from '../src'
 import { getProject, getStaticProject } from '../src'
-import { LevrStaking_v1 } from '../src/abis'
 import { getAirdropStatus } from '../src/airdrop'
 import { deployV4 } from '../src/deploy-v4'
 import { Governance } from '../src/governance'
@@ -172,9 +171,9 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Verify staking balance
       const stakedBalance = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
       expect(stakedBalance).toBe(stakeAmount)
@@ -696,9 +695,9 @@ describe('#GOVERNANCE_TEST', () => {
 
       // Get user's staked balance
       const stakedBalance = await publicClient.readContract({
-        address: project.staking,
-        abi: LevrStaking_v1,
-        functionName: 'stakedBalanceOf',
+        address: project.stakedToken,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
         args: [wallet.account.address],
       })
       console.log('User staked balance:', formatEther(stakedBalance), 'tokens')
