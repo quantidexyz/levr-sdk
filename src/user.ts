@@ -73,32 +73,33 @@ export function balanceContracts(params: {
 export function stakingContracts(params: {
   userAddress: `0x${string}`
   stakingAddress: `0x${string}`
+  stakedTokenAddress: `0x${string}`
   clankerToken: `0x${string}`
   wethAddress?: `0x${string}`
 }) {
-  const contracts: any[] = [
+  const contracts = [
     {
-      address: params.stakingAddress,
-      abi: LevrStaking_v1,
-      functionName: 'stakedBalanceOf' as const,
+      address: params.stakedTokenAddress,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
       args: [params.userAddress],
     },
     {
       address: params.clankerToken,
       abi: erc20Abi,
-      functionName: 'allowance' as const,
+      functionName: 'allowance',
       args: [params.userAddress, params.stakingAddress],
     },
     {
       address: params.stakingAddress,
       abi: LevrStaking_v1,
-      functionName: 'claimableRewards' as const,
+      functionName: 'claimableRewards',
       args: [params.userAddress, params.clankerToken],
     },
     {
       address: params.stakingAddress,
       abi: LevrStaking_v1,
-      functionName: 'getVotingPower' as const,
+      functionName: 'getVotingPower',
       args: [params.userAddress],
     },
   ]
@@ -132,9 +133,10 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   if (!chainId) throw new Error('Chain ID not found on public client')
 
   const wethAddress = WETH(chainId)?.address
-  const { clankerToken, stakingAddress, tokenDecimals, pricing } = {
+  const { clankerToken, stakingAddress, stakedTokenAddress, tokenDecimals, pricing } = {
     clankerToken: project.token.address,
     stakingAddress: project.staking,
+    stakedTokenAddress: project.stakedToken,
     tokenDecimals: project.token.decimals,
     pricing: project.pricing,
   }
@@ -160,7 +162,15 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   }
 
   // Add staking contracts
-  contracts.push(...stakingContracts({ userAddress, stakingAddress, clankerToken, wethAddress }))
+  contracts.push(
+    ...stakingContracts({
+      userAddress,
+      stakingAddress,
+      stakedTokenAddress,
+      clankerToken,
+      wethAddress,
+    })
+  )
 
   // Execute single multicall + native balance
   const [nativeBalance, ...multicallResults] = await Promise.all([
