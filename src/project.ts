@@ -532,8 +532,8 @@ function parseStakingStats(
   const tokenRewardRateRaw = results[3].result
   // Extract stream info from getTokenStreamInfo tuple (streamStart, streamEnd, streamTotal)
   const streamInfoRaw = results[4].result as [bigint, bigint, bigint]
-  let streamStartRaw = streamInfoRaw[0]
-  let streamEndRaw = streamInfoRaw[1]
+  const tokenStreamStartRaw = streamInfoRaw[0]
+  const tokenStreamEndRaw = streamInfoRaw[1]
 
   // Check if WETH data is present
   const hasWethData = results.length > 5
@@ -541,7 +541,8 @@ function parseStakingStats(
   const wethRewardRateRaw = hasWethData && results[6] ? results[6].result : null
 
   // Check if token stream is currently active
-  const isTokenStreamActive = streamStartRaw <= blockTimestamp && blockTimestamp <= streamEndRaw
+  const isTokenStreamActive =
+    tokenStreamStartRaw <= blockTimestamp && blockTimestamp <= tokenStreamEndRaw
 
   // Check if WETH stream is active (if available) and get longest active stream window
   let isWethStreamActive = false
@@ -559,14 +560,33 @@ function parseStakingStats(
   // Stream is active if either token or WETH reward stream is active
   const isStreamActive = isTokenStreamActive || isWethStreamActive
 
-  // Use the longest stream window for display (whether active or not)
-  const tokenStreamDuration = streamEndRaw - streamStartRaw
-  const wethStreamDuration = wethStreamStartRaw > 0n ? wethStreamEndRaw - wethStreamStartRaw : 0n
+  // Determine which stream window to display
+  let displayStreamStartRaw = tokenStreamStartRaw
+  let displayStreamEndRaw = tokenStreamEndRaw
 
-  if (wethStreamDuration > tokenStreamDuration) {
-    // Update the stored stream times to the longer one for consistent display
-    streamStartRaw = wethStreamStartRaw
-    streamEndRaw = wethStreamEndRaw
+  const tokenStreamDuration =
+    tokenStreamEndRaw > tokenStreamStartRaw ? tokenStreamEndRaw - tokenStreamStartRaw : 0n
+  const wethStreamDuration =
+    wethStreamStartRaw > 0n && wethStreamEndRaw > wethStreamStartRaw
+      ? wethStreamEndRaw - wethStreamStartRaw
+      : 0n
+
+  if (isTokenStreamActive && isWethStreamActive) {
+    // When both streams are active, display the one that ends last
+    displayStreamStartRaw =
+      wethStreamEndRaw > tokenStreamEndRaw ? wethStreamStartRaw : tokenStreamStartRaw
+    displayStreamEndRaw =
+      wethStreamEndRaw > tokenStreamEndRaw ? wethStreamEndRaw : tokenStreamEndRaw
+  } else if (isTokenStreamActive) {
+    displayStreamStartRaw = tokenStreamStartRaw
+    displayStreamEndRaw = tokenStreamEndRaw
+  } else if (isWethStreamActive) {
+    displayStreamStartRaw = wethStreamStartRaw
+    displayStreamEndRaw = wethStreamEndRaw
+  } else if (wethStreamDuration > tokenStreamDuration) {
+    // No active streams: keep prior behaviour of showing the longer window
+    displayStreamStartRaw = wethStreamStartRaw
+    displayStreamEndRaw = wethStreamEndRaw
   }
 
   // Get pending fees from ClankerFeeLocker (staking recipient)
@@ -604,7 +624,10 @@ function parseStakingStats(
   }
 
   // Calculate stream window from the stream time range
-  const streamWindowSecondsRaw = Number(streamEndRaw - streamStartRaw)
+  const streamWindowSecondsRaw =
+    displayStreamEndRaw > displayStreamStartRaw
+      ? Number(displayStreamEndRaw - displayStreamStartRaw)
+      : 0
 
   // SECURITY FIX: Pending fees now queried for correct recipient
   // When fee splitter is active: stakingPendingToken = fee splitter's pending from ClankerFeeLocker
@@ -648,8 +671,8 @@ function parseStakingStats(
     },
     streamParams: {
       windowSeconds: streamWindowSecondsRaw,
-      streamStart: streamStartRaw,
-      streamEnd: streamEndRaw,
+      streamStart: displayStreamStartRaw,
+      streamEnd: displayStreamEndRaw,
       isActive: isStreamActive,
     },
   }
