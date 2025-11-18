@@ -10,7 +10,8 @@ export const queryKeys = {
   /**
    * Static project query key (doesn't change frequently - includes feeSplitter config)
    */
-  staticProject: (token: Address, chainId: number) => ['static-project', token, chainId] as const,
+  staticProject: (token: Address, chainId: number, userAddress?: Address | null) =>
+    ['static-project', token, chainId, userAddress ?? null] as const,
 
   /**
    * Project query key (dynamic data - treasury stats, staking stats, etc.)

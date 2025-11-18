@@ -29,7 +29,7 @@ export function useStaticProjectQuery({
   const enabled = !!publicClient && !!clankerToken && !!chainId && e
 
   return useQuery<StaticProject | null>({
-    queryKey: queryKeys.staticProject(clankerToken!, chainId!),
+    queryKey: queryKeys.staticProject(clankerToken!, chainId!, userAddress ?? null),
     enabled,
     queryFn: () =>
       getStaticProject({

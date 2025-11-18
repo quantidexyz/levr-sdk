@@ -316,8 +316,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         userAddress: wallet.account?.address,
       })
 
-      if (!staticProjectRefetch?.isRegistered)
-        throw new Error('Failed to get static project')
+      if (!staticProjectRefetch?.isRegistered) throw new Error('Failed to get static project')
 
       console.log('Fee splitter info from SDK:')
       console.log({
