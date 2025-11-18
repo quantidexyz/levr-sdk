@@ -21,7 +21,13 @@ const staticProject = await getStaticProject({
 })
 
 if (!staticProject) {
-  console.log('Project not found or not registered')
+  console.log('Token not found or invalid address')
+  return
+}
+
+if (!staticProject.isRegistered) {
+  console.log('Token detected but not registered yet')
+  console.log('Token admin:', staticProject.token.admin)
   return
 }
 
@@ -39,11 +45,13 @@ console.log('Fee Receivers:', staticProject.feeReceivers?.length)
 
 ## Returns
 
-Returns `StaticProject | null` (null if project not registered)
+Returns `StaticProject | null`. `null` is only returned when the token address is invalid or metadata calls fail. For unregistered tokens, `isRegistered` will be `false` and only token metadata + shared factory details will be populated.
 
 ```typescript
 {
-  // Contract Addresses
+  isRegistered: boolean
+
+  // Contract Addresses (only when isRegistered === true)
   treasury: `0x${string}`
   governor: `0x${string}`
   staking: `0x${string}`
@@ -103,8 +111,8 @@ const staticProject = await getStaticProject({
   clankerToken: '0x...',
 })
 
-if (!staticProject) {
-  throw new Error('Project not found')
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
 }
 
 // 2. Get dynamic data (changes frequently)

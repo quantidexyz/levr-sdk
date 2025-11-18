@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import type { ProjectsParams, ProjectsResult, StaticProject } from '../..'
+import type { ProjectsParams, ProjectsResult, RegisteredStaticProject, StaticProject } from '../..'
 import { getProject, getProjects, getStaticProject } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
@@ -66,7 +66,11 @@ export function useProjectQuery({
     enabled: e,
   })
 
-  const enabled = !!publicClient && !!clankerToken && !!chainId && !!staticProject && e
+  const registeredStaticProject = staticProject?.isRegistered
+    ? (staticProject as RegisteredStaticProject)
+    : null
+
+  const enabled = !!publicClient && !!clankerToken && !!chainId && !!registeredStaticProject && e
 
   const query = useQuery({
     queryKey: queryKeys.project(clankerToken!, chainId!),
@@ -74,7 +78,7 @@ export function useProjectQuery({
     queryFn: () =>
       getProject({
         publicClient: publicClient!,
-        staticProject: staticProject!,
+        staticProject: registeredStaticProject!,
         oraclePublicClient: oraclePublicClient,
       }),
     staleTime: 30_000, // 30 seconds cache for dynamic data

@@ -30,7 +30,7 @@ export type StaticProjectParams = {
 
 export type ProjectParams = {
   publicClient: PopPublicClient
-  staticProject: StaticProject
+  staticProject: RegisteredStaticProject
   oraclePublicClient?: PopPublicClient
 }
 
@@ -126,19 +126,26 @@ export type Project = {
   blockTimestamp?: bigint
 }
 
-export type StaticProject = Pick<
+type StaticProjectBase = Pick<
   Project,
-  | 'treasury'
-  | 'governor'
-  | 'staking'
-  | 'stakedToken'
-  | 'forwarder'
-  | 'factory'
-  | 'token'
-  | 'pool'
-  | 'feeReceivers'
-  | 'feeSplitter'
+  'forwarder' | 'factory' | 'token' | 'feeReceivers' | 'feeSplitter'
 >
+
+export type RegisteredStaticProject = StaticProjectBase & {
+  isRegistered: true
+  treasury: `0x${string}`
+  governor: `0x${string}`
+  staking: `0x${string}`
+  stakedToken: `0x${string}`
+  pool?: PoolInfo
+}
+
+export type UnregisteredStaticProject = StaticProjectBase & {
+  isRegistered: false
+  pool?: undefined
+}
+
+export type StaticProject = RegisteredStaticProject | UnregisteredStaticProject
 
 // ---
 // Multicall Result Types
@@ -872,7 +879,7 @@ export async function getStaticProject({
 
   // Check if project exists
   const { treasury, governor, staking, stakedToken } = factoryData
-  if ([treasury, governor, staking, stakedToken].some((a) => a === zeroAddress)) return null
+  const isRegistered = [treasury, governor, staking, stakedToken].every((a) => a !== zeroAddress)
 
   // Extract pool information and fee receivers from LP locker
   let poolInfo: PoolInfo | undefined
@@ -914,17 +921,29 @@ export async function getStaticProject({
     feeSplitter = parsed ?? undefined
   }
 
+  const baseProject: StaticProjectBase = {
+    forwarder: factoryData.forwarder,
+    factory: factoryAddress,
+    token: tokenData,
+    feeReceivers,
+    feeSplitter,
+  }
+
+  if (!isRegistered) {
+    return {
+      ...baseProject,
+      isRegistered: false,
+    }
+  }
+
   return {
+    ...baseProject,
+    isRegistered: true,
     treasury: factoryData.treasury,
     governor: factoryData.governor,
     staking: factoryData.staking,
     stakedToken: factoryData.stakedToken,
-    forwarder: factoryData.forwarder,
-    factory: factoryAddress,
-    token: tokenData,
     pool: poolInfo,
-    feeReceivers,
-    feeSplitter,
   }
 }
 

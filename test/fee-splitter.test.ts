@@ -96,7 +96,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         clankerToken: deployedTokenAddress,
       })
 
-      if (!staticProject) throw new Error('Failed to get static project')
+      if (!staticProject?.isRegistered) throw new Error('Failed to get static project')
       stakingAddress = staticProject.staking
       console.log('✓ Staking address:', stakingAddress)
 
@@ -214,7 +214,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         clankerToken: deployedTokenAddress,
       })
 
-      if (!staticProject) throw new Error('Failed to get static project')
+      if (!staticProject?.isRegistered) throw new Error('Failed to get static project')
 
       const fullProject = await getProject({
         publicClient,
@@ -316,7 +316,8 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         userAddress: wallet.account?.address,
       })
 
-      if (!staticProjectRefetch) throw new Error('Failed to get static project')
+      if (!staticProjectRefetch?.isRegistered)
+        throw new Error('Failed to get static project')
 
       console.log('Fee splitter info from SDK:')
       console.log({
@@ -641,7 +642,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         userAddress: wallet.account?.address,
       })
 
-      if (!staticProject) throw new Error('Failed to get static project')
+      if (!staticProject?.isRegistered) throw new Error('Failed to get static project')
 
       // Update fee receiver back to staking directly (remove fee splitter)
       // Use index 1 (staking recipient) - we control this one
@@ -716,7 +717,8 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         userAddress: wallet.account?.address,
       })
 
-      if (!staticProjectAfterSwitch) throw new Error('Failed to get static project after switch')
+      if (!staticProjectAfterSwitch?.isRegistered)
+        throw new Error('Failed to get static project after switch')
 
       const projectBeforeAccrue = await getProject({
         publicClient,
@@ -953,7 +955,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         clankerToken: deployedTokenAddress,
       })
 
-      if (!staticProjectCurrent) throw new Error('Failed to get static project')
+      if (!staticProjectCurrent?.isRegistered) throw new Error('Failed to get static project')
 
       // Verify splitter is currently active
       const tokenRewardsCurrent = await publicClient.readContract({

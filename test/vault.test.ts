@@ -104,7 +104,7 @@ describe('#VAULT_TEST', () => {
     })
 
     expect(staticProject).toBeDefined()
-    if (!staticProject) throw new Error('Static project not found')
+    if (!staticProject?.isRegistered) throw new Error('Static project not found')
 
     const fullProject = await getProject({
       publicClient,

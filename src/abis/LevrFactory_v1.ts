@@ -65,6 +65,48 @@ export default [
         ],
       },
       {
+        name: 'bounds',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.ConfigBounds',
+        components: [
+          {
+            name: 'minStreamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minProposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minVotingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minApprovalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+        ],
+      },
+      {
         name: 'owner_',
         type: 'address',
         internalType: 'address',
@@ -115,6 +157,56 @@ export default [
         name: '',
         type: 'uint16',
         internalType: 'uint16',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getConfigBounds',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.ConfigBounds',
+        components: [
+          {
+            name: 'minStreamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minProposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minVotingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minApprovalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+        ],
       },
     ],
     stateMutability: 'view',
@@ -677,6 +769,56 @@ export default [
   },
   {
     type: 'function',
+    name: 'updateConfigBounds',
+    inputs: [
+      {
+        name: 'bounds',
+        type: 'tuple',
+        internalType: 'struct ILevrFactory_v1.ConfigBounds',
+        components: [
+          {
+            name: 'minStreamWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minProposalWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minVotingWindowSeconds',
+            type: 'uint32',
+            internalType: 'uint32',
+          },
+          {
+            name: 'minQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minApprovalBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinSTokenBpsToSubmit',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+          {
+            name: 'minMinimumQuorumBps',
+            type: 'uint16',
+            internalType: 'uint16',
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'updateInitialWhitelist',
     inputs: [
       {
@@ -784,6 +926,55 @@ export default [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'ConfigBoundsUpdated',
+    inputs: [
+      {
+        name: 'minStreamWindowSeconds',
+        type: 'uint32',
+        indexed: false,
+        internalType: 'uint32',
+      },
+      {
+        name: 'minProposalWindowSeconds',
+        type: 'uint32',
+        indexed: false,
+        internalType: 'uint32',
+      },
+      {
+        name: 'minVotingWindowSeconds',
+        type: 'uint32',
+        indexed: false,
+        internalType: 'uint32',
+      },
+      {
+        name: 'minQuorumBps',
+        type: 'uint16',
+        indexed: false,
+        internalType: 'uint16',
+      },
+      {
+        name: 'minApprovalBps',
+        type: 'uint16',
+        indexed: false,
+        internalType: 'uint16',
+      },
+      {
+        name: 'minMinSTokenBpsToSubmit',
+        type: 'uint16',
+        indexed: false,
+        internalType: 'uint16',
+      },
+      {
+        name: 'minMinimumQuorumBps',
+        type: 'uint16',
+        indexed: false,
+        internalType: 'uint16',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',

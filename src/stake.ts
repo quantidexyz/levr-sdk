@@ -11,7 +11,7 @@ import {
   LevrStaking_v1,
 } from './abis'
 import { GET_FEE_LOCKER_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from './constants'
-import type { BalanceResult, PopPublicClient, PopWalletClient } from './types'
+import type { PopPublicClient, PopWalletClient } from './types'
 
 export type StakeConfig = {
   wallet: PopWalletClient
@@ -27,32 +27,6 @@ export type UnstakeParams = {
 export type ClaimParams = {
   tokens?: `0x${string}`[]
   to?: `0x${string}`
-}
-
-export type StakePoolData = {
-  totalStaked: BalanceResult
-  escrowBalance: BalanceResult
-  streamParams: {
-    windowSeconds: number
-    streamStart: bigint
-    streamEnd: bigint
-    isActive: boolean
-  }
-  rewardRatePerSecond: BalanceResult
-}
-
-export type StakeUserData = {
-  stakedBalance: BalanceResult
-  aprBps: { raw: bigint; percentage: number }
-}
-
-export type StakeOutstandingRewards = {
-  available: BalanceResult
-  pending: BalanceResult
-}
-
-export type StakeClaimableRewards = {
-  claimable: BalanceResult
 }
 
 export type VotingPowerResult = {

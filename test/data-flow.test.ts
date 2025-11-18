@@ -37,7 +37,7 @@ async function getFullProject(
 ) {
   const { oraclePublicClient, ...staticParams } = params
   const staticProject = await getStaticProject(staticParams)
-  if (!staticProject) return null
+  if (!staticProject?.isRegistered) return null
   return getProject({
     publicClient: params.publicClient,
     staticProject,

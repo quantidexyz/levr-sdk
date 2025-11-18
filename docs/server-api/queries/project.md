@@ -28,8 +28,8 @@ const staticProject = await getStaticProject({
   userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
 })
 
-if (!staticProject) {
-  console.log('Project not found or not registered')
+if (!staticProject?.isRegistered) {
+  console.log('Project not registered yet')
   return
 }
 
@@ -66,7 +66,7 @@ if (projectData.feeSplitter?.isActive) {
 
 ## Returns
 
-Returns `Project | null` (null if project not registered)
+Returns `Project | null`. `staticProject.isRegistered` must be `true` before calling this function (otherwise dynamic data won't exist).
 
 ```typescript
 {
