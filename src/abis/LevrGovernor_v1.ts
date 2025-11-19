@@ -3,12 +3,12 @@ export default [
     type: 'constructor',
     inputs: [
       {
-        name: 'trustedForwarder',
+        name: 'factory_',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'factory_',
+        name: 'trustedForwarder',
         type: 'address',
         internalType: 'address',
       },

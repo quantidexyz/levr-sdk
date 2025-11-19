@@ -226,7 +226,7 @@ export default [
   },
   {
     type: 'function',
-    name: 'getProjectContracts',
+    name: 'getProject',
     inputs: [
       {
         name: 'clankerToken',

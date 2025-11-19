@@ -170,7 +170,7 @@ type FactoryContractsResult = [
     governor: `0x${string}`
     staking: `0x${string}`
     stakedToken: `0x${string}`
-  }>, // getProjectContracts
+  }>, // getProject
   MulticallResult<`0x${string}`>, // trustedForwarder
 ]
 
@@ -270,7 +270,7 @@ function getFactoryContracts(factoryAddress: `0x${string}`, clankerToken: `0x${s
     {
       address: factoryAddress,
       abi: LevrFactory_v1,
-      functionName: 'getProjectContracts' as const,
+      functionName: 'getProject' as const,
       args: [clankerToken],
     },
     {
