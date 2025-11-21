@@ -2,7 +2,7 @@
 
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import React, { createContext, useContext, useEffect, useMemo } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import type { Address } from 'viem'
 import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
@@ -140,6 +140,26 @@ export function LevrProvider({
   })
   const factoryConfig = useFactoryConfigQuery({ enabled })
 
+  const projectRefetch = project.refetch
+  const userRefetch = userQuery.refetch
+  const poolRefetch = poolQuery.refetch
+  const proposalsRefetch = proposalsQuery.refetch
+  const airdropRefetch = airdropStatus.refetch
+
+  const refetchAll = useCallback(async () => {
+    await queryClient.invalidateQueries({ refetchType: 'active' })
+  }, [queryClient])
+
+  const runRefetchChain = useCallback(
+    async (...refetchFns: Array<(() => Promise<unknown>) | undefined | null>) => {
+      for (const refetchFn of refetchFns) {
+        if (!refetchFn) continue
+        await refetchFn()
+      }
+    },
+    []
+  )
+
   // ========================================
   // REFETCH METHODS
   // ========================================
@@ -147,87 +167,39 @@ export function LevrProvider({
   const refetchMethods = useMemo(
     () => ({
       // Core refetches
-      all: async () => {
-        await queryClient.invalidateQueries({ refetchType: 'active' })
-      },
-      user: async () => {
-        await userQuery.refetch()
-      },
-      project: async () => {
-        await project.refetch()
-      },
-      pool: async () => {
-        await poolQuery.refetch()
-      },
-      proposals: async () => {
-        await proposalsQuery.refetch()
-      },
+      all: refetchAll,
+      user: () => runRefetchChain(userRefetch),
+      project: () => runRefetchChain(projectRefetch),
+      pool: () => runRefetchChain(poolRefetch),
+      proposals: () => runRefetchChain(proposalsRefetch),
 
       // Action-based refetches
-      afterTrade: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances changed
-          poolQuery.refetch(), // Pool state changed (price impact)
-          project.refetch(), // Staking stats might have changed
-        ])
-      },
-      afterStake: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances, staking, voting power changed
-          project.refetch(), // Treasury might have changed
-        ])
-      },
-      afterUnstake: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances, staking, voting power changed
-          project.refetch(), // Treasury might have changed
-        ])
-      },
-      afterClaim: async () => {
-        await Promise.all([
-          userQuery.refetch(), // Balances, claimable rewards changed
-          project.refetch(), // Treasury might have changed
-        ])
-      },
-      afterAccrue: async () => {
-        await Promise.all([
-          project.refetch(), // Outstanding rewards changed (pool-level)
-        ])
-      },
-      afterVote: async () => {
-        await Promise.all([
-          userQuery.refetch(), // User governance data (vote receipt)
-          proposalsQuery.refetch(), // Proposal votes updated
-        ])
-      },
-      afterProposal: async () => {
-        await Promise.all([
-          proposalsQuery.refetch(), // New proposal added
-          project.refetch(), // currentCycleId might have changed
-        ])
-      },
-      afterExecute: async () => {
-        await Promise.all([
-          project.refetch(), // Treasury changed + currentCycleId (new cycle starts)
-          proposalsQuery.refetch(), // Proposal executed
-        ])
-      },
-      afterAirdrop: async () => {
-        await Promise.all([
-          project.refetch(), // Treasury changed
-          airdropStatus.refetch(), // Treasury balance, airdrop status changed
-        ])
-      },
+      afterTrade: () => runRefetchChain(userRefetch, poolRefetch, projectRefetch),
+      afterStake: () => runRefetchChain(userRefetch, projectRefetch),
+      afterUnstake: () => runRefetchChain(userRefetch, projectRefetch),
+      afterClaim: () => runRefetchChain(userRefetch, projectRefetch),
+      afterAccrue: () => runRefetchChain(projectRefetch),
+      afterVote: () => runRefetchChain(userRefetch, proposalsRefetch),
+      afterProposal: () => runRefetchChain(proposalsRefetch, projectRefetch),
+      afterExecute: () => runRefetchChain(projectRefetch, proposalsRefetch),
+      afterAirdrop: () => runRefetchChain(projectRefetch, airdropRefetch),
     }),
-    [queryClient, project, userQuery, poolQuery, proposalsQuery, airdropStatus]
+    [
+      refetchAll,
+      runRefetchChain,
+      userRefetch,
+      projectRefetch,
+      poolRefetch,
+      proposalsRefetch,
+      airdropRefetch,
+    ]
   )
 
   // Auto-refetch on wallet/chain change
   useEffect(() => {
-    if (enabled) {
-      refetchMethods.all()
-    }
-  }, [userAddress, chainId])
+    if (!enabled) return
+    refetchAll()
+  }, [enabled, refetchAll, userAddress, chainId])
 
   const contextValue: LevrContextValue = useMemo(
     () => ({

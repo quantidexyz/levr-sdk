@@ -67,11 +67,70 @@ export function needsApproval(
   const parsedCurrentAllowance =
     typeof currentAllowance === 'bigint'
       ? currentAllowance
-      : parseUnits(currentAllowance.toString(), decimals!)
+      : parseUnits(normalizeDecimalInput(currentAllowance), decimals!)
   const parsedRequiredAmount =
     typeof requiredAmount === 'bigint'
       ? requiredAmount
-      : parseUnits(requiredAmount.toString(), decimals!)
+      : parseUnits(normalizeDecimalInput(requiredAmount), decimals!)
 
   return parsedCurrentAllowance < parsedRequiredAmount
+}
+
+/**
+ * Normalize decimal inputs to plain string representations (no scientific notation)
+ */
+export function normalizeDecimalInput(value: string | number): string {
+  let inputString: string
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error('Invalid decimal number')
+    }
+    inputString = value.toString()
+  } else {
+    inputString = value.trim()
+  }
+
+  if (inputString.length === 0) {
+    return '0'
+  }
+
+  if (!/[eE]/.test(inputString)) {
+    return inputString
+  }
+
+  return expandScientific(inputString)
+}
+
+function expandScientific(input: string): string {
+  const normalized = input.replace(/^\+/, '')
+  const negative = normalized.startsWith('-')
+  const unsigned = negative ? normalized.slice(1) : normalized
+  const [mantissa, exponentPart] = unsigned.split(/[eE]/)
+  const exponent = Number(exponentPart)
+  if (!Number.isInteger(exponent)) {
+    throw new Error('Invalid exponent in decimal input')
+  }
+
+  const [intPartRaw, fracPartRaw = ''] = mantissa.split('.')
+  const intPart = intPartRaw || '0'
+  const fracPart = fracPartRaw
+  const rawDigitsUntrimmed = intPart + fracPart
+  const digits = rawDigitsUntrimmed === '' ? '0' : rawDigitsUntrimmed
+  const decimalIndex = intPart.length + exponent
+  const sign = negative ? '-' : ''
+
+  if (decimalIndex <= 0) {
+    const zeros = Math.abs(decimalIndex)
+    const normalizedDigits = digits.replace(/^0+(?=\d)/, '') || '0'
+    return `${sign}0.${'0'.repeat(zeros)}${normalizedDigits}`
+  }
+
+  if (decimalIndex >= digits.length) {
+    return `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+  }
+
+  const whole = digits.slice(0, decimalIndex) || '0'
+  const fraction = digits.slice(decimalIndex)
+  return `${sign}${whole}.${fraction}`
 }

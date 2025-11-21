@@ -12,6 +12,7 @@ import {
 } from './abis'
 import { GET_FEE_LOCKER_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from './constants'
 import type { PopPublicClient, PopWalletClient } from './types'
+import { normalizeDecimalInput } from './util'
 
 export type StakeConfig = {
   wallet: PopWalletClient
@@ -67,7 +68,9 @@ export class Stake {
    */
   async approve(amount: number | string | bigint): Promise<TransactionReceipt> {
     const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+      typeof amount === 'bigint'
+        ? amount
+        : parseUnits(normalizeDecimalInput(amount), this.tokenDecimals)
 
     const hash = await this.wallet.writeContract({
       address: this.tokenAddress,
@@ -91,7 +94,9 @@ export class Stake {
    */
   async stake(amount: number | string | bigint): Promise<TransactionReceipt> {
     const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+      typeof amount === 'bigint'
+        ? amount
+        : parseUnits(normalizeDecimalInput(amount), this.tokenDecimals)
 
     const hash = await this.wallet.writeContract({
       address: this.stakingAddress,
@@ -124,7 +129,7 @@ export class Stake {
       parsedAmount = amount
     } else {
       // Parse the amount
-      parsedAmount = parseUnits(amount.toString(), this.tokenDecimals)
+      parsedAmount = parseUnits(normalizeDecimalInput(amount), this.tokenDecimals)
     }
 
     // Get current staked balance to prevent rounding errors on 100% unstake
@@ -480,7 +485,9 @@ export class Stake {
   ): Promise<VotingPowerResult> {
     const user = userAddress ?? this.userAddress
     const parsedAmount =
-      typeof amount === 'bigint' ? amount : parseUnits(amount.toString(), this.tokenDecimals)
+      typeof amount === 'bigint'
+        ? amount
+        : parseUnits(normalizeDecimalInput(amount), this.tokenDecimals)
 
     // Use simulateContract to get the return value without executing
     const simulation = await this.publicClient.simulateContract({
