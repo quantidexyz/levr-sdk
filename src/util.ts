@@ -79,14 +79,19 @@ export function needsApproval(
 /**
  * Normalize decimal inputs to plain string representations (no scientific notation)
  */
-export function normalizeDecimalInput(value: string | number): string {
+export function normalizeDecimalInput(value: string | number | bigint): string {
   let inputString: string
 
-  if (typeof value === 'number') {
+  if (typeof value === 'bigint') {
+    return value.toString()
+  } else if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
       throw new Error('Invalid decimal number')
     }
-    inputString = value.toString()
+    inputString = value.toLocaleString('en-US', {
+      useGrouping: false,
+      maximumFractionDigits: 20,
+    })
   } else {
     inputString = value.trim()
   }
