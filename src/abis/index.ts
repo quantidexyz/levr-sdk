@@ -29,6 +29,7 @@ export { default as IClankerHookDynamicFee } from './IClankerHookDynamicFee'
 export { default as IClankerHookStaticFee } from './IClankerHookStaticFee'
 export { default as IClankerLPLocker } from './IClankerLPLocker'
 export { default as IClankerLpLockerMultiple } from './IClankerLpLockerMultiple'
+export { default as IClankerLpLockerFeeConversion } from './IClankerLpLockerFeeConversion'
 export { default as IClankerToken } from './IClankerToken'
 
 // -----------------------------

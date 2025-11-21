@@ -2,13 +2,19 @@ import { erc20Abi, zeroAddress } from 'viem'
 
 import {
   IClankerFeeLocker,
+  IClankerLpLockerFeeConversion,
   IClankerToken,
   LevrFactory_v1,
   LevrGovernor_v1,
   LevrStaking_v1,
 } from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { GET_FACTORY_ADDRESS, GET_FEE_LOCKER_ADDRESS, WETH } from './constants'
+import {
+  GET_FACTORY_ADDRESS,
+  GET_FEE_LOCKER_ADDRESS,
+  GET_LP_LOCKER_ADDRESS,
+  WETH,
+} from './constants'
 import type { FeeReceiverAdmin, FeeSplitterDynamic, FeeSplitterStatic } from './fee-receivers'
 import {
   getFeeReceiverContracts,
@@ -146,6 +152,52 @@ export type UnregisteredStaticProject = StaticProjectBase & {
 }
 
 export type StaticProject = RegisteredStaticProject | UnregisteredStaticProject
+
+type FeePreferenceResult = readonly (number | undefined)[]
+
+type FetchFeePreferencesParams = {
+  publicClient: PopPublicClient
+  chainId: number
+  clankerToken: `0x${string}`
+  slotCount: number
+}
+
+async function fetchFeePreferences({
+  publicClient,
+  chainId,
+  clankerToken,
+  slotCount,
+}: FetchFeePreferencesParams): Promise<FeePreferenceResult | undefined> {
+  if (!slotCount) return undefined
+
+  const lpLockerAddress = GET_LP_LOCKER_ADDRESS(chainId)
+  if (!lpLockerAddress) return undefined
+
+  try {
+    const contracts = Array.from({ length: slotCount }, (_, index) => ({
+      address: lpLockerAddress,
+      abi: IClankerLpLockerFeeConversion,
+      functionName: 'feePreferences' as const,
+      args: [clankerToken, BigInt(index)],
+    }))
+
+    const results = await publicClient.multicall({
+      allowFailure: true,
+      contracts,
+    })
+
+    const preferences: (number | undefined)[] = new Array(slotCount).fill(undefined)
+    results.forEach((result, index) => {
+      if (result.status === 'success') {
+        preferences[index] = Number(result.result)
+      }
+    })
+
+    return preferences.some((value) => value !== undefined) ? preferences : undefined
+  } catch (error) {
+    return undefined
+  }
+}
 
 // ---
 // Multicall Result Types
@@ -901,9 +953,33 @@ export async function getStaticProject({
       numPositions: tokenRewards.numPositions,
     }
 
+    const rewardSlotCount =
+      tokenRewards.rewardRecipients?.length ??
+      tokenRewards.rewardAdmins?.length ??
+      tokenRewards.rewardBps?.length ??
+      0
+
+    const feePreferences =
+      rewardSlotCount > 0
+        ? await fetchFeePreferences({
+            publicClient,
+            chainId,
+            clankerToken,
+            slotCount: rewardSlotCount,
+          })
+        : undefined
+
     // Parse fee receivers using shared utility (no logic duplication)
     // Pass userAddress so areYouAnAdmin works out of the box
-    feeReceivers = parseFeeReceivers(tokenRewards, userAddress)
+    feeReceivers = parseFeeReceivers(
+      {
+        rewardAdmins: tokenRewards.rewardAdmins,
+        rewardRecipients: tokenRewards.rewardRecipients,
+        rewardBps: tokenRewards.rewardBps,
+        ...(feePreferences ? { feePreferences } : {}),
+      },
+      userAddress
+    )
   }
   // If tokenRewards fails (e.g., token not deployed through Clanker), poolInfo remains undefined
 

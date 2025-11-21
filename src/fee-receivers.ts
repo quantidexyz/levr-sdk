@@ -101,7 +101,7 @@ export function parseFeeReceivers(
     rewardAdmins?: readonly `0x${string}`[]
     rewardRecipients?: readonly `0x${string}`[]
     rewardBps?: readonly number[]
-    feePreferences?: readonly number[] // Optional: fee preferences for each receiver
+    feePreferences?: readonly (number | undefined)[]
   },
   userAddress?: `0x${string}`
 ): FeeReceiverAdmin[] {
