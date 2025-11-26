@@ -115,6 +115,16 @@ const LevrStakingReward = Schema.Literal(
 const MAX_TOTAL_REWARDS_PERCENTAGE = 100
 
 /**
+ * Maximum percentage of the total supply that can be allocated outside liquidity
+ */
+const MAX_NON_LIQUIDITY_ALLOCATION_PERCENTAGE = 90
+
+/**
+ * Total token supply expressed as percentage for readability (100%)
+ */
+const TOTAL_SUPPLY_PERCENTAGE = 100
+
+/**
  * Vault lockup period schema
  */
 const VaultLockupPeriod = Schema.Literal(
@@ -175,23 +185,16 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
 }).pipe(
   Schema.filter(
     (data) => {
-      // Calculate total airdrop percentage
-      const airdropTotal = data.airdrop?.reduce((sum, entry) => sum + entry.percentage, 0) ?? 0
-
-      // Get treasury percentage (e.g., "30%" -> 30)
-      const treasuryPercentage = parseFloat(data.treasuryFunding ?? '30%')
-
-      // Get vault percentage (e.g., "5%" -> 5)
-      const vaultPercentage = data.vault ? parseFloat(data.vault.percentage) : 0
+      const { totalAllocatedPercentage } = calculateAllocationBreakdown(data, {
+        fallbackTreasuryPercentage: 30,
+      })
 
       // Check if total allocation exceeds 90% (must leave minimum 10% for liquidity)
-      const totalAllocated = airdropTotal + treasuryPercentage + vaultPercentage
-
-      return totalAllocated <= 90
+      return totalAllocatedPercentage <= MAX_NON_LIQUIDITY_ALLOCATION_PERCENTAGE
     },
     {
       message: () =>
-        `Total allocation (airdrop + vault + treasury funding) cannot exceed 90% (minimum 10% must be reserved for liquidity)`,
+        `Total allocation (airdrop + vault + treasury funding) cannot exceed ${MAX_NON_LIQUIDITY_ALLOCATION_PERCENTAGE}% (minimum 10% must be reserved for liquidity)`,
     }
   ),
   Schema.filter(
@@ -259,3 +262,60 @@ export const LevrFeeSplitterConfigSchema = Schema.Struct({
 )
 
 export type LevrFeeSplitterConfigSchemaType = typeof LevrFeeSplitterConfigSchema.Type
+
+export type SupplyAllocationInput = Partial<
+  Pick<LevrClankerDeploymentSchemaType, 'airdrop' | 'vault' | 'treasuryFunding'>
+>
+
+export type SupplyAllocationBreakdown = {
+  airdropPercentage: number
+  treasuryPercentage: number
+  vaultPercentage: number
+  totalAllocatedPercentage: number
+  liquidityPercentage: number
+}
+
+export type CalculateAllocationBreakdownOptions = {
+  /**
+   * Percentage used when treasury allocation is undefined (defaults to 0 to avoid inflating totals)
+   */
+  fallbackTreasuryPercentage?: number
+}
+
+/**
+ * @description Calculates how the total token supply is allocated between treasury, vault, airdrop, and liquidity
+ * @param {SupplyAllocationInput} data - Deployment configuration containing allocation fields
+ * @param {CalculateAllocationBreakdownOptions} options - Optional overrides for calculation defaults
+ * @returns {SupplyAllocationBreakdown} Breakdown of allocations including the implied liquidity percentage
+ */
+export function calculateAllocationBreakdown(
+  data?: SupplyAllocationInput,
+  options: CalculateAllocationBreakdownOptions = {}
+): SupplyAllocationBreakdown {
+  const fallbackTreasuryPercentage = options.fallbackTreasuryPercentage ?? 0
+
+  const airdropPercentage =
+    data?.airdrop?.reduce((sum, entry) => sum + (entry?.percentage ?? 0), 0) ?? 0
+
+  const treasuryPercentage =
+    data?.treasuryFunding !== undefined
+      ? parseFloat(data.treasuryFunding)
+      : fallbackTreasuryPercentage
+
+  const vaultPercentage =
+    data?.vault?.percentage !== undefined ? parseFloat(data.vault.percentage) : 0
+
+  const totalAllocatedPercentage = airdropPercentage + treasuryPercentage + vaultPercentage
+
+  const liquidityPercentage = Number(
+    Math.max(0, TOTAL_SUPPLY_PERCENTAGE - totalAllocatedPercentage).toFixed(4)
+  )
+
+  return {
+    airdropPercentage,
+    treasuryPercentage,
+    vaultPercentage,
+    totalAllocatedPercentage,
+    liquidityPercentage,
+  }
+}

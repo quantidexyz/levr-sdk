@@ -12,7 +12,11 @@ import {
   VAULT_LOCKUP_PERIODS,
   VAULT_VESTING_PERIODS,
 } from './constants'
-import type { ClankerDeploymentSchemaType, LevrClankerDeploymentSchemaType } from './schema'
+import {
+  calculateAllocationBreakdown,
+  type ClankerDeploymentSchemaType,
+  type LevrClankerDeploymentSchemaType,
+} from './schema'
 
 type BuildClankerV4Params = {
   c: LevrClankerDeploymentSchemaType
@@ -25,6 +29,7 @@ type BuildClankerV4Params = {
 export type BuildClankerV4ReturnType = {
   config: ClankerTokenV4
   merkleTree: StandardMerkleTree<[string, string]> | null
+  liquidityPercentage: number
 }
 
 export const buildClankerV4 = ({
@@ -40,6 +45,9 @@ export const buildClankerV4 = ({
   const fees = getFees(c.fees)
   const rewards = getRewards(deployer, staking, c.stakingReward, c.rewards)
   const vault = getVault(c.vault)
+  const { liquidityPercentage } = calculateAllocationBreakdown(c, {
+    fallbackTreasuryPercentage: 0,
+  })
 
   const config: ClankerTokenV4 = {
     ...omit(c, 'treasuryFunding', 'stakingReward'),
@@ -57,6 +65,7 @@ export const buildClankerV4 = ({
   return {
     config,
     merkleTree,
+    liquidityPercentage,
   }
 }
 

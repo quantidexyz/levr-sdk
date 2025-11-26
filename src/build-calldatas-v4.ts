@@ -25,6 +25,7 @@ export type BuildCalldatasV4ReturnType = {
   totalValue: bigint
   merkleTree: StandardMerkleTree<[string, string]> | null
   treasury: `0x${string}`
+  liquidityPercentage: number
 }
 
 export const clankerV4Factory: Record<number, `0x${string}`> = {
@@ -73,7 +74,7 @@ export const buildCalldatasV4 = async ({
     data: result.data,
   })
 
-  const { config, merkleTree } = buildClankerV4({
+  const { config, merkleTree, liquidityPercentage } = buildClankerV4({
     c,
     treasuryAddress: treasury,
     deployer,
@@ -138,5 +139,6 @@ export const buildCalldatasV4 = async ({
     totalValue: devBuyValue, // Total ETH to send with executeMulticall
     merkleTree,
     treasury,
+    liquidityPercentage,
   }
 }
