@@ -30,6 +30,12 @@ export const useProposals = () => useLevrContext().proposals
 export const useAirdropStatus = () => useLevrContext().airdropStatus
 
 /**
+ * Hook to access the current clanker token from LevrProvider
+ * Useful to check if the token has been set in context yet
+ */
+export const useClankerToken = () => useLevrContext().clankerToken
+
+/**
  * Hook to access and manage governance cycle selection
  */
 export const useGovernanceCycle = () => {
