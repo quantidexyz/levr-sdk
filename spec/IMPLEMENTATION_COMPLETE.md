@@ -14,6 +14,7 @@ Successfully removed all external contract calls from `LevrStaking_v1` and `Levr
 ## ✅ Final Test Results
 
 **SDK Tests: 74/74 (100%)**
+
 - Stake: 4/4 ✅
 - Fee Splitter: 4/4 ✅
 - Data Flow: 38/38 ✅
@@ -23,6 +24,7 @@ Successfully removed all external contract calls from `LevrStaking_v1` and `Levr
 - Quote: 3/3 ✅
 
 **Contract Tests: 45/45 (100%)**
+
 - Unit: 40/40 ✅
 - E2E: 5/5 ✅
 
@@ -74,6 +76,7 @@ getPendingFeesContracts(feeLocker, recipient, tokens) { ... }
 ### Fee Collection Flow ✅
 
 **Test:** `test/stake.test.ts`
+
 ```
 Before accrual:
   Available: 0 WETH
@@ -90,6 +93,7 @@ After accrueRewards():
 ### Fee Splitter Mode ✅
 
 **Test:** `test/fee-splitter.test.ts`
+
 ```
 Pending fees: 0.032147 WETH (via SDK multicall) ✅
 After accrueAllRewards({ useFeeSplitter: true }):
@@ -102,6 +106,7 @@ After accrueAllRewards({ useFeeSplitter: true }):
 ### Data Integrity ✅
 
 **Test:** `test/data-flow.test.ts` (38/38 passing)
+
 ```
 Multicall queries:
   - Contract: outstandingRewards(token) → available
@@ -115,12 +120,12 @@ Multicall queries:
 
 ## 🔐 Security Improvements
 
-| Metric | Before | After |
-|--------|--------|-------|
-| External calls in contracts | 6 calls | 0 calls ✅ |
-| Arbitrary code execution risk | ❌ High | ✅ None |
-| Trust assumptions | External contracts | None ✅ |
-| Attack surface | Multiple vectors | Eliminated ✅ |
+| Metric                        | Before             | After         |
+| ----------------------------- | ------------------ | ------------- |
+| External calls in contracts   | 6 calls            | 0 calls ✅    |
+| Arbitrary code execution risk | ❌ High            | ✅ None       |
+| Trust assumptions             | External contracts | None ✅       |
+| Attack surface                | Multiple vectors   | Eliminated ✅ |
 
 ---
 
@@ -129,6 +134,7 @@ Multicall queries:
 ### 100% Backward Compatible ✅
 
 **User code unchanged:**
+
 ```typescript
 // Still works exactly the same
 await staking.accrueRewards(wethAddress)
@@ -141,6 +147,7 @@ project.stakingStats.outstandingRewards: {
 ```
 
 **Internal changes invisible to users:**
+
 - `accrueRewards()` now uses multicall internally
 - Pending fees queried via SDK multicall
 - Fee collection wrapped in forwarder
@@ -150,6 +157,7 @@ project.stakingStats.outstandingRewards: {
 ## 📚 Documentation
 
 ### Spec Files Updated (7 files)
+
 - ✅ `spec/AUDIT.md` - Added [C-0] finding
 - ✅ `spec/CHANGELOG.md` - Added v1.2.0
 - ✅ `spec/HISTORICAL_FIXES.md` - Detailed fix
@@ -159,6 +167,7 @@ project.stakingStats.outstandingRewards: {
 - ✅ `spec/external-3/EXTERNAL_CALL_REMOVAL.md` - Complete analysis
 
 ### User Guides Created (2 files)
+
 - ✅ `AIRDROP_STATUS_FIX.md` - IPFS integration guide
 - ✅ `IMPLEMENTATION_COMPLETE.md` - This file
 
@@ -171,18 +180,21 @@ project.stakingStats.outstandingRewards: {
 **Problem:** Querying 1M blocks for `AirdropClaimed` events caused timeouts
 
 **Error:**
+
 ```
 TimeoutError: The request took too long to respond.
 Request body: {"method":"eth_getLogs","params":[{"fromBlock":"0x2160ed5","toBlock":"latest"}]}
 ```
 
 **Fix Applied:**
+
 - ✅ Reduced block search from 1M to 50k blocks (20x faster)
 - ✅ Added try-catch for graceful error handling
 - ✅ Made configurable via `maxBlocksToSearch` parameter
 - ✅ Function continues even if getLogs fails
 
 **Usage:**
+
 ```typescript
 const status = await getAirdropStatus(
   publicClient,
@@ -212,7 +224,7 @@ await getAirdropStatus(
   decimals,
   usdPrice,
   `${baseUrl}/api/ipfs-search`, // ✅ Add this
-  `${baseUrl}/api/ipfs-json`,   // ✅ Add this
+  `${baseUrl}/api/ipfs-json`, // ✅ Add this
   10_000n // ✅ Prevent timeouts
 )
 ```
@@ -254,11 +266,13 @@ await getAirdropStatus(
 ### Gas Costs
 
 **Fee Collection:**
+
 - Before: ~150k-200k gas (with risky external calls)
 - After: ~250k-350k gas (via secure multicall)
 - Trade-off: +50% gas for significantly better security ✅
 
 **Multicall Efficiency:**
+
 - Single transaction for complete flow ✅
 - No increase in transaction count ✅
 - Better user experience ✅
@@ -298,4 +312,3 @@ The protocol is significantly more secure with no loss of functionality. Deploy 
 ---
 
 **🎉 Implementation Complete - October 30, 2025**
-
