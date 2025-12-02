@@ -1,16 +1,17 @@
 #!/usr/bin/env bun
 /**
- * @description Airdrop distribution script
- * @usage PRIVATE_KEY=xxx bun run script/testnet-airdrop/distribute.ts
+ * @description Airdrop distribution script using EIP-5792 batch calls
+ * @usage bun run script/testnet-airdrop/distribute.ts
  *
  * This script:
- * 1. Lists log files sorted by date
- * 2. Asks user to choose one
- * 3. Asks for chain (base or baseSepolia)
- * 4. Asks for token address and total amount to distribute
- * 5. Simulates the airdrop transfers
- * 6. Logs results and asks to proceed
- * 7. If confirmed, executes the airdrop
+ * 1. Asks which wallet to use (TEST_PRIVATE_KEY or MAINNET_PRIVATE_KEY)
+ * 2. Asks for token address to distribute
+ * 3. Lists log files sorted by date and asks user to choose one
+ * 4. Asks for chain (base or baseSepolia)
+ * 5. Asks for total amount to distribute
+ * 6. Simulates the airdrop using simulateCalls
+ * 7. Logs results and asks to proceed
+ * 8. If confirmed, executes the airdrop using sendCalls
  */
 import fs from 'fs'
 import path from 'path'
@@ -30,43 +31,7 @@ import { base, baseSepolia } from 'viem/chains'
 
 import { getDRPCTransport } from '../util'
 import { writeLog } from '../write-log'
-import type {
-  AirdropAllocation,
-  AirdropExecutionResult,
-  AirdropSimulationResult,
-  EligibleUsers,
-} from './types'
-
-// Multicall3 contract (deployed on most chains)
-const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11' as const
-const multicall3Abi = [
-  {
-    inputs: [
-      {
-        components: [
-          { name: 'target', type: 'address' },
-          { name: 'allowFailure', type: 'bool' },
-          { name: 'callData', type: 'bytes' },
-        ],
-        name: 'calls',
-        type: 'tuple[]',
-      },
-    ],
-    name: 'aggregate3',
-    outputs: [
-      {
-        components: [
-          { name: 'success', type: 'bool' },
-          { name: 'returnData', type: 'bytes' },
-        ],
-        name: 'returnData',
-        type: 'tuple[]',
-      },
-    ],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-] as const
+import type { AirdropAllocation, AirdropSimulationResult, EligibleUsers } from './types'
 
 // Helper to create readline interface
 function createPrompt() {
@@ -98,9 +63,19 @@ async function askChoice<T extends string>(prompt: string, choices: T[]): Promis
   return choices[index]
 }
 
+// Convert allocations to JSON-serializable format (BigInt -> string)
+function serializeAllocations(
+  allocations: AirdropAllocation[]
+): Array<Omit<AirdropAllocation, 'amount'> & { amount: string }> {
+  return allocations.map((a) => ({
+    ...a,
+    amount: a.amount.toString(),
+  }))
+}
+
 async function main() {
   console.log('='.repeat(80))
-  console.log('🎁 AIRDROP DISTRIBUTION')
+  console.log('🎁 AIRDROP DISTRIBUTION (EIP-5792 Batch Calls)')
   console.log('='.repeat(80))
 
   // Step 1: Select wallet
@@ -221,7 +196,12 @@ async function main() {
     contracts: [
       { address: tokenAddress, abi: erc20Abi, functionName: 'symbol' },
       { address: tokenAddress, abi: erc20Abi, functionName: 'decimals' },
-      { address: tokenAddress, abi: erc20Abi, functionName: 'balanceOf', args: [account.address] },
+      {
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [account.address],
+      },
     ],
   })
 
@@ -262,45 +242,47 @@ async function main() {
   console.log(`   ${nonZeroAllocations.length} recipients with non-zero allocations`)
   console.log(`   Total to distribute: ${formatUnits(totalAllocated, decimals)} ${symbol}`)
 
-  // Step 9: Build multicall data for transfers
-  console.log('\n🔧 Building multicall transaction...')
+  // Step 9: Build calls array for EIP-5792
+  console.log('\n🔧 Building batch transfer calls...')
   const calls = nonZeroAllocations.map((allocation) => ({
-    target: tokenAddress,
-    allowFailure: false,
-    callData: encodeFunctionData({
+    to: tokenAddress,
+    data: encodeFunctionData({
       abi: erc20Abi,
       functionName: 'transfer',
       args: [allocation.recipient, allocation.amount],
     }),
   }))
 
-  // Step 10: Simulate the multicall
-  console.log('\n🧪 Simulating airdrop...')
+  // Step 10: Simulate the batch calls
+  console.log('\n🧪 Simulating airdrop with simulateCalls...')
   const errors: string[] = []
 
   try {
-    const { result } = await publicClient.simulateContract({
-      address: MULTICALL3_ADDRESS,
-      abi: multicall3Abi,
-      functionName: 'aggregate3',
-      args: [calls],
+    const { results: simulationResults } = await publicClient.simulateCalls({
       account: account.address,
+      calls,
     })
 
     // Check results
     let allSuccess = true
-    for (let i = 0; i < result.length; i++) {
-      if (!result[i].success) {
+    for (let i = 0; i < simulationResults.length; i++) {
+      const result = simulationResults[i]
+      if (result.status === 'failure') {
         allSuccess = false
-        errors.push(`Transfer to ${nonZeroAllocations[i].recipient} failed`)
+        const errorReason =
+          'error' in result && result.error ? String(result.error) : 'Unknown error'
+        errors.push(`Transfer to ${nonZeroAllocations[i].recipient} failed: ${errorReason}`)
       }
     }
 
     if (!allSuccess) {
-      console.error('\n❌ Simulation failed for some transfers:')
-      errors.forEach((e) => console.error(`   - ${e}`))
+      console.error(`\n❌ Simulation failed for ${errors.length} transfers:`)
+      errors.slice(0, 5).forEach((e) => console.error(`   - ${e}`))
+      if (errors.length > 5) {
+        console.error(`   ... and ${errors.length - 5} more`)
+      }
     } else {
-      console.log('   ✅ All transfers simulated successfully!')
+      console.log(`   ✅ All ${nonZeroAllocations.length} transfers simulated successfully!`)
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
@@ -308,10 +290,12 @@ async function main() {
     console.error(`\n❌ Simulation failed: ${errorMsg}`)
   }
 
-  // Step 11: Prepare and log results
-  const simulationResult: AirdropSimulationResult = {
+  // Step 11: Prepare and log results (serialize BigInt values)
+  const simulationResult: Omit<AirdropSimulationResult, 'allocations'> & {
+    allocations: Array<Omit<AirdropAllocation, 'amount'> & { amount: string }>
+  } = {
     success: errors.length === 0,
-    allocations: nonZeroAllocations,
+    allocations: serializeAllocations(nonZeroAllocations),
     totalAmount: formatUnits(totalAllocated, decimals),
     tokenAddress,
     tokenSymbol: symbol,
@@ -346,9 +330,9 @@ async function main() {
   console.log('  ' + '-'.repeat(78))
   nonZeroAllocations.forEach((a, i) => {
     const rank = String(i + 1).padStart(3, ' ')
-    const amount = a.amountFormatted.padStart(15, ' ')
+    const amountStr = a.amountFormatted.padStart(15, ' ')
     const pct = a.percentage.padStart(7, ' ')
-    console.log(`  ${rank} | ${a.recipient} | ${amount} | ${pct}%`)
+    console.log(`  ${rank} | ${a.recipient} | ${amountStr} | ${pct}%`)
   })
   console.log('  ' + '-'.repeat(78))
   console.log(`  Total: ${formatUnits(totalAllocated, decimals)} ${symbol}`)
@@ -367,51 +351,142 @@ async function main() {
     process.exit(0)
   }
 
-  // Step 13: Execute the airdrop
-  console.log('\n🚀 Executing airdrop...')
+  // Step 13: Execute the airdrop using sendCalls
+  console.log('\n🚀 Executing airdrop with sendCalls...')
 
   try {
-    const hash = await walletClient.writeContract({
-      address: MULTICALL3_ADDRESS,
-      abi: multicall3Abi,
-      functionName: 'aggregate3',
-      args: [calls],
+    // sendCalls returns a bundle ID that can be used to track the batch
+    const { id: bundleId } = await walletClient.sendCalls({
+      calls,
     })
 
-    console.log(`\n📡 Transaction submitted: ${hash}`)
+    console.log(`\n📡 Batch submitted with ID: ${bundleId}`)
     console.log('   Waiting for confirmation...')
 
-    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+    // Wait for all calls to complete
+    const result = await walletClient.waitForCallsStatus({
+      id: bundleId,
+    })
 
-    if (receipt.status === 'success') {
+    if (result.status === 'success') {
+      const receipts = result.receipts ?? []
+      const successCount = receipts.filter((r) => r.status === 'success').length
+
       console.log('\n' + '✅ '.repeat(30))
       console.log('AIRDROP SUCCESSFUL!')
       console.log('✅ '.repeat(30))
-      console.log(`\nTransaction: ${hash}`)
-      console.log(`Block: ${receipt.blockNumber}`)
-      console.log(`Gas used: ${receipt.gasUsed}`)
+      console.log(`\nBundle ID: ${bundleId}`)
+      console.log(`Successful transfers: ${successCount}/${nonZeroAllocations.length}`)
+
+      if (receipts.length > 0) {
+        console.log(`First tx hash: ${receipts[0].transactionHash}`)
+        console.log(`Total gas used: ${receipts.reduce((sum, r) => sum + BigInt(r.gasUsed), 0n)}`)
+      }
 
       // Save execution result
-      const executionResult: AirdropExecutionResult = {
-        ...simulationResult,
-        transactionHash: hash,
-        blockNumber: receipt.blockNumber.toString(),
-        gasUsed: receipt.gasUsed.toString(),
-        status: 'success',
-      }
       writeLog({
-        content: executionResult,
+        content: {
+          ...simulationResult,
+          bundleId,
+          status: 'success',
+          receipts: receipts.map((r) => ({
+            transactionHash: r.transactionHash,
+            blockNumber: r.blockNumber.toString(),
+            gasUsed: r.gasUsed.toString(),
+            status: r.status,
+          })),
+        },
         label: `airdrop-executed-${chainId}`,
         format: 'json',
       })
+    } else if (result.status === 'failure') {
+      console.log(`\n❌ Batch failed`)
     } else {
-      console.log('\n❌ Transaction reverted')
-      console.log(`Transaction: ${hash}`)
+      console.log(`\n⏳ Batch status: ${result.status}`)
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error(`\n❌ Execution failed: ${errorMsg}`)
-    process.exit(1)
+
+    // If sendCalls is not supported, fall back to sequential transfers
+    if (errorMsg.includes('not supported') || errorMsg.includes('wallet_sendCalls')) {
+      console.log('\n⚠️  Wallet does not support EIP-5792 sendCalls')
+      console.log('   Falling back to sequential transfers...\n')
+
+      const successfulTransfers: Array<{ recipient: Address; amount: string; hash: string }> = []
+      const failedTransfers: Array<{ recipient: Address; amount: string; error: string }> = []
+
+      for (let i = 0; i < nonZeroAllocations.length; i++) {
+        const allocation = nonZeroAllocations[i]
+        const progress = `[${i + 1}/${nonZeroAllocations.length}]`
+
+        try {
+          process.stdout.write(
+            `${progress} Sending ${allocation.amountFormatted} ${symbol} to ${allocation.recipient}...`
+          )
+
+          const hash = await walletClient.writeContract({
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [allocation.recipient, allocation.amount],
+          })
+
+          const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+          if (receipt.status === 'success') {
+            successfulTransfers.push({
+              recipient: allocation.recipient,
+              amount: allocation.amountFormatted,
+              hash,
+            })
+            console.log(` ✅ ${hash}`)
+          } else {
+            failedTransfers.push({
+              recipient: allocation.recipient,
+              amount: allocation.amountFormatted,
+              error: 'Transaction reverted',
+            })
+            console.log(` ❌ Reverted`)
+          }
+        } catch (txError) {
+          const txErrorMsg =
+            txError instanceof Error ? txError.message.slice(0, 50) : 'Unknown error'
+          failedTransfers.push({
+            recipient: allocation.recipient,
+            amount: allocation.amountFormatted,
+            error: txErrorMsg,
+          })
+          console.log(` ❌ ${txErrorMsg}`)
+        }
+      }
+
+      // Summary for sequential transfers
+      console.log('\n' + '='.repeat(80))
+      console.log('📊 EXECUTION SUMMARY')
+      console.log('='.repeat(80))
+      console.log(`\n✅ Successful: ${successfulTransfers.length}`)
+      console.log(`❌ Failed: ${failedTransfers.length}`)
+
+      writeLog({
+        content: {
+          ...simulationResult,
+          method: 'sequential',
+          successfulTransfers,
+          failedTransfers,
+        },
+        label: `airdrop-executed-${chainId}`,
+        format: 'json',
+      })
+
+      if (failedTransfers.length === 0) {
+        console.log('\n' + '✅ '.repeat(30))
+        console.log('AIRDROP COMPLETE!')
+        console.log('✅ '.repeat(30))
+      }
+    } else {
+      console.error(`\n❌ Execution failed: ${errorMsg}`)
+      process.exit(1)
+    }
   }
 
   console.log('\n' + '='.repeat(80))
