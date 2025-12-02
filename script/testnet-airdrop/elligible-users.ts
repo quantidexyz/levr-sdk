@@ -16,87 +16,13 @@ import { type Address, createPublicClient, erc20Abi, formatUnits } from 'viem'
 import { baseSepolia } from 'viem/chains'
 
 import IClankerToken from '../../src/abis/IClankerToken'
+import LevrGovernor_v1 from '../../src/abis/LevrGovernor_v1'
 import LevrStakedToken_v1 from '../../src/abis/LevrStakedToken_v1'
 import LevrStaking_v1 from '../../src/abis/LevrStaking_v1'
-
-// Inline ABI for getProjects - testnet version without verified boolean
-const getProjectsAbi = [
-  {
-    type: 'function',
-    name: 'getProjects',
-    inputs: [
-      { name: 'offset', type: 'uint256', internalType: 'uint256' },
-      { name: 'limit', type: 'uint256', internalType: 'uint256' },
-    ],
-    outputs: [
-      {
-        name: 'projects',
-        type: 'tuple[]',
-        internalType: 'struct ILevrFactory_v1.ProjectInfo[]',
-        components: [
-          { name: 'clankerToken', type: 'address', internalType: 'address' },
-          {
-            name: 'project',
-            type: 'tuple',
-            internalType: 'struct ILevrFactory_v1.Project',
-            components: [
-              { name: 'treasury', type: 'address', internalType: 'address' },
-              { name: 'governor', type: 'address', internalType: 'address' },
-              { name: 'staking', type: 'address', internalType: 'address' },
-              { name: 'stakedToken', type: 'address', internalType: 'address' },
-            ],
-          },
-        ],
-      },
-      { name: 'total', type: 'uint256', internalType: 'uint256' },
-    ],
-    stateMutability: 'view',
-  },
-] as const
 import { getDRPCTransport } from '../util'
 import { writeLog } from '../write-log'
-
-// Types
-type ProjectDeployer = {
-  clankerToken: Address
-  tokenName: string
-  tokenSymbol: string
-  originalAdmin: Address
-}
-
-type Staker = {
-  address: Address
-  clankerToken: Address
-  tokenName: string
-  tokenSymbol: string
-  stakedBalance: string
-  stakedBalanceRaw: string // String for JSON serialization
-  votingPower: string
-}
-
-type UserScore = {
-  address: Address
-  deploymentsCount: number
-  stakingPositionsCount: number
-  totalParticipation: number
-  scorePercentage: string
-}
-
-type EligibleUsers = {
-  chainId: number
-  factoryAddress: Address
-  timestamp: string
-  deployers: ProjectDeployer[]
-  stakers: Staker[]
-  summary: {
-    totalProjects: number
-    uniqueDeployers: number
-    uniqueStakers: number
-    totalStakedBalanceByToken: Record<string, string>
-    totalUniqueUsers: number
-    userScores: UserScore[]
-  }
-}
+import type { DaoParticipant, EligibleUsers, ProjectDeployer, Staker, UserScore } from './types'
+import { getProjectsAbi } from './types'
 
 // Chain ID for Base Sepolia
 const CHAIN_ID = 84532
@@ -325,6 +251,148 @@ async function main() {
     }
   }
 
+  // ============================================================
+  // TIER 3: DAO PARTICIPATION (proposals created + votes cast)
+  // ============================================================
+  console.log('\n📊 Checking DAO participation...')
+
+  const daoParticipants: DaoParticipant[] = []
+  const daoParticipantsSet = new Set<string>()
+
+  // Track proposals and votes per user
+  const userProposals = new Map<string, Set<string>>() // user -> set of proposal keys
+  const userVotes = new Map<string, Set<string>>() // user -> set of proposal keys
+
+  // Step 1: Get currentCycleId for each governor
+  const cycleIdCalls = allProjects.map(({ project }) => ({
+    address: project.governor,
+    abi: LevrGovernor_v1,
+    functionName: 'currentCycleId' as const,
+  }))
+
+  console.log('   Fetching cycle IDs for all governors...')
+  const cycleIdResults = await publicClient.multicall({ contracts: cycleIdCalls })
+
+  // Step 2: For each project, get proposals for all cycles
+  type ProposalRef = { projectIdx: number; cycleId: bigint; proposalId: bigint }
+  const proposalRefs: ProposalRef[] = []
+
+  for (let i = 0; i < allProjects.length; i++) {
+    const { project } = allProjects[i]
+    const currentCycleId = (cycleIdResults[i].result as bigint) ?? 0n
+
+    // Get proposals for cycles 0 to currentCycleId
+    for (let c = 0n; c <= currentCycleId; c++) {
+      const proposalIds = await publicClient.readContract({
+        address: project.governor,
+        abi: LevrGovernor_v1,
+        functionName: 'getProposalsForCycle',
+        args: [c],
+      })
+
+      for (const proposalId of proposalIds) {
+        proposalRefs.push({ projectIdx: i, cycleId: c, proposalId })
+      }
+    }
+  }
+
+  console.log(`   Found ${proposalRefs.length} proposals across all projects`)
+
+  if (proposalRefs.length > 0) {
+    // Step 3: Get proposal details to find proposers
+    const proposalDetailsCalls = proposalRefs.map((ref) => ({
+      address: allProjects[ref.projectIdx].project.governor,
+      abi: LevrGovernor_v1,
+      functionName: 'getProposal' as const,
+      args: [ref.proposalId],
+    }))
+
+    console.log('   Fetching proposal details...')
+    const proposalDetailsResults = await publicClient.multicall({ contracts: proposalDetailsCalls })
+
+    // Track proposers
+    for (let i = 0; i < proposalRefs.length; i++) {
+      const ref = proposalRefs[i]
+      const result = proposalDetailsResults[i]
+      if (result.status === 'success' && result.result) {
+        const proposal = result.result as {
+          proposer: Address
+          [key: string]: unknown
+        }
+        const proposer = proposal.proposer.toLowerCase()
+        const proposalKey = `${allProjects[ref.projectIdx].clankerToken}-${ref.proposalId}`
+
+        if (!userProposals.has(proposer)) {
+          userProposals.set(proposer, new Set())
+        }
+        userProposals.get(proposer)!.add(proposalKey)
+      }
+    }
+
+    // Step 4: Check vote receipts for all known users on all proposals
+    const knownUsers = [...deployersSet]
+    console.log(`   Checking vote receipts for ${knownUsers.length} users...`)
+
+    const voteReceiptCalls = proposalRefs.flatMap((ref) =>
+      knownUsers.map((user) => ({
+        address: allProjects[ref.projectIdx].project.governor,
+        abi: LevrGovernor_v1,
+        functionName: 'getVoteReceipt' as const,
+        args: [ref.proposalId, user as Address],
+      }))
+    )
+
+    if (voteReceiptCalls.length > 0) {
+      const voteReceiptResults = await publicClient.multicall({ contracts: voteReceiptCalls })
+
+      // Process vote receipts
+      let voteIdx = 0
+      for (const ref of proposalRefs) {
+        const { clankerToken } = allProjects[ref.projectIdx]
+        const proposalKey = `${clankerToken}-${ref.proposalId}`
+
+        for (const user of knownUsers) {
+          const result = voteReceiptResults[voteIdx]
+          if (result.status === 'success' && result.result) {
+            const receipt = result.result as { hasVoted: boolean }
+            if (receipt.hasVoted) {
+              const userLower = user.toLowerCase()
+              if (!userVotes.has(userLower)) {
+                userVotes.set(userLower, new Set())
+              }
+              userVotes.get(userLower)!.add(proposalKey)
+            }
+          }
+          voteIdx++
+        }
+      }
+    }
+  }
+
+  // Build daoParticipants array
+  const allDaoUsers = new Set([...userProposals.keys(), ...userVotes.keys()])
+  for (const user of allDaoUsers) {
+    const proposalsCreated = userProposals.get(user)?.size ?? 0
+    const votesCast = userVotes.get(user)?.size ?? 0
+
+    if (proposalsCreated > 0 || votesCast > 0) {
+      daoParticipantsSet.add(user)
+      // Find which token they're associated with (first deployment or first staking)
+      const deployerEntry = deployers.find((d) => d.originalAdmin.toLowerCase() === user)
+      const stakerEntry = stakers.find((s) => s.address.toLowerCase() === user)
+
+      daoParticipants.push({
+        address: user as Address,
+        clankerToken: (deployerEntry?.clankerToken ?? stakerEntry?.clankerToken ?? '0x') as Address,
+        tokenSymbol: deployerEntry?.tokenSymbol ?? stakerEntry?.tokenSymbol ?? 'N/A',
+        proposalsCreated,
+        votesCast,
+      })
+
+      console.log(`  ✅ ${user}: ${proposalsCreated} proposals, ${votesCast} votes`)
+    }
+  }
+
   // Format total staked for summary
   const totalStakedFormatted: Record<string, string> = {}
   for (const [token, amount] of Object.entries(totalStakedByToken)) {
@@ -333,13 +401,21 @@ async function main() {
   }
 
   // Calculate user scores based on participation
-  // Each deployment and each staking position counts as 1 participation point
-  const userParticipation = new Map<string, { deployments: number; stakingPositions: number }>()
+  // Each deployment, staking position, proposal, and vote counts as 1 participation point
+  const userParticipation = new Map<
+    string,
+    { deployments: number; stakingPositions: number; proposalsCreated: number; votesCast: number }
+  >()
 
   // Count deployments per user
   for (const d of deployers) {
     const addr = d.originalAdmin.toLowerCase()
-    const current = userParticipation.get(addr) ?? { deployments: 0, stakingPositions: 0 }
+    const current = userParticipation.get(addr) ?? {
+      deployments: 0,
+      stakingPositions: 0,
+      proposalsCreated: 0,
+      votesCast: 0,
+    }
     current.deployments += 1
     userParticipation.set(addr, current)
   }
@@ -347,26 +423,48 @@ async function main() {
   // Count staking positions per user
   for (const s of stakers) {
     const addr = s.address.toLowerCase()
-    const current = userParticipation.get(addr) ?? { deployments: 0, stakingPositions: 0 }
+    const current = userParticipation.get(addr) ?? {
+      deployments: 0,
+      stakingPositions: 0,
+      proposalsCreated: 0,
+      votesCast: 0,
+    }
     current.stakingPositions += 1
+    userParticipation.set(addr, current)
+  }
+
+  // Count DAO participation per user
+  for (const dao of daoParticipants) {
+    const addr = dao.address.toLowerCase()
+    const current = userParticipation.get(addr) ?? {
+      deployments: 0,
+      stakingPositions: 0,
+      proposalsCreated: 0,
+      votesCast: 0,
+    }
+    current.proposalsCreated += dao.proposalsCreated
+    current.votesCast += dao.votesCast
     userParticipation.set(addr, current)
   }
 
   // Calculate total participation points
   let totalParticipationPoints = 0
   for (const [, p] of userParticipation) {
-    totalParticipationPoints += p.deployments + p.stakingPositions
+    totalParticipationPoints +=
+      p.deployments + p.stakingPositions + p.proposalsCreated + p.votesCast
   }
 
   // Build user scores array sorted by score descending
   const userScores: UserScore[] = [...userParticipation.entries()]
     .map(([addr, p]) => {
-      const total = p.deployments + p.stakingPositions
+      const total = p.deployments + p.stakingPositions + p.proposalsCreated + p.votesCast
       const percentage = totalParticipationPoints > 0 ? (total / totalParticipationPoints) * 100 : 0
       return {
         address: addr as Address,
         deploymentsCount: p.deployments,
         stakingPositionsCount: p.stakingPositions,
+        proposalsCreatedCount: p.proposalsCreated,
+        votesCastCount: p.votesCast,
         totalParticipation: total,
         scorePercentage: percentage.toFixed(4),
       }
@@ -380,10 +478,12 @@ async function main() {
     timestamp: new Date().toISOString(),
     deployers,
     stakers,
+    daoParticipants,
     summary: {
       totalProjects: allProjects.length,
       uniqueDeployers: deployersSet.size,
       uniqueStakers: new Set(stakers.map((s) => s.address.toLowerCase())).size,
+      uniqueDaoParticipants: daoParticipantsSet.size,
       totalStakedBalanceByToken: totalStakedFormatted,
       totalUniqueUsers: userParticipation.size,
       userScores,
@@ -446,25 +546,42 @@ async function main() {
     }
   }
 
+  console.log(`\n--- TIER 3: DAO PARTICIPATION ---`)
+  console.log(`Unique DAO Participants: ${results.summary.uniqueDaoParticipants}`)
+  if (daoParticipants.length > 0) {
+    console.log('\nDAO Participants:')
+    daoParticipants
+      .sort((a, b) => b.proposalsCreated + b.votesCast - (a.proposalsCreated + a.votesCast))
+      .forEach((d, i) => {
+        console.log(`  ${i + 1}. ${d.address}`)
+        console.log(`     Proposals: ${d.proposalsCreated} | Votes: ${d.votesCast}`)
+      })
+  }
+
   // Print user scores
   console.log(`\n--- USER SCORES (adds up to 100%) ---`)
   console.log(`Total Unique Users: ${results.summary.totalUniqueUsers}`)
   const totalPoints = userScores.reduce((sum, u) => sum + u.totalParticipation, 0)
   console.log(`Total Participation Points: ${totalPoints}`)
   console.log('\nRanking:')
-  console.log('  #   | Address                                    | Deploys | Stakes | Score')
-  console.log('  ' + '-'.repeat(82))
+  console.log(
+    '  #   | Address                                    | Deploy | Stake | Props | Votes | Score'
+  )
+  console.log('  ' + '-'.repeat(96))
   userScores.forEach((u, i) => {
     const rank = String(i + 1).padStart(3, ' ')
-    const deploys = String(u.deploymentsCount).padStart(7, ' ')
-    const stakes = String(u.stakingPositionsCount).padStart(6, ' ')
+    const deploys = String(u.deploymentsCount).padStart(6, ' ')
+    const stakes = String(u.stakingPositionsCount).padStart(5, ' ')
+    const props = String(u.proposalsCreatedCount).padStart(5, ' ')
+    const votes = String(u.votesCastCount).padStart(5, ' ')
     const score = u.scorePercentage.padStart(7, ' ')
-    console.log(`  ${rank} | ${u.address} | ${deploys} | ${stakes} | ${score}%`)
+    const line = `  ${rank} | ${u.address} | ${deploys} | ${stakes} | ${props} | ${votes} | ${score}%`
+    console.log(line)
   })
 
   // Verify scores add up to 100%
   const totalScore = userScores.reduce((sum, u) => sum + parseFloat(u.scorePercentage), 0)
-  console.log('  ' + '-'.repeat(82))
+  console.log('  ' + '-'.repeat(96))
   console.log(`  Total Score: ${totalScore.toFixed(4)}%`)
 
   console.log('\n' + '='.repeat(80))
