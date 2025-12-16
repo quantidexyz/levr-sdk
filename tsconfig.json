@@ -1,6 +1,6 @@
 {
   "include": ["src", "example", "test", "script"],
-  "exclude": ["**/bak/*", "dist", "node_modules"],
+  "exclude": ["**/bak/*", "dist", "node_modules", "**/gen/*"],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
 

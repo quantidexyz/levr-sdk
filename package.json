@@ -18,6 +18,7 @@
     "dist"
   ],
   "scripts": {
+    "compile:genql": "bunx genql --endpoint \"http://localhost:8080/v1/graphql\" --output src/graphql/gen && prettier --write src/graphql/gen/**/*.ts && eslint --fix src/graphql/gen/**/*.ts",
     "devnet": "bash script/devnet.sh",
     "devnet:redeploy": "bash script/devnet.sh --redeploy",
     "update-abis": "bun run script/update-abis.ts && prettier --write src/abis/**/*.ts",
@@ -63,13 +64,18 @@
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/universal-router-sdk": "^4.19.7",
     "@uniswap/v4-sdk": "^1.21.4",
+    "@urql/core": "^6.0.1",
     "clanker-sdk": "^4.1.23",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
     "ethers": "^5",
-    "type-fest-4": "npm:type-fest@latest"
+    "graphql-ws": "^6.0.6",
+    "type-fest-4": "npm:type-fest@latest",
+    "uuid": "^13.0.0",
+    "wonka": "^6.3.5"
   },
   "devDependencies": {
+    "@genql/cli": "^6.3.3",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@happy-dom/global-registrator": "^20.0.0",
