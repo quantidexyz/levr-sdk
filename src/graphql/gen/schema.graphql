@@ -567,6 +567,9 @@ input LevrMetrics_stream_cursor_value_input {
 columns and relationships of "LevrProject"
 """
 type LevrProject {
+  approvalBps: numeric!
+  chainId: numeric!
+
   """An object relationship"""
   clankerToken: Token
   clankerToken_id: String!
@@ -591,6 +594,11 @@ type LevrProject {
   ): [LevrGovernanceCycle!]!
   governor_id: String!
   id: String!
+  maxActiveProposals: numeric!
+  maxProposalAmountBps: numeric!
+  minSTokenBpsToSubmit: numeric!
+  minimumQuorumBps: numeric!
+  proposalWindowSeconds: numeric!
 
   """An array relationship"""
   proposals(
@@ -609,6 +617,7 @@ type LevrProject {
     """filter the rows returned"""
     where: LevrProposal_bool_exp
   ): [LevrProposal!]!
+  quorumBps: numeric!
 
   """An array relationship"""
   rewardStreams(
@@ -665,6 +674,7 @@ type LevrProject {
     where: LevrStaker_bool_exp
   ): [LevrStaker!]!
   staking_id: String!
+  streamWindowSeconds: numeric!
   totalProposals: numeric!
   totalStaked: numeric!
 
@@ -688,6 +698,7 @@ type LevrProject {
   treasury_id: String!
   updatedAt: numeric!
   verified: Boolean!
+  votingWindowSeconds: numeric!
 }
 
 """
@@ -697,52 +708,78 @@ input LevrProject_bool_exp {
   _and: [LevrProject_bool_exp!]
   _not: LevrProject_bool_exp
   _or: [LevrProject_bool_exp!]
+  approvalBps: numeric_comparison_exp
+  chainId: numeric_comparison_exp
   clankerToken: Token_bool_exp
   clankerToken_id: String_comparison_exp
   createdAt: numeric_comparison_exp
   cycles: LevrGovernanceCycle_bool_exp
   governor_id: String_comparison_exp
   id: String_comparison_exp
+  maxActiveProposals: numeric_comparison_exp
+  maxProposalAmountBps: numeric_comparison_exp
+  minSTokenBpsToSubmit: numeric_comparison_exp
+  minimumQuorumBps: numeric_comparison_exp
+  proposalWindowSeconds: numeric_comparison_exp
   proposals: LevrProposal_bool_exp
+  quorumBps: numeric_comparison_exp
   rewardStreams: LevrRewardStream_bool_exp
   stakeActions: LevrStakeAction_bool_exp
   stakedToken_id: String_comparison_exp
   stakers: LevrStaker_bool_exp
   staking_id: String_comparison_exp
+  streamWindowSeconds: numeric_comparison_exp
   totalProposals: numeric_comparison_exp
   totalStaked: numeric_comparison_exp
   transfers: LevrTreasuryTransfer_bool_exp
   treasury_id: String_comparison_exp
   updatedAt: numeric_comparison_exp
   verified: Boolean_comparison_exp
+  votingWindowSeconds: numeric_comparison_exp
 }
 
 """Ordering options when selecting data from "LevrProject"."""
 input LevrProject_order_by {
+  approvalBps: order_by
+  chainId: order_by
   clankerToken: Token_order_by
   clankerToken_id: order_by
   createdAt: order_by
   cycles_aggregate: LevrGovernanceCycle_aggregate_order_by
   governor_id: order_by
   id: order_by
+  maxActiveProposals: order_by
+  maxProposalAmountBps: order_by
+  minSTokenBpsToSubmit: order_by
+  minimumQuorumBps: order_by
+  proposalWindowSeconds: order_by
   proposals_aggregate: LevrProposal_aggregate_order_by
+  quorumBps: order_by
   rewardStreams_aggregate: LevrRewardStream_aggregate_order_by
   stakeActions_aggregate: LevrStakeAction_aggregate_order_by
   stakedToken_id: order_by
   stakers_aggregate: LevrStaker_aggregate_order_by
   staking_id: order_by
+  streamWindowSeconds: order_by
   totalProposals: order_by
   totalStaked: order_by
   transfers_aggregate: LevrTreasuryTransfer_aggregate_order_by
   treasury_id: order_by
   updatedAt: order_by
   verified: order_by
+  votingWindowSeconds: order_by
 }
 
 """
 select columns of table "LevrProject"
 """
 enum LevrProject_select_column {
+  """column name"""
+  approvalBps
+
+  """column name"""
+  chainId
+
   """column name"""
   clankerToken_id
 
@@ -756,10 +793,31 @@ enum LevrProject_select_column {
   id
 
   """column name"""
+  maxActiveProposals
+
+  """column name"""
+  maxProposalAmountBps
+
+  """column name"""
+  minSTokenBpsToSubmit
+
+  """column name"""
+  minimumQuorumBps
+
+  """column name"""
+  proposalWindowSeconds
+
+  """column name"""
+  quorumBps
+
+  """column name"""
   stakedToken_id
 
   """column name"""
   staking_id
+
+  """column name"""
+  streamWindowSeconds
 
   """column name"""
   totalProposals
@@ -775,6 +833,9 @@ enum LevrProject_select_column {
 
   """column name"""
   verified
+
+  """column name"""
+  votingWindowSeconds
 }
 
 """
@@ -790,17 +851,27 @@ input LevrProject_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input LevrProject_stream_cursor_value_input {
+  approvalBps: numeric
+  chainId: numeric
   clankerToken_id: String
   createdAt: numeric
   governor_id: String
   id: String
+  maxActiveProposals: numeric
+  maxProposalAmountBps: numeric
+  minSTokenBpsToSubmit: numeric
+  minimumQuorumBps: numeric
+  proposalWindowSeconds: numeric
+  quorumBps: numeric
   stakedToken_id: String
   staking_id: String
+  streamWindowSeconds: numeric
   totalProposals: numeric
   totalStaked: numeric
   treasury_id: String
   updatedAt: numeric
   verified: Boolean
+  votingWindowSeconds: numeric
 }
 
 """
@@ -4112,11 +4183,16 @@ columns and relationships of "Token"
 """
 type Token {
   address: String!
+  admin: String
   chainId: numeric!
+  context: String
   createdAt: numeric!
   decimals: Int
   id: String!
+  imageUrl: String
+  metadata: String
   name: String
+  originalAdmin: String
   symbol: String
   totalSupply: numeric
   updatedAt: numeric!
@@ -4130,11 +4206,16 @@ input Token_bool_exp {
   _not: Token_bool_exp
   _or: [Token_bool_exp!]
   address: String_comparison_exp
+  admin: String_comparison_exp
   chainId: numeric_comparison_exp
+  context: String_comparison_exp
   createdAt: numeric_comparison_exp
   decimals: Int_comparison_exp
   id: String_comparison_exp
+  imageUrl: String_comparison_exp
+  metadata: String_comparison_exp
   name: String_comparison_exp
+  originalAdmin: String_comparison_exp
   symbol: String_comparison_exp
   totalSupply: numeric_comparison_exp
   updatedAt: numeric_comparison_exp
@@ -4143,11 +4224,16 @@ input Token_bool_exp {
 """Ordering options when selecting data from "Token"."""
 input Token_order_by {
   address: order_by
+  admin: order_by
   chainId: order_by
+  context: order_by
   createdAt: order_by
   decimals: order_by
   id: order_by
+  imageUrl: order_by
+  metadata: order_by
   name: order_by
+  originalAdmin: order_by
   symbol: order_by
   totalSupply: order_by
   updatedAt: order_by
@@ -4161,7 +4247,13 @@ enum Token_select_column {
   address
 
   """column name"""
+  admin
+
+  """column name"""
   chainId
+
+  """column name"""
+  context
 
   """column name"""
   createdAt
@@ -4173,7 +4265,16 @@ enum Token_select_column {
   id
 
   """column name"""
+  imageUrl
+
+  """column name"""
+  metadata
+
+  """column name"""
   name
+
+  """column name"""
+  originalAdmin
 
   """column name"""
   symbol
@@ -4199,11 +4300,16 @@ input Token_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input Token_stream_cursor_value_input {
   address: String
+  admin: String
   chainId: numeric
+  context: String
   createdAt: numeric
   decimals: Int
   id: String
+  imageUrl: String
+  metadata: String
   name: String
+  originalAdmin: String
   symbol: String
   totalSupply: numeric
   updatedAt: numeric

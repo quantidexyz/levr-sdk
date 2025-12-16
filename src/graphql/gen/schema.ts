@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* istanbul ignore file */
 /* tslint:disable */
+/* eslint-disable */
 
 export type Scalars = {
   Boolean: boolean
@@ -111,6 +112,8 @@ export type LevrMetrics_select_column =
 
 /** columns and relationships of "LevrProject" */
 export interface LevrProject {
+  approvalBps: Scalars['numeric']
+  chainId: Scalars['numeric']
   /** An object relationship */
   clankerToken: Token | null
   clankerToken_id: Scalars['String']
@@ -119,8 +122,14 @@ export interface LevrProject {
   cycles: LevrGovernanceCycle[]
   governor_id: Scalars['String']
   id: Scalars['String']
+  maxActiveProposals: Scalars['numeric']
+  maxProposalAmountBps: Scalars['numeric']
+  minSTokenBpsToSubmit: Scalars['numeric']
+  minimumQuorumBps: Scalars['numeric']
+  proposalWindowSeconds: Scalars['numeric']
   /** An array relationship */
   proposals: LevrProposal[]
+  quorumBps: Scalars['numeric']
   /** An array relationship */
   rewardStreams: LevrRewardStream[]
   /** An array relationship */
@@ -129,6 +138,7 @@ export interface LevrProject {
   /** An array relationship */
   stakers: LevrStaker[]
   staking_id: Scalars['String']
+  streamWindowSeconds: Scalars['numeric']
   totalProposals: Scalars['numeric']
   totalStaked: Scalars['numeric']
   /** An array relationship */
@@ -136,22 +146,33 @@ export interface LevrProject {
   treasury_id: Scalars['String']
   updatedAt: Scalars['numeric']
   verified: Scalars['Boolean']
+  votingWindowSeconds: Scalars['numeric']
   __typename: 'LevrProject'
 }
 
 /** select columns of table "LevrProject" */
 export type LevrProject_select_column =
+  | 'approvalBps'
+  | 'chainId'
   | 'clankerToken_id'
   | 'createdAt'
   | 'governor_id'
   | 'id'
+  | 'maxActiveProposals'
+  | 'maxProposalAmountBps'
+  | 'minSTokenBpsToSubmit'
+  | 'minimumQuorumBps'
+  | 'proposalWindowSeconds'
+  | 'quorumBps'
   | 'stakedToken_id'
   | 'staking_id'
+  | 'streamWindowSeconds'
   | 'totalProposals'
   | 'totalStaked'
   | 'treasury_id'
   | 'updatedAt'
   | 'verified'
+  | 'votingWindowSeconds'
 
 /** columns and relationships of "LevrProposal" */
 export interface LevrProposal {
@@ -614,11 +635,16 @@ export type MoneyMachine_select_column =
 /** columns and relationships of "Token" */
 export interface Token {
   address: Scalars['String']
+  admin: Scalars['String'] | null
   chainId: Scalars['numeric']
+  context: Scalars['String'] | null
   createdAt: Scalars['numeric']
   decimals: Scalars['Int'] | null
   id: Scalars['String']
+  imageUrl: Scalars['String'] | null
+  metadata: Scalars['String'] | null
   name: Scalars['String'] | null
+  originalAdmin: Scalars['String'] | null
   symbol: Scalars['String'] | null
   totalSupply: Scalars['numeric'] | null
   updatedAt: Scalars['numeric']
@@ -628,11 +654,16 @@ export interface Token {
 /** select columns of table "Token" */
 export type Token_select_column =
   | 'address'
+  | 'admin'
   | 'chainId'
+  | 'context'
   | 'createdAt'
   | 'decimals'
   | 'id'
+  | 'imageUrl'
+  | 'metadata'
   | 'name'
+  | 'originalAdmin'
   | 'symbol'
   | 'totalSupply'
   | 'updatedAt'
@@ -1477,6 +1508,8 @@ export interface LevrMetrics_stream_cursor_value_input {
 
 /** columns and relationships of "LevrProject" */
 export interface LevrProjectGenqlSelection {
+  approvalBps?: boolean | number
+  chainId?: boolean | number
   /** An object relationship */
   clankerToken?: TokenGenqlSelection
   clankerToken_id?: boolean | number
@@ -1498,6 +1531,11 @@ export interface LevrProjectGenqlSelection {
   }
   governor_id?: boolean | number
   id?: boolean | number
+  maxActiveProposals?: boolean | number
+  maxProposalAmountBps?: boolean | number
+  minSTokenBpsToSubmit?: boolean | number
+  minimumQuorumBps?: boolean | number
+  proposalWindowSeconds?: boolean | number
   /** An array relationship */
   proposals?: LevrProposalGenqlSelection & {
     __args?: {
@@ -1513,6 +1551,7 @@ export interface LevrProjectGenqlSelection {
       where?: LevrProposal_bool_exp | null
     }
   }
+  quorumBps?: boolean | number
   /** An array relationship */
   rewardStreams?: LevrRewardStreamGenqlSelection & {
     __args?: {
@@ -1560,6 +1599,7 @@ export interface LevrProjectGenqlSelection {
     }
   }
   staking_id?: boolean | number
+  streamWindowSeconds?: boolean | number
   totalProposals?: boolean | number
   totalStaked?: boolean | number
   /** An array relationship */
@@ -1580,6 +1620,7 @@ export interface LevrProjectGenqlSelection {
   treasury_id?: boolean | number
   updatedAt?: boolean | number
   verified?: boolean | number
+  votingWindowSeconds?: boolean | number
   __typename?: boolean | number
   __scalar?: boolean | number
 }
@@ -1589,46 +1630,66 @@ export interface LevrProject_bool_exp {
   _and?: LevrProject_bool_exp[] | null
   _not?: LevrProject_bool_exp | null
   _or?: LevrProject_bool_exp[] | null
+  approvalBps?: numeric_comparison_exp | null
+  chainId?: numeric_comparison_exp | null
   clankerToken?: Token_bool_exp | null
   clankerToken_id?: String_comparison_exp | null
   createdAt?: numeric_comparison_exp | null
   cycles?: LevrGovernanceCycle_bool_exp | null
   governor_id?: String_comparison_exp | null
   id?: String_comparison_exp | null
+  maxActiveProposals?: numeric_comparison_exp | null
+  maxProposalAmountBps?: numeric_comparison_exp | null
+  minSTokenBpsToSubmit?: numeric_comparison_exp | null
+  minimumQuorumBps?: numeric_comparison_exp | null
+  proposalWindowSeconds?: numeric_comparison_exp | null
   proposals?: LevrProposal_bool_exp | null
+  quorumBps?: numeric_comparison_exp | null
   rewardStreams?: LevrRewardStream_bool_exp | null
   stakeActions?: LevrStakeAction_bool_exp | null
   stakedToken_id?: String_comparison_exp | null
   stakers?: LevrStaker_bool_exp | null
   staking_id?: String_comparison_exp | null
+  streamWindowSeconds?: numeric_comparison_exp | null
   totalProposals?: numeric_comparison_exp | null
   totalStaked?: numeric_comparison_exp | null
   transfers?: LevrTreasuryTransfer_bool_exp | null
   treasury_id?: String_comparison_exp | null
   updatedAt?: numeric_comparison_exp | null
   verified?: Boolean_comparison_exp | null
+  votingWindowSeconds?: numeric_comparison_exp | null
 }
 
 /** Ordering options when selecting data from "LevrProject". */
 export interface LevrProject_order_by {
+  approvalBps?: order_by | null
+  chainId?: order_by | null
   clankerToken?: Token_order_by | null
   clankerToken_id?: order_by | null
   createdAt?: order_by | null
   cycles_aggregate?: LevrGovernanceCycle_aggregate_order_by | null
   governor_id?: order_by | null
   id?: order_by | null
+  maxActiveProposals?: order_by | null
+  maxProposalAmountBps?: order_by | null
+  minSTokenBpsToSubmit?: order_by | null
+  minimumQuorumBps?: order_by | null
+  proposalWindowSeconds?: order_by | null
   proposals_aggregate?: LevrProposal_aggregate_order_by | null
+  quorumBps?: order_by | null
   rewardStreams_aggregate?: LevrRewardStream_aggregate_order_by | null
   stakeActions_aggregate?: LevrStakeAction_aggregate_order_by | null
   stakedToken_id?: order_by | null
   stakers_aggregate?: LevrStaker_aggregate_order_by | null
   staking_id?: order_by | null
+  streamWindowSeconds?: order_by | null
   totalProposals?: order_by | null
   totalStaked?: order_by | null
   transfers_aggregate?: LevrTreasuryTransfer_aggregate_order_by | null
   treasury_id?: order_by | null
   updatedAt?: order_by | null
   verified?: order_by | null
+  votingWindowSeconds?: order_by | null
 }
 
 /** Streaming cursor of the table "LevrProject" */
@@ -1641,17 +1702,27 @@ export interface LevrProject_stream_cursor_input {
 
 /** Initial value of the column from where the streaming should start */
 export interface LevrProject_stream_cursor_value_input {
+  approvalBps?: Scalars['numeric'] | null
+  chainId?: Scalars['numeric'] | null
   clankerToken_id?: Scalars['String'] | null
   createdAt?: Scalars['numeric'] | null
   governor_id?: Scalars['String'] | null
   id?: Scalars['String'] | null
+  maxActiveProposals?: Scalars['numeric'] | null
+  maxProposalAmountBps?: Scalars['numeric'] | null
+  minSTokenBpsToSubmit?: Scalars['numeric'] | null
+  minimumQuorumBps?: Scalars['numeric'] | null
+  proposalWindowSeconds?: Scalars['numeric'] | null
+  quorumBps?: Scalars['numeric'] | null
   stakedToken_id?: Scalars['String'] | null
   staking_id?: Scalars['String'] | null
+  streamWindowSeconds?: Scalars['numeric'] | null
   totalProposals?: Scalars['numeric'] | null
   totalStaked?: Scalars['numeric'] | null
   treasury_id?: Scalars['String'] | null
   updatedAt?: Scalars['numeric'] | null
   verified?: Scalars['Boolean'] | null
+  votingWindowSeconds?: Scalars['numeric'] | null
 }
 
 /** columns and relationships of "LevrProposal" */
@@ -4101,11 +4172,16 @@ export interface String_comparison_exp {
 /** columns and relationships of "Token" */
 export interface TokenGenqlSelection {
   address?: boolean | number
+  admin?: boolean | number
   chainId?: boolean | number
+  context?: boolean | number
   createdAt?: boolean | number
   decimals?: boolean | number
   id?: boolean | number
+  imageUrl?: boolean | number
+  metadata?: boolean | number
   name?: boolean | number
+  originalAdmin?: boolean | number
   symbol?: boolean | number
   totalSupply?: boolean | number
   updatedAt?: boolean | number
@@ -4119,11 +4195,16 @@ export interface Token_bool_exp {
   _not?: Token_bool_exp | null
   _or?: Token_bool_exp[] | null
   address?: String_comparison_exp | null
+  admin?: String_comparison_exp | null
   chainId?: numeric_comparison_exp | null
+  context?: String_comparison_exp | null
   createdAt?: numeric_comparison_exp | null
   decimals?: Int_comparison_exp | null
   id?: String_comparison_exp | null
+  imageUrl?: String_comparison_exp | null
+  metadata?: String_comparison_exp | null
   name?: String_comparison_exp | null
+  originalAdmin?: String_comparison_exp | null
   symbol?: String_comparison_exp | null
   totalSupply?: numeric_comparison_exp | null
   updatedAt?: numeric_comparison_exp | null
@@ -4132,11 +4213,16 @@ export interface Token_bool_exp {
 /** Ordering options when selecting data from "Token". */
 export interface Token_order_by {
   address?: order_by | null
+  admin?: order_by | null
   chainId?: order_by | null
+  context?: order_by | null
   createdAt?: order_by | null
   decimals?: order_by | null
   id?: order_by | null
+  imageUrl?: order_by | null
+  metadata?: order_by | null
   name?: order_by | null
+  originalAdmin?: order_by | null
   symbol?: order_by | null
   totalSupply?: order_by | null
   updatedAt?: order_by | null
@@ -4153,11 +4239,16 @@ export interface Token_stream_cursor_input {
 /** Initial value of the column from where the streaming should start */
 export interface Token_stream_cursor_value_input {
   address?: Scalars['String'] | null
+  admin?: Scalars['String'] | null
   chainId?: Scalars['numeric'] | null
+  context?: Scalars['String'] | null
   createdAt?: Scalars['numeric'] | null
   decimals?: Scalars['Int'] | null
   id?: Scalars['String'] | null
+  imageUrl?: Scalars['String'] | null
+  metadata?: Scalars['String'] | null
   name?: Scalars['String'] | null
+  originalAdmin?: Scalars['String'] | null
   symbol?: Scalars['String'] | null
   totalSupply?: Scalars['numeric'] | null
   updatedAt?: Scalars['numeric'] | null
@@ -6127,17 +6218,27 @@ export const enumLevrMetricsSelectColumn = {
 }
 
 export const enumLevrProjectSelectColumn = {
+  approvalBps: 'approvalBps' as const,
+  chainId: 'chainId' as const,
   clankerToken_id: 'clankerToken_id' as const,
   createdAt: 'createdAt' as const,
   governor_id: 'governor_id' as const,
   id: 'id' as const,
+  maxActiveProposals: 'maxActiveProposals' as const,
+  maxProposalAmountBps: 'maxProposalAmountBps' as const,
+  minSTokenBpsToSubmit: 'minSTokenBpsToSubmit' as const,
+  minimumQuorumBps: 'minimumQuorumBps' as const,
+  proposalWindowSeconds: 'proposalWindowSeconds' as const,
+  quorumBps: 'quorumBps' as const,
   stakedToken_id: 'stakedToken_id' as const,
   staking_id: 'staking_id' as const,
+  streamWindowSeconds: 'streamWindowSeconds' as const,
   totalProposals: 'totalProposals' as const,
   totalStaked: 'totalStaked' as const,
   treasury_id: 'treasury_id' as const,
   updatedAt: 'updatedAt' as const,
   verified: 'verified' as const,
+  votingWindowSeconds: 'votingWindowSeconds' as const,
 }
 
 export const enumLevrProposalSelectColumn = {
@@ -6332,11 +6433,16 @@ export const enumMoneyMachineSelectColumn = {
 
 export const enumTokenSelectColumn = {
   address: 'address' as const,
+  admin: 'admin' as const,
   chainId: 'chainId' as const,
+  context: 'context' as const,
   createdAt: 'createdAt' as const,
   decimals: 'decimals' as const,
   id: 'id' as const,
+  imageUrl: 'imageUrl' as const,
+  metadata: 'metadata' as const,
   name: 'name' as const,
+  originalAdmin: 'originalAdmin' as const,
   symbol: 'symbol' as const,
   totalSupply: 'totalSupply' as const,
   updatedAt: 'updatedAt' as const,

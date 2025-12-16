@@ -5,12 +5,26 @@ import * as React from 'react'
 import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import type { RegisteredStaticProject, StaticProject } from '../..'
+import type { Project, RegisteredStaticProject, StaticProject } from '../..'
 import { getLevrProjectsFields, type LevrProjectData } from '../../graphql/fields/project'
 import { getProject, getStaticProject } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
 import { useGraphQLSubscription } from './use-subscription'
+
+/** Project data from indexer, adapted for UI consumption */
+export type IndexedProject = Omit<
+  Project,
+  | 'forwarder'
+  | 'pool'
+  | 'pricing'
+  | 'treasuryStats'
+  | 'stakingStats'
+  | 'governanceStats'
+  | 'feeReceivers'
+  | 'feeSplitter'
+  | 'blockTimestamp'
+>
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
@@ -101,9 +115,48 @@ export type UseProjectsParams = {
 }
 
 export type UseProjectsReturnType = {
-  projects: LevrProjectData[]
+  data: { projects: IndexedProject[] } | null
   isLoading: boolean
-  error: string | null
+  error: Error | null
+}
+
+/**
+ * Adapts indexed project data to the Project shape expected by UI components
+ */
+function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
+  const token = data.clankerToken
+  if (!token) return null
+
+  // Parse metadata JSON if present
+  let metadata: Project['token']['metadata'] = null
+  if (token.metadata && typeof token.metadata === 'string') {
+    try {
+      metadata = JSON.parse(token.metadata)
+    } catch {
+      // Leave as null if parsing fails
+    }
+  }
+
+  return {
+    chainId: Number(data.chainId),
+    treasury: data.treasury_id as `0x${string}`,
+    governor: data.governor_id as `0x${string}`,
+    staking: data.staking_id as `0x${string}`,
+    stakedToken: data.stakedToken_id as `0x${string}`,
+    factory: '' as `0x${string}`,
+    token: {
+      address: token.address as `0x${string}`,
+      decimals: token.decimals ?? 18,
+      name: token.name ?? '',
+      symbol: token.symbol ?? '',
+      totalSupply: token.totalSupply ? BigInt(token.totalSupply) : 0n,
+      metadata,
+      imageUrl: token.imageUrl ?? undefined,
+      originalAdmin: (token.originalAdmin ?? '') as `0x${string}`,
+      admin: (token.admin ?? '') as `0x${string}`,
+      context: token.context ?? '',
+    },
+  }
 }
 
 /**
@@ -121,15 +174,30 @@ export function useProjects({
     [search, offset, limit]
   )
 
-  const { data, isLoading, error } = useGraphQLSubscription({
+  const {
+    data: rawData,
+    isLoading,
+    error: rawError,
+  } = useGraphQLSubscription({
     fields,
     enabled: e,
   })
 
-  const projects = React.useMemo(() => data?.LevrProject ?? [], [data])
+  const data = React.useMemo(() => {
+    if (!rawData?.LevrProject) return null
+    const projects = rawData.LevrProject.map(adaptIndexedProject).filter(
+      (p): p is IndexedProject => p !== null
+    )
+    return { projects }
+  }, [rawData])
+
+  const error = React.useMemo(() => {
+    if (!rawError) return null
+    return new Error(rawError)
+  }, [rawError])
 
   return {
-    projects,
+    data,
     isLoading,
     error,
   }

@@ -3,7 +3,6 @@ import { erc20Abi, zeroAddress } from 'viem'
 import {
   IClankerFeeLocker,
   IClankerLpLockerFeeConversion,
-  IClankerToken,
   LevrFactory_v1,
   LevrGovernor_v1,
   LevrStaking_v1,
@@ -25,6 +24,8 @@ import {
   parseFeeSplitterStatic,
 } from './fee-receivers'
 import { getFeeSplitter } from './fee-splitter'
+import { query } from './graphql'
+import { getLevrProjectByIdFields, type LevrProjectByIdData } from './graphql/fields/project'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
 
@@ -208,24 +209,6 @@ type MulticallResult<T> = {
   error?: Error
 }
 
-type TokenContractsResult = [
-  MulticallResult<number>, // decimals
-  MulticallResult<string>, // name
-  MulticallResult<string>, // symbol
-  MulticallResult<bigint>, // totalSupply
-  MulticallResult<[`0x${string}`, `0x${string}`, string, string, string]>, // allData: [originalAdmin, admin, image, metadata, context]
-]
-
-type FactoryContractsResult = [
-  MulticallResult<{
-    treasury: `0x${string}`
-    governor: `0x${string}`
-    staking: `0x${string}`
-    stakedToken: `0x${string}`
-  }>, // getProject
-  MulticallResult<`0x${string}`>, // trustedForwarder
-]
-
 type TreasuryContractsResult = [
   MulticallResult<bigint>, // treasury balance
   MulticallResult<bigint>, // staking balance (clanker token)
@@ -286,52 +269,6 @@ type GovernanceData = {
 
 // ---
 // Contract Getters
-
-function getTokenContracts(clankerToken: `0x${string}`) {
-  return [
-    {
-      address: clankerToken,
-      abi: erc20Abi,
-      functionName: 'decimals' as const,
-    },
-    {
-      address: clankerToken,
-      abi: erc20Abi,
-      functionName: 'name' as const,
-    },
-    {
-      address: clankerToken,
-      abi: erc20Abi,
-      functionName: 'symbol' as const,
-    },
-    {
-      address: clankerToken,
-      abi: erc20Abi,
-      functionName: 'totalSupply' as const,
-    },
-    {
-      address: clankerToken,
-      abi: IClankerToken,
-      functionName: 'allData' as const,
-    },
-  ]
-}
-
-function getFactoryContracts(factoryAddress: `0x${string}`, clankerToken: `0x${string}`) {
-  return [
-    {
-      address: factoryAddress,
-      abi: LevrFactory_v1,
-      functionName: 'getProject' as const,
-      args: [clankerToken],
-    },
-    {
-      address: factoryAddress,
-      abi: LevrFactory_v1,
-      functionName: 'trustedForwarder' as const,
-    },
-  ]
-}
 
 function getTreasuryContracts(
   clankerToken: `0x${string}`,
@@ -487,49 +424,6 @@ function getPendingFeesContracts(
 
 // ---
 // Parsers
-
-function parseTokenData(results: TokenContractsResult, clankerToken: `0x${string}`): TokenData {
-  const [decimals, name, symbol, totalSupply, allData] = results
-
-  // Extract allData fields: [originalAdmin, admin, image, metadata, context]
-  const [originalAdmin, admin, image, metadata, context] = allData.result
-
-  // Parse metadata JSON
-  let parsedMetadata: ProjectMetadata | null = null
-  if (metadata && typeof metadata === 'string') {
-    try {
-      parsedMetadata = JSON.parse(metadata)
-    } catch {
-      // If parsing fails, leave as null
-    }
-  }
-
-  return {
-    address: clankerToken,
-    decimals: decimals.result,
-    name: name.result,
-    symbol: symbol.result,
-    totalSupply: totalSupply.result,
-    metadata: parsedMetadata,
-    imageUrl: image || undefined,
-    originalAdmin,
-    admin,
-    context,
-  }
-}
-
-function parseFactoryData(results: FactoryContractsResult): FactoryData {
-  const [projectContracts, forwarder] = results
-  const { treasury, governor, staking, stakedToken } = projectContracts.result
-
-  return {
-    treasury,
-    governor,
-    staking,
-    stakedToken,
-    forwarder: forwarder.result,
-  }
-}
 
 function parseTreasuryStats(
   results: TreasuryContractsResult,
@@ -737,9 +631,92 @@ function parseStakingStats(
   }
 }
 
+// ============================================================================
+// Indexed Project Data
+// ============================================================================
+
+export type IndexedProjectData = LevrProjectByIdData
+
+/**
+ * Fetch project data from the indexer
+ * Returns null if the project is not found in the indexer
+ */
+export async function getIndexedProject(
+  clankerToken: `0x${string}`
+): Promise<IndexedProjectData | null> {
+  try {
+    const fields = getLevrProjectByIdFields(clankerToken)
+    const result = await query(fields)
+    // Cast to our explicit type since the generated types can be complex
+    return (result.LevrProject_by_pk as IndexedProjectData | null) ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse indexed project data into token data format
+ */
+function parseIndexedTokenData(
+  indexed: IndexedProjectData,
+  clankerToken: `0x${string}`
+): TokenData | null {
+  const token = indexed.clankerToken
+  if (!token) return null
+
+  // Parse metadata JSON
+  let parsedMetadata: ProjectMetadata | null = null
+  if (token.metadata && typeof token.metadata === 'string') {
+    try {
+      parsedMetadata = JSON.parse(token.metadata)
+    } catch {
+      // If parsing fails, leave as null
+    }
+  }
+
+  return {
+    address: clankerToken,
+    decimals: token.decimals ?? 18,
+    name: token.name ?? '',
+    symbol: token.symbol ?? '',
+    totalSupply: token.totalSupply ? BigInt(token.totalSupply) : 0n,
+    metadata: parsedMetadata,
+    imageUrl: token.imageUrl ?? undefined,
+    originalAdmin: (token.originalAdmin ?? zeroAddress) as `0x${string}`,
+    admin: (token.admin ?? zeroAddress) as `0x${string}`,
+    context: token.context ?? '',
+  }
+}
+
+/**
+ * Parse indexed project data into factory data format
+ */
+function parseIndexedFactoryData(indexed: IndexedProjectData): FactoryData | null {
+  const { treasury_id, governor_id, staking_id, stakedToken_id } = indexed
+
+  // Check if project is registered (all addresses are non-empty)
+  if (!treasury_id || !governor_id || !staking_id || !stakedToken_id) {
+    return null
+  }
+
+  return {
+    treasury: treasury_id as `0x${string}`,
+    governor: governor_id as `0x${string}`,
+    staking: staking_id as `0x${string}`,
+    stakedToken: stakedToken_id as `0x${string}`,
+    forwarder: zeroAddress, // Will be fetched via RPC if needed
+  }
+}
+
+// ============================================================================
+// Static Project Functions
+// ============================================================================
+
 /**
  * Get static project data that doesn't change frequently
  * This includes contract addresses, token metadata, pool info, and fee receivers
+ *
+ * Uses indexed data for token and project data, only fetches via RPC what's not indexed
  */
 export async function getStaticProject({
   publicClient,
@@ -756,47 +733,64 @@ export async function getStaticProject({
   const factoryAddress = GET_FACTORY_ADDRESS(chainId)
   if (!factoryAddress) throw new Error('Factory address not found')
 
-  // Get deployed fee splitter for this token (if exists)
-  const feeSplitterAddress = await getFeeSplitter({
-    publicClient,
-    clankerToken,
-    chainId,
-  })
+  // Fetch indexed data and fee splitter in parallel
+  const [indexedProject, feeSplitterAddress] = await Promise.all([
+    getIndexedProject(clankerToken),
+    getFeeSplitter({ publicClient, clankerToken, chainId }),
+  ])
 
-  // Build contract calls including tokenRewards and fee splitter static in the same multicall
+  // If project not found in indexer, return null
+  if (!indexedProject) return null
+
+  // Parse token and factory data from indexer
+  const tokenData = parseIndexedTokenData(indexedProject, clankerToken)
+  if (!tokenData) return null
+
+  const indexedFactory = parseIndexedFactoryData(indexedProject)
+
+  // Only fetch what's not in the indexer: forwarder, fee receivers, fee splitter
   const contracts = [
-    ...getTokenContracts(clankerToken),
-    ...getFactoryContracts(factoryAddress, clankerToken),
+    // Forwarder is not indexed
+    {
+      address: factoryAddress,
+      abi: LevrFactory_v1,
+      functionName: 'trustedForwarder' as const,
+    },
+    // Fee receivers from LP locker (not indexed)
     ...getFeeReceiverContracts(clankerToken, chainId),
+    // Fee splitter static data if available
     ...(feeSplitterAddress ? getFeeSplitterStaticContracts(clankerToken, feeSplitterAddress) : []),
   ]
 
   const multicallResults = await publicClient.multicall({ contracts })
 
-  // Calculate slice indices for each data group
-  const tokenCount = 5
-  const factoryCount = 2
-  const tokenRewardsCount = 1
-  const feeSplitterStaticCount = feeSplitterAddress ? 3 : 0
-
+  // Parse results
   let idx = 0
-  const tokenResults = multicallResults.slice(idx, idx + tokenCount) as TokenContractsResult
-  idx += tokenCount
 
-  const factoryResults = multicallResults.slice(idx, idx + factoryCount) as FactoryContractsResult
-  idx += factoryCount
+  // Forwarder
+  const forwarderResult = multicallResults[idx] as MulticallResult<`0x${string}`>
+  idx += 1
 
+  const factoryData: FactoryData = indexedFactory
+    ? { ...indexedFactory, forwarder: forwarderResult.result ?? zeroAddress }
+    : {
+        treasury: zeroAddress,
+        governor: zeroAddress,
+        staking: zeroAddress,
+        stakedToken: zeroAddress,
+        forwarder: forwarderResult.result ?? zeroAddress,
+      }
+
+  // Fee receivers (tokenRewards)
   const tokenRewardsResult = multicallResults[idx]
-  idx += tokenRewardsCount
+  idx += 1
 
+  // Fee splitter static
+  const feeSplitterStaticCount = feeSplitterAddress ? 3 : 0
   const feeSplitterStaticResults = feeSplitterAddress
     ? multicallResults.slice(idx, idx + feeSplitterStaticCount)
     : null
   idx += feeSplitterStaticCount
-
-  // Parse results using individual parsers
-  const tokenData = parseTokenData(tokenResults, clankerToken)
-  const factoryData = parseFactoryData(factoryResults)
 
   // Check if project exists
   const { treasury, governor, staking, stakedToken } = factoryData
