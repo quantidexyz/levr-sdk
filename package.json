@@ -59,12 +59,14 @@
     "wagmi": "^2.17.5"
   },
   "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/universal-router-sdk": "^4.19.7",
     "@uniswap/v4-sdk": "^1.21.4",
     "clanker-sdk": "^4.1.23",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
+    "ethers": "^5",
     "type-fest-4": "npm:type-fest@latest"
   },
   "devDependencies": {
