@@ -1,13 +1,16 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import * as React from 'react'
 import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import type { ProjectsParams, ProjectsResult, RegisteredStaticProject, StaticProject } from '../..'
-import { getProject, getProjects, getStaticProject } from '../../project'
+import type { RegisteredStaticProject, StaticProject } from '../..'
+import { getLevrProjectsFields, type LevrProjectData } from '../../graphql/fields/project'
+import { getProject, getStaticProject } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
+import { useGraphQLSubscription } from './use-subscription'
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
@@ -91,24 +94,43 @@ export function useProjectQuery({
 }
 
 export type UseProjectsParams = {
+  search?: string
+  offset?: number
+  limit?: number
   enabled?: boolean
-} & Omit<ProjectsParams, 'publicClient'>
+}
 
-export function useProjects({ enabled: e = true, offset, limit }: UseProjectsParams = {}) {
-  const publicClient = usePublicClient()
-  const chainId = publicClient?.chain.id
+export type UseProjectsReturnType = {
+  projects: LevrProjectData[]
+  isLoading: boolean
+  error: string | null
+}
 
-  const enabled = !!publicClient && !!chainId && e
+/**
+ * Hook for fetching projects with real-time updates via GraphQL subscription
+ * Supports search, pagination, and orders by last updated first
+ */
+export function useProjects({
+  search,
+  offset,
+  limit,
+  enabled: e = true,
+}: UseProjectsParams = {}): UseProjectsReturnType {
+  const fields = React.useMemo(
+    () => getLevrProjectsFields({ search, offset, limit }),
+    [search, offset, limit]
+  )
 
-  return useQuery<ProjectsResult>({
-    queryKey: ['projects', chainId, offset, limit],
-    enabled,
-    queryFn: () =>
-      getProjects({
-        publicClient: publicClient!,
-        offset,
-        limit,
-      }),
-    staleTime: 30_000,
+  const { data, isLoading, error } = useGraphQLSubscription({
+    fields,
+    enabled: e,
   })
+
+  const projects = React.useMemo(() => data?.LevrProject ?? [], [data])
+
+  return {
+    projects,
+    isLoading,
+    error,
+  }
 }

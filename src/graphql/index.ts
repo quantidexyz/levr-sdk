@@ -35,4 +35,5 @@ export const subscription = <T extends GraphQLSubscriptionArgs>(
 export type { QueryResult, SubscriptionResult } from './gen'
 export { Client }
 export * from './constants'
+export * from './fields'
 export * from './gen/schema'
