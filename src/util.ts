@@ -1,5 +1,5 @@
 import { createPublicClient, http, parseUnits } from 'viem'
-import { base, baseSepolia } from 'viem/chains'
+import { base, baseSepolia, bsc } from 'viem/chains'
 
 import type { PopPublicClient } from './types'
 
@@ -9,6 +9,7 @@ import type { PopPublicClient } from './types'
 const DEFAULT_RPC_URLS: Record<number, string> = {
   [base.id]: 'https://mainnet.base.org',
   [baseSepolia.id]: 'https://sepolia.base.org',
+  [bsc.id]: 'https://bsc-dataseed.binance.org',
 }
 
 /**
@@ -40,6 +41,8 @@ export function getPublicClient(chainId: number, rpcUrl?: string): PopPublicClie
     chain = base
   } else if (chainId === baseSepolia.id) {
     chain = baseSepolia
+  } else if (chainId === bsc.id) {
+    chain = bsc
   } else {
     throw new Error(`Unsupported chain ID ${chainId}`)
   }
