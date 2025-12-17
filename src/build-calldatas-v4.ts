@@ -1,12 +1,11 @@
 import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { CLANKERS } from 'clanker-sdk'
 import type { Clanker } from 'clanker-sdk/v4'
 import type { PublicClient, WalletClient } from 'viem'
 import { decodeFunctionResult, encodeFunctionData } from 'viem'
-import * as chains from 'viem/chains'
 
 import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import { buildClankerV4 } from './build-clanker-v4'
+import { GET_CLANKER_FACTORY_ADDRESS } from './constants/clanker'
 import type { LevrClankerDeploymentSchemaType } from './schema'
 import type { CallData } from './types'
 
@@ -28,14 +27,6 @@ export type BuildCalldatasV4ReturnType = {
   liquidityPercentage: number
 }
 
-export const clankerV4Factory: Record<number, `0x${string}`> = {
-  // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
-
-  [chains.anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.address,
-  [chains.base.id]: CLANKERS.clanker_v4.address,
-  [chains.baseSepolia.id]: CLANKERS.clanker_v4_sepolia.address,
-}
-
 export const buildCalldatasV4 = async ({
   c,
   clanker,
@@ -48,7 +39,7 @@ export const buildCalldatasV4 = async ({
 
   if (!publicClient.chain?.id) throw new Error('Chain ID not found')
   const chainId = publicClient.chain.id
-  const clankerFactory = clankerV4Factory?.[chainId]
+  const clankerFactory = GET_CLANKER_FACTORY_ADDRESS(chainId)
   if (!clankerFactory) throw new Error('Clanker factory not found')
 
   if (!deployer) throw new Error('Deployer address not found')
