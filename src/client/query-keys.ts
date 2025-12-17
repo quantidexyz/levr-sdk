@@ -88,4 +88,12 @@ export const queryKeys = {
    * Vault query keys
    */
   vault: (token?: Address, chainId?: number) => ['vault', token, chainId] as const,
+
+  /**
+   * GraphQL subscription query keys
+   */
+  subscription: {
+    projects: (search?: string, offset?: number, limit?: number) =>
+      ['sub:projects', search ?? '', offset ?? 0, limit ?? 0] as const,
+  },
 } as const

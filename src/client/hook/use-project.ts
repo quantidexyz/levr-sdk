@@ -5,41 +5,21 @@ import * as React from 'react'
 import type { Address } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 
-import type { Project, RegisteredStaticProject, StaticProject } from '../..'
-import { getLevrProjectsFields, type LevrProjectData } from '../../graphql/fields/project'
+import type { RegisteredStaticProject, StaticProject } from '../..'
+import {
+  getLevrProjectsFields,
+  type LevrProjectData,
+  type ProjectListItem,
+  type ProjectStats,
+  type TokenInfo,
+} from '../../graphql/fields/project'
 import { getProject, getStaticProject } from '../../project'
 import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
 import { useGraphQLSubscription } from './use-subscription'
 
-/** Indexed stats available from GraphQL subscription */
-export type IndexedStats = {
-  verified: boolean
-  totalStaked: bigint
-  totalProposals: bigint
-  stakerCount: bigint
-  currentCycleId: bigint
-  activeBoostProposals: bigint
-  activeTransferProposals: bigint
-  createdAt: Date
-  updatedAt: Date
-}
-
-/** Project data from indexer, adapted for UI consumption */
-export type IndexedProject = Omit<
-  Project,
-  | 'forwarder'
-  | 'pool'
-  | 'pricing'
-  | 'treasuryStats'
-  | 'stakingStats'
-  | 'governanceStats'
-  | 'feeReceivers'
-  | 'feeSplitter'
-  | 'blockTimestamp'
-> & {
-  indexedStats: IndexedStats
-}
+// Re-export types from fields for convenience
+export type { ProjectListItem, ProjectStats, TokenInfo }
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
@@ -130,20 +110,21 @@ export type UseProjectsParams = {
 }
 
 export type UseProjectsReturnType = {
-  data: { projects: IndexedProject[] } | null
+  data: { projects: ProjectListItem[] } | null
   isLoading: boolean
   error: Error | null
 }
 
 /**
- * Adapts indexed project data to the Project shape expected by UI components
+ * Adapts raw project data to ProjectListItem for UI consumption
+ * Only uses fields available from levrProjectListFields (optimized query)
  */
-function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
+function toProjectListItem(data: LevrProjectData): ProjectListItem | null {
   const token = data.clankerToken
   if (!token) return null
 
   // Parse metadata JSON if present
-  let metadata: Project['token']['metadata'] = null
+  let metadata: Record<string, unknown> | null = null
   if (token.metadata && typeof token.metadata === 'string') {
     try {
       metadata = JSON.parse(token.metadata)
@@ -154,11 +135,6 @@ function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
 
   return {
     chainId: Number(data.chainId),
-    treasury: data.treasury_id as `0x${string}`,
-    governor: data.governor_id as `0x${string}`,
-    staking: data.staking_id as `0x${string}`,
-    stakedToken: data.stakedToken_id as `0x${string}`,
-    factory: '' as `0x${string}`,
     token: {
       address: token.address as `0x${string}`,
       decimals: token.decimals ?? 18,
@@ -167,11 +143,8 @@ function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
       totalSupply: token.totalSupply ? BigInt(token.totalSupply) : 0n,
       metadata,
       imageUrl: token.imageUrl ?? undefined,
-      originalAdmin: (token.originalAdmin ?? '') as `0x${string}`,
-      admin: (token.admin ?? '') as `0x${string}`,
-      context: token.context ?? '',
     },
-    indexedStats: {
+    stats: {
       verified: data.verified ?? false,
       totalStaked: data.totalStaked ? BigInt(data.totalStaked) : 0n,
       totalProposals: data.totalProposals ? BigInt(data.totalProposals) : 0n,
@@ -181,8 +154,6 @@ function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
       activeTransferProposals: data.activeTransferProposals
         ? BigInt(data.activeTransferProposals)
         : 0n,
-      createdAt: new Date(Number(data.createdAt ?? 0) * 1000),
-      updatedAt: new Date(Number(data.updatedAt ?? 0) * 1000),
     },
   }
 }
@@ -197,6 +168,11 @@ export function useProjects({
   limit,
   enabled: e = true,
 }: UseProjectsParams = {}): UseProjectsReturnType {
+  const queryKey = React.useMemo(
+    () => queryKeys.subscription.projects(search, offset, limit),
+    [search, offset, limit]
+  )
+
   const fields = React.useMemo(
     () => getLevrProjectsFields({ search, offset, limit }),
     [search, offset, limit]
@@ -207,14 +183,15 @@ export function useProjects({
     isLoading,
     error: rawError,
   } = useGraphQLSubscription({
+    queryKey,
     fields,
     enabled: e,
   })
 
   const data = React.useMemo(() => {
     if (!rawData?.LevrProject) return null
-    const projects = rawData.LevrProject.map(adaptIndexedProject).filter(
-      (p): p is IndexedProject => p !== null
+    const projects = rawData.LevrProject.map(toProjectListItem).filter(
+      (p): p is ProjectListItem => p !== null
     )
     return { projects }
   }, [rawData])
