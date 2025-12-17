@@ -41,7 +41,7 @@ export const getLevrProjectsFields = ({ search, offset, limit }: ProjectsQueryPa
     LevrProject: {
       __args: {
         ...(searchFilter && { where: searchFilter }),
-        order_by: [{ updatedAt: 'desc' as const }],
+        order_by: [{ stakerCount: 'desc' as const }],
         ...(offset !== undefined && { offset }),
         ...(limit !== undefined && { limit }),
       },

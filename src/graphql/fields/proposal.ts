@@ -7,6 +7,14 @@ import type { SubscriptionResult } from '../gen'
 
 export const levrProposalFields = {
   __scalar: true,
+  // Explicitly include governance fields to ensure they're fetched
+  meetsQuorum: true,
+  meetsApproval: true,
+  state: true,
+  executed: true,
+  yesVotes: true,
+  noVotes: true,
+  totalBalanceVoted: true,
   project: {
     __scalar: true,
     clankerToken: {
@@ -20,6 +28,10 @@ export const levrProposalFields = {
 
 export const levrVoteFields = {
   __scalar: true,
+  // Explicitly include vote fields
+  support: true,
+  votes: true,
+  voter: true,
 } as const satisfies GraphQLSubscriptionArgs['LevrVote']
 
 // ============================================================================

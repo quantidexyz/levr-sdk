@@ -37,9 +37,18 @@ export type EnrichedProposalDetails = FormattedProposalDetails & {
   }
 }
 
+// Map state string from indexer to numeric state
+const stateStringToNumber: Record<string, number> = {
+  Pending: 0,
+  Active: 1,
+  Succeeded: 2,
+  Defeated: 3,
+  Executed: 4,
+}
+
 /**
- * Get proposals data from GraphQL indexer with live RPC data for state
- * meetsQuorum, meetsApproval, state, and winner are fetched from contract
+ * Get proposals data from GraphQL indexer
+ * meetsQuorum, meetsApproval, state are now indexed and updated on each vote
  */
 export async function proposals({
   publicClient,
@@ -91,48 +100,8 @@ export async function proposals({
     }
   }
 
-  // Extract proposal IDs and build multicall to fetch live state from RPC
-  const proposalIds = indexedProposals.map((p) => BigInt(p.id.split('-').pop() ?? '0'))
-
-  // Build multicall for getProposal (returns state, meetsQuorum, meetsApproval) and optionally getVoteReceipt
-  const contracts = proposalIds.flatMap((proposalId) => {
-    const base = [
-      {
-        address: governorAddress,
-        abi: LevrGovernor_v1,
-        functionName: 'getProposal' as const,
-        args: [proposalId],
-      },
-    ]
-
-    if (userAddress) {
-      return [
-        ...base,
-        {
-          address: governorAddress,
-          abi: LevrGovernor_v1,
-          functionName: 'getVoteReceipt' as const,
-          args: [proposalId, userAddress],
-        },
-      ]
-    }
-
-    return base
-  })
-
-  const rpcResults = await publicClient.multicall({ contracts })
-
-  // Parse results
-  const contractsPerProposal = userAddress ? 2 : 1
-  const parsedProposals: EnrichedProposalDetails[] = indexedProposals.map((p, i) => {
-    const baseIndex = i * contractsPerProposal
-    const rpcProposal = rpcResults[baseIndex].result as any
-    const voteReceiptData = userAddress
-      ? (rpcResults[baseIndex + 1].result as
-          | { hasVoted: boolean; support: boolean; votes: bigint }
-          | undefined)
-      : undefined
-
+  // Parse indexed proposals - no RPC calls needed for meetsQuorum/meetsApproval/state
+  const parsedProposals: EnrichedProposalDetails[] = indexedProposals.map((p) => {
     const amountRaw = BigInt(p.amount ?? 0)
     const yesVotesRaw = BigInt(p.yesVotes ?? 0)
     const noVotesRaw = BigInt(p.noVotes ?? 0)
@@ -144,7 +113,7 @@ export async function proposals({
 
     const proposalIdNum = BigInt(p.id.split('-').pop() ?? '0')
 
-    // Get user vote from indexed votes array as fallback
+    // Get user vote from indexed votes array
     const indexedUserVote = (p as any).votes?.[0]
 
     return {
@@ -184,19 +153,17 @@ export async function proposals({
       totalBalanceVoted: BigInt(p.totalBalanceVoted ?? 0),
       executed: p.executed,
       cycleId: BigInt(p.cycleId),
-      // Live values from RPC
-      meetsQuorum: rpcProposal?.meetsQuorum ?? false,
-      meetsApproval: rpcProposal?.meetsApproval ?? false,
-      state: rpcProposal?.state ?? 0,
-      voteReceipt:
-        voteReceiptData ??
-        (indexedUserVote
-          ? {
-              hasVoted: true,
-              support: indexedUserVote.support,
-              votes: BigInt(indexedUserVote.votes ?? 0),
-            }
-          : undefined),
+      // Use indexed values
+      meetsQuorum: p.meetsQuorum ?? false,
+      meetsApproval: p.meetsApproval ?? false,
+      state: stateStringToNumber[p.state] ?? 0,
+      voteReceipt: indexedUserVote
+        ? {
+            hasVoted: true,
+            support: indexedUserVote.support,
+            votes: BigInt(indexedUserVote.votes ?? 0),
+          }
+        : undefined,
     }
   })
 
@@ -208,8 +175,8 @@ export async function proposals({
 }
 
 export async function proposal(
-  publicClient: PopPublicClient,
-  governorAddress: `0x${string}`,
+  _publicClient: PopPublicClient,
+  _governorAddress: `0x${string}`,
   projectId: string,
   proposalId: bigint,
   tokenDecimals: number = 18,
@@ -222,20 +189,10 @@ export async function proposal(
   // Construct composite ID for GraphQL query
   const compositeId = `${projectId.toLowerCase()}-${proposalId.toString()}`
   const fields = getLevrProposalByIdFields(compositeId)
-  const [indexedResult, rpcResult] = await Promise.all([
-    query(fields),
-    publicClient.readContract({
-      address: governorAddress,
-      abi: LevrGovernor_v1,
-      functionName: 'getProposal',
-      args: [proposalId],
-    }),
-  ])
+  const indexedResult = await query(fields)
 
   const p = indexedResult.LevrProposal_by_pk
   if (!p) return null
-
-  const rpcProposal = rpcResult as any
 
   const amountRaw = BigInt(p.amount ?? 0)
   const yesVotesRaw = BigInt(p.yesVotes ?? 0)
@@ -285,9 +242,9 @@ export async function proposal(
     totalBalanceVoted: BigInt(p.totalBalanceVoted ?? 0),
     executed: p.executed,
     cycleId: BigInt(p.cycleId),
-    // Live values from RPC
-    meetsQuorum: rpcProposal?.meetsQuorum ?? false,
-    meetsApproval: rpcProposal?.meetsApproval ?? false,
-    state: rpcProposal?.state ?? 0,
+    // Use indexed values
+    meetsQuorum: p.meetsQuorum ?? false,
+    meetsApproval: p.meetsApproval ?? false,
+    state: stateStringToNumber[p.state] ?? 0,
   }
 }
