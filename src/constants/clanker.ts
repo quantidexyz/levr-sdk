@@ -49,11 +49,11 @@ export const GET_CLANKER_FACTORY_ADDRESS = (chainId?: number): `0x${string}` | u
 
   const chainMap = {
     // In our dev monorepo, we have a clanker_v4_anvil contract, but in the remote package, it's not defined
-    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.factoryAddress,
+    [anvil.id]: (CLANKERS as any)?.clanker_v4_anvil?.address,
     // Same address on both Base mainnet (8453) and Base Sepolia (84532)
-    [base.id]: '0xE85A59c628F7d27878ACeB4bf3b35733630083a9',
-    [baseSepolia.id]: '0xE85A59c628F7d27878ACeB4bf3b35733630083a9',
-    [bsc.id]: '0xFb28402068d716C82D8Cd80567d1B0e2539AdFB2',
+    [base.id]: CLANKERS.clanker_v4.address,
+    [baseSepolia.id]: CLANKERS.clanker_v4_sepolia.address,
+    [bsc.id]: (CLANKERS as any)?.clanker_v4_bnb?.address,
   } as Record<number, `0x${string}` | undefined>
 
   return chainMap?.[chainId]
