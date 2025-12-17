@@ -1,5 +1,5 @@
 import { BigNumber } from 'ethers'
-import { anvil, base, baseSepolia } from 'viem/chains'
+import { anvil, base, baseSepolia, bsc } from 'viem/chains'
 
 export * from './clanker'
 export * from './config'
@@ -7,9 +7,9 @@ export * from './levr'
 export * from './uniswap'
 
 /**
- * Get the WETH address for a given chain ID
+ * Get the wrapped native token address for a given chain ID (WETH/WBNB)
  * @param chainId - The chain ID
- * @returns The WETH address
+ * @returns The wrapped native token info
  */
 export const WETH = (
   chainId?: number
@@ -23,17 +23,25 @@ export const WETH = (
   | undefined => {
   if (!chainId) return undefined
 
-  const initial = {
+  const weth = {
     decimals: 18,
     symbol: 'WETH',
     name: 'Wrapped Ether',
     address: '0x4200000000000000000000000000000000000006',
   } as const
 
+  const wbnb = {
+    decimals: 18,
+    symbol: 'WBNB',
+    name: 'Wrapped BNB',
+    address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+  } as const
+
   return {
-    [anvil.id]: initial,
-    [base.id]: initial,
-    [baseSepolia.id]: initial,
+    [anvil.id]: weth,
+    [base.id]: weth,
+    [baseSepolia.id]: weth,
+    [bsc.id]: wbnb,
   }[chainId]
 }
 
