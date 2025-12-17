@@ -474,11 +474,12 @@ columns and relationships of "LevrMetrics"
 type LevrMetrics {
   createdAt: numeric!
   id: String!
-  lastStakedAt: numeric
-  lastStakedProject_id: String
   projectCount: numeric!
   totalStaked: numeric!
+  totalStakedUsd: String
   totalStakers: numeric!
+  tvl: numeric!
+  tvlUsd: String
   updatedAt: numeric!
 }
 
@@ -491,11 +492,12 @@ input LevrMetrics_bool_exp {
   _or: [LevrMetrics_bool_exp!]
   createdAt: numeric_comparison_exp
   id: String_comparison_exp
-  lastStakedAt: numeric_comparison_exp
-  lastStakedProject_id: String_comparison_exp
   projectCount: numeric_comparison_exp
   totalStaked: numeric_comparison_exp
+  totalStakedUsd: String_comparison_exp
   totalStakers: numeric_comparison_exp
+  tvl: numeric_comparison_exp
+  tvlUsd: String_comparison_exp
   updatedAt: numeric_comparison_exp
 }
 
@@ -503,11 +505,12 @@ input LevrMetrics_bool_exp {
 input LevrMetrics_order_by {
   createdAt: order_by
   id: order_by
-  lastStakedAt: order_by
-  lastStakedProject_id: order_by
   projectCount: order_by
   totalStaked: order_by
+  totalStakedUsd: order_by
   totalStakers: order_by
+  tvl: order_by
+  tvlUsd: order_by
   updatedAt: order_by
 }
 
@@ -522,19 +525,22 @@ enum LevrMetrics_select_column {
   id
 
   """column name"""
-  lastStakedAt
-
-  """column name"""
-  lastStakedProject_id
-
-  """column name"""
   projectCount
 
   """column name"""
   totalStaked
 
   """column name"""
+  totalStakedUsd
+
+  """column name"""
   totalStakers
+
+  """column name"""
+  tvl
+
+  """column name"""
+  tvlUsd
 
   """column name"""
   updatedAt
@@ -555,11 +561,12 @@ input LevrMetrics_stream_cursor_input {
 input LevrMetrics_stream_cursor_value_input {
   createdAt: numeric
   id: String
-  lastStakedAt: numeric
-  lastStakedProject_id: String
   projectCount: numeric
   totalStaked: numeric
+  totalStakedUsd: String
   totalStakers: numeric
+  tvl: numeric
+  tvlUsd: String
   updatedAt: numeric
 }
 
@@ -677,10 +684,13 @@ type LevrProject {
     """filter the rows returned"""
     where: LevrStaker_bool_exp
   ): [LevrStaker!]!
+  stakingContractBalance: numeric!
+  stakingContractBalanceUsd: String
   staking_id: String!
   streamWindowSeconds: numeric!
   totalProposals: numeric!
   totalStaked: numeric!
+  totalStakedUsd: String
 
   """An array relationship"""
   transfers(
@@ -699,7 +709,11 @@ type LevrProject {
     """filter the rows returned"""
     where: LevrTreasuryTransfer_bool_exp
   ): [LevrTreasuryTransfer!]!
+  treasuryBalance: numeric!
+  treasuryBalanceUsd: String
   treasury_id: String!
+  tvl: numeric!
+  tvlUsd: String
   updatedAt: numeric!
   verified: Boolean!
   votingWindowSeconds: numeric!
@@ -735,12 +749,19 @@ input LevrProject_bool_exp {
   stakedToken_id: String_comparison_exp
   stakerCount: numeric_comparison_exp
   stakers: LevrStaker_bool_exp
+  stakingContractBalance: numeric_comparison_exp
+  stakingContractBalanceUsd: String_comparison_exp
   staking_id: String_comparison_exp
   streamWindowSeconds: numeric_comparison_exp
   totalProposals: numeric_comparison_exp
   totalStaked: numeric_comparison_exp
+  totalStakedUsd: String_comparison_exp
   transfers: LevrTreasuryTransfer_bool_exp
+  treasuryBalance: numeric_comparison_exp
+  treasuryBalanceUsd: String_comparison_exp
   treasury_id: String_comparison_exp
+  tvl: numeric_comparison_exp
+  tvlUsd: String_comparison_exp
   updatedAt: numeric_comparison_exp
   verified: Boolean_comparison_exp
   votingWindowSeconds: numeric_comparison_exp
@@ -771,12 +792,19 @@ input LevrProject_order_by {
   stakedToken_id: order_by
   stakerCount: order_by
   stakers_aggregate: LevrStaker_aggregate_order_by
+  stakingContractBalance: order_by
+  stakingContractBalanceUsd: order_by
   staking_id: order_by
   streamWindowSeconds: order_by
   totalProposals: order_by
   totalStaked: order_by
+  totalStakedUsd: order_by
   transfers_aggregate: LevrTreasuryTransfer_aggregate_order_by
+  treasuryBalance: order_by
+  treasuryBalanceUsd: order_by
   treasury_id: order_by
+  tvl: order_by
+  tvlUsd: order_by
   updatedAt: order_by
   verified: order_by
   votingWindowSeconds: order_by
@@ -838,6 +866,12 @@ enum LevrProject_select_column {
   stakerCount
 
   """column name"""
+  stakingContractBalance
+
+  """column name"""
+  stakingContractBalanceUsd
+
+  """column name"""
   staking_id
 
   """column name"""
@@ -850,7 +884,22 @@ enum LevrProject_select_column {
   totalStaked
 
   """column name"""
+  totalStakedUsd
+
+  """column name"""
+  treasuryBalance
+
+  """column name"""
+  treasuryBalanceUsd
+
+  """column name"""
   treasury_id
+
+  """column name"""
+  tvl
+
+  """column name"""
+  tvlUsd
 
   """column name"""
   updatedAt
@@ -892,11 +941,18 @@ input LevrProject_stream_cursor_value_input {
   quorumBps: numeric
   stakedToken_id: String
   stakerCount: numeric
+  stakingContractBalance: numeric
+  stakingContractBalanceUsd: String
   staking_id: String
   streamWindowSeconds: numeric
   totalProposals: numeric
   totalStaked: numeric
+  totalStakedUsd: String
+  treasuryBalance: numeric
+  treasuryBalanceUsd: String
   treasury_id: String
+  tvl: numeric
+  tvlUsd: String
   updatedAt: numeric
   verified: Boolean
   votingWindowSeconds: numeric
@@ -4221,9 +4277,16 @@ type Token {
   metadata: String
   name: String
   originalAdmin: String
+  priceUpdatedAt: numeric
+  priceUsd: String
+  priceWeth: numeric
   symbol: String
   totalSupply: numeric
   updatedAt: numeric!
+
+  """An object relationship"""
+  v4Pool: UniswapV4Pool
+  v4Pool_id: String
 }
 
 """
@@ -4244,9 +4307,14 @@ input Token_bool_exp {
   metadata: String_comparison_exp
   name: String_comparison_exp
   originalAdmin: String_comparison_exp
+  priceUpdatedAt: numeric_comparison_exp
+  priceUsd: String_comparison_exp
+  priceWeth: numeric_comparison_exp
   symbol: String_comparison_exp
   totalSupply: numeric_comparison_exp
   updatedAt: numeric_comparison_exp
+  v4Pool: UniswapV4Pool_bool_exp
+  v4Pool_id: String_comparison_exp
 }
 
 """Ordering options when selecting data from "Token"."""
@@ -4262,9 +4330,14 @@ input Token_order_by {
   metadata: order_by
   name: order_by
   originalAdmin: order_by
+  priceUpdatedAt: order_by
+  priceUsd: order_by
+  priceWeth: order_by
   symbol: order_by
   totalSupply: order_by
   updatedAt: order_by
+  v4Pool: UniswapV4Pool_order_by
+  v4Pool_id: order_by
 }
 
 """
@@ -4305,6 +4378,15 @@ enum Token_select_column {
   originalAdmin
 
   """column name"""
+  priceUpdatedAt
+
+  """column name"""
+  priceUsd
+
+  """column name"""
+  priceWeth
+
+  """column name"""
   symbol
 
   """column name"""
@@ -4312,6 +4394,9 @@ enum Token_select_column {
 
   """column name"""
   updatedAt
+
+  """column name"""
+  v4Pool_id
 }
 
 """
@@ -4338,9 +4423,13 @@ input Token_stream_cursor_value_input {
   metadata: String
   name: String
   originalAdmin: String
+  priceUpdatedAt: numeric
+  priceUsd: String
+  priceWeth: numeric
   symbol: String
   totalSupply: numeric
   updatedAt: numeric
+  v4Pool_id: String
 }
 
 """

@@ -16,7 +16,7 @@ const baseRules = {
 }
 
 export default defineConfig([
-  globalIgnores(['dist/**', 'node_modules/**', 'contracts/**']),
+  globalIgnores(['dist/**', 'node_modules/**', 'contracts/**, src/graphql/gen/**']),
   // JavaScript/Config files (no TypeScript parser)
   {
     files: ['**/*.{mjs,cjs,js}'],

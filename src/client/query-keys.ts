@@ -93,6 +93,7 @@ export const queryKeys = {
    * GraphQL subscription query keys
    */
   subscription: {
+    metrics: () => ['sub:metrics'] as const,
     projects: (search?: string, offset?: number, limit?: number) =>
       ['sub:projects', search ?? '', offset ?? 0, limit ?? 0] as const,
   },

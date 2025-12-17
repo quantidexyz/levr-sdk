@@ -16,6 +16,8 @@ export const levrProjectListFields = {
   // Stats displayed in card
   verified: true,
   totalStaked: true,
+  totalStakedUsd: true,
+  tvlUsd: true,
   totalProposals: true,
   stakerCount: true,
   currentCycleId: true,
@@ -28,6 +30,7 @@ export const levrProjectListFields = {
     symbol: true,
     decimals: true,
     totalSupply: true,
+    priceUsd: true,
     imageUrl: true,
     metadata: true,
   },
@@ -116,6 +119,8 @@ export type LevrProjectByIdData = LevrProjectByIdResult['LevrProject_by_pk']
 export type ProjectStats = {
   verified: boolean
   totalStaked: bigint
+  totalStakedUsd: string | null
+  tvlUsd: string | null
   totalProposals: bigint
   stakerCount: bigint
   currentCycleId: bigint
@@ -130,6 +135,7 @@ export type TokenInfo = {
   name: string
   symbol: string
   totalSupply: bigint
+  priceUsd: string | null
   metadata: Record<string, unknown> | null
   imageUrl?: string
 }

@@ -44,7 +44,20 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
   const queryClient = useQueryClient()
   const queryKeyStr = JSON.stringify(queryKey)
 
+  // Stabilize fields reference using JSON serialization to prevent unnecessary re-subscriptions
+  const fieldsStr = JSON.stringify(fields)
+  const stableFields = React.useMemo(() => JSON.parse(fieldsStr) as TSubscriptionArgs, [fieldsStr])
+
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null)
+
+  // Track whether we've received data at least once for this subscription
+  // This prevents permanent loading state on re-subscriptions
+  const hasLoadedOnceRef = React.useRef(false)
+
+  // Reset hasLoadedOnce when the query key changes (new subscription)
+  React.useEffect(() => {
+    hasLoadedOnceRef.current = false
+  }, [queryKeyStr])
 
   // Subscribe to cache changes synchronously via useSyncExternalStore
   // This ensures cached data is available immediately on first render
@@ -69,6 +82,13 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
     React.useCallback(() => null, [])
   )
 
+  // Update hasLoadedOnce when we receive data
+  React.useEffect(() => {
+    if (data !== null) {
+      hasLoadedOnceRef.current = true
+    }
+  }, [data])
+
   // Set up GraphQL subscription to update React Query cache
   React.useEffect(() => {
     if (!enabled) return undefined
@@ -76,7 +96,7 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
     setSubscriptionError(null)
 
     try {
-      const sub = subscription(fields)
+      const sub = subscription(stableFields)
       const callbackId = sub.addCallback((newData) => {
         queryClient.setQueryData<SubscriptionResult<TSubscriptionArgs>>(queryKey, newData)
       })
@@ -91,11 +111,15 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
       setSubscriptionError(errorMessage)
       return undefined
     }
-  }, [queryKeyStr, enabled, queryClient, fields])
+  }, [queryKeyStr, fieldsStr, enabled, queryClient])
+
+  // Only show loading if we haven't received data yet AND we haven't loaded once before
+  // This prevents the permanent loading state on window focus / re-subscription
+  const isLoading = enabled && !data && !subscriptionError && !hasLoadedOnceRef.current
 
   return {
     data,
     error: subscriptionError,
-    isLoading: enabled && !data && !subscriptionError,
+    isLoading,
   }
 }

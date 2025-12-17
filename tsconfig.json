@@ -1,6 +1,6 @@
 {
   "include": ["src", "example", "test", "script"],
-  "exclude": ["**/bak/*", "dist", "node_modules", "**/gen/*"],
+  "exclude": ["**/bak/*", "dist", "node_modules", "src/graphql/gen/*"],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
 
