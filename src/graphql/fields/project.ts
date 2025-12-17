@@ -1,4 +1,4 @@
-import type { GraphQLQueryArgs, GraphQLQueryResult, GraphQLSubscriptionArgs } from '..'
+import type { GraphQLQueryResult, GraphQLSubscriptionArgs } from '..'
 import type { SubscriptionResult } from '../gen'
 
 // ============================================================================
@@ -69,47 +69,10 @@ export type LevrProjectsResult = SubscriptionResult<LevrProjectsFields>
 export type LevrProjectData = LevrProjectsResult['LevrProject'][number]
 
 type LevrProjectByIdFields = ReturnType<typeof getLevrProjectByIdFields>
-export type LevrProjectByIdQueryFields = LevrProjectByIdFields & GraphQLQueryArgs
+export type LevrProjectByIdQueryFields = LevrProjectByIdFields
 export type LevrProjectByIdResult = GraphQLQueryResult<LevrProjectByIdQueryFields>
 
 /**
  * Indexed project data returned from graphql query
  */
-export type LevrProjectByIdData = {
-  id: string
-  chainId: string // BigInt as string
-  treasury_id: string
-  governor_id: string
-  staking_id: string
-  stakedToken_id: string
-  verified: boolean
-  totalStaked: string
-  totalProposals: string
-  streamWindowSeconds: string
-  proposalWindowSeconds: string
-  votingWindowSeconds: string
-  maxActiveProposals: string
-  quorumBps: string
-  approvalBps: string
-  minSTokenBpsToSubmit: string
-  maxProposalAmountBps: string
-  minimumQuorumBps: string
-  createdAt: string
-  updatedAt: string
-  clankerToken: {
-    id: string
-    chainId: string
-    address: string
-    symbol: string | null
-    name: string | null
-    decimals: number | null
-    totalSupply: string | null
-    imageUrl: string | null
-    metadata: string | null
-    originalAdmin: string | null
-    admin: string | null
-    context: string | null
-    createdAt: string
-    updatedAt: string
-  } | null
-}
+export type LevrProjectByIdData = LevrProjectByIdResult['LevrProject_by_pk']

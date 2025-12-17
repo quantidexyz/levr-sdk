@@ -112,12 +112,15 @@ export type LevrMetrics_select_column =
 
 /** columns and relationships of "LevrProject" */
 export interface LevrProject {
+  activeBoostProposals: Scalars['numeric']
+  activeTransferProposals: Scalars['numeric']
   approvalBps: Scalars['numeric']
   chainId: Scalars['numeric']
   /** An object relationship */
   clankerToken: Token | null
   clankerToken_id: Scalars['String']
   createdAt: Scalars['numeric']
+  currentCycleId: Scalars['numeric']
   /** An array relationship */
   cycles: LevrGovernanceCycle[]
   governor_id: Scalars['String']
@@ -135,6 +138,7 @@ export interface LevrProject {
   /** An array relationship */
   stakeActions: LevrStakeAction[]
   stakedToken_id: Scalars['String']
+  stakerCount: Scalars['numeric']
   /** An array relationship */
   stakers: LevrStaker[]
   staking_id: Scalars['String']
@@ -152,10 +156,13 @@ export interface LevrProject {
 
 /** select columns of table "LevrProject" */
 export type LevrProject_select_column =
+  | 'activeBoostProposals'
+  | 'activeTransferProposals'
   | 'approvalBps'
   | 'chainId'
   | 'clankerToken_id'
   | 'createdAt'
+  | 'currentCycleId'
   | 'governor_id'
   | 'id'
   | 'maxActiveProposals'
@@ -165,6 +172,7 @@ export type LevrProject_select_column =
   | 'proposalWindowSeconds'
   | 'quorumBps'
   | 'stakedToken_id'
+  | 'stakerCount'
   | 'staking_id'
   | 'streamWindowSeconds'
   | 'totalProposals'
@@ -1508,12 +1516,15 @@ export interface LevrMetrics_stream_cursor_value_input {
 
 /** columns and relationships of "LevrProject" */
 export interface LevrProjectGenqlSelection {
+  activeBoostProposals?: boolean | number
+  activeTransferProposals?: boolean | number
   approvalBps?: boolean | number
   chainId?: boolean | number
   /** An object relationship */
   clankerToken?: TokenGenqlSelection
   clankerToken_id?: boolean | number
   createdAt?: boolean | number
+  currentCycleId?: boolean | number
   /** An array relationship */
   cycles?: LevrGovernanceCycleGenqlSelection & {
     __args?: {
@@ -1583,6 +1594,7 @@ export interface LevrProjectGenqlSelection {
     }
   }
   stakedToken_id?: boolean | number
+  stakerCount?: boolean | number
   /** An array relationship */
   stakers?: LevrStakerGenqlSelection & {
     __args?: {
@@ -1630,11 +1642,14 @@ export interface LevrProject_bool_exp {
   _and?: LevrProject_bool_exp[] | null
   _not?: LevrProject_bool_exp | null
   _or?: LevrProject_bool_exp[] | null
+  activeBoostProposals?: numeric_comparison_exp | null
+  activeTransferProposals?: numeric_comparison_exp | null
   approvalBps?: numeric_comparison_exp | null
   chainId?: numeric_comparison_exp | null
   clankerToken?: Token_bool_exp | null
   clankerToken_id?: String_comparison_exp | null
   createdAt?: numeric_comparison_exp | null
+  currentCycleId?: numeric_comparison_exp | null
   cycles?: LevrGovernanceCycle_bool_exp | null
   governor_id?: String_comparison_exp | null
   id?: String_comparison_exp | null
@@ -1648,6 +1663,7 @@ export interface LevrProject_bool_exp {
   rewardStreams?: LevrRewardStream_bool_exp | null
   stakeActions?: LevrStakeAction_bool_exp | null
   stakedToken_id?: String_comparison_exp | null
+  stakerCount?: numeric_comparison_exp | null
   stakers?: LevrStaker_bool_exp | null
   staking_id?: String_comparison_exp | null
   streamWindowSeconds?: numeric_comparison_exp | null
@@ -1662,11 +1678,14 @@ export interface LevrProject_bool_exp {
 
 /** Ordering options when selecting data from "LevrProject". */
 export interface LevrProject_order_by {
+  activeBoostProposals?: order_by | null
+  activeTransferProposals?: order_by | null
   approvalBps?: order_by | null
   chainId?: order_by | null
   clankerToken?: Token_order_by | null
   clankerToken_id?: order_by | null
   createdAt?: order_by | null
+  currentCycleId?: order_by | null
   cycles_aggregate?: LevrGovernanceCycle_aggregate_order_by | null
   governor_id?: order_by | null
   id?: order_by | null
@@ -1680,6 +1699,7 @@ export interface LevrProject_order_by {
   rewardStreams_aggregate?: LevrRewardStream_aggregate_order_by | null
   stakeActions_aggregate?: LevrStakeAction_aggregate_order_by | null
   stakedToken_id?: order_by | null
+  stakerCount?: order_by | null
   stakers_aggregate?: LevrStaker_aggregate_order_by | null
   staking_id?: order_by | null
   streamWindowSeconds?: order_by | null
@@ -1702,10 +1722,13 @@ export interface LevrProject_stream_cursor_input {
 
 /** Initial value of the column from where the streaming should start */
 export interface LevrProject_stream_cursor_value_input {
+  activeBoostProposals?: Scalars['numeric'] | null
+  activeTransferProposals?: Scalars['numeric'] | null
   approvalBps?: Scalars['numeric'] | null
   chainId?: Scalars['numeric'] | null
   clankerToken_id?: Scalars['String'] | null
   createdAt?: Scalars['numeric'] | null
+  currentCycleId?: Scalars['numeric'] | null
   governor_id?: Scalars['String'] | null
   id?: Scalars['String'] | null
   maxActiveProposals?: Scalars['numeric'] | null
@@ -1715,6 +1738,7 @@ export interface LevrProject_stream_cursor_value_input {
   proposalWindowSeconds?: Scalars['numeric'] | null
   quorumBps?: Scalars['numeric'] | null
   stakedToken_id?: Scalars['String'] | null
+  stakerCount?: Scalars['numeric'] | null
   staking_id?: Scalars['String'] | null
   streamWindowSeconds?: Scalars['numeric'] | null
   totalProposals?: Scalars['numeric'] | null
@@ -6218,10 +6242,13 @@ export const enumLevrMetricsSelectColumn = {
 }
 
 export const enumLevrProjectSelectColumn = {
+  activeBoostProposals: 'activeBoostProposals' as const,
+  activeTransferProposals: 'activeTransferProposals' as const,
   approvalBps: 'approvalBps' as const,
   chainId: 'chainId' as const,
   clankerToken_id: 'clankerToken_id' as const,
   createdAt: 'createdAt' as const,
+  currentCycleId: 'currentCycleId' as const,
   governor_id: 'governor_id' as const,
   id: 'id' as const,
   maxActiveProposals: 'maxActiveProposals' as const,
@@ -6231,6 +6258,7 @@ export const enumLevrProjectSelectColumn = {
   proposalWindowSeconds: 'proposalWindowSeconds' as const,
   quorumBps: 'quorumBps' as const,
   stakedToken_id: 'stakedToken_id' as const,
+  stakerCount: 'stakerCount' as const,
   staking_id: 'staking_id' as const,
   streamWindowSeconds: 'streamWindowSeconds' as const,
   totalProposals: 'totalProposals' as const,

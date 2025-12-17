@@ -567,6 +567,8 @@ input LevrMetrics_stream_cursor_value_input {
 columns and relationships of "LevrProject"
 """
 type LevrProject {
+  activeBoostProposals: numeric!
+  activeTransferProposals: numeric!
   approvalBps: numeric!
   chainId: numeric!
 
@@ -574,6 +576,7 @@ type LevrProject {
   clankerToken: Token
   clankerToken_id: String!
   createdAt: numeric!
+  currentCycleId: numeric!
 
   """An array relationship"""
   cycles(
@@ -655,6 +658,7 @@ type LevrProject {
     where: LevrStakeAction_bool_exp
   ): [LevrStakeAction!]!
   stakedToken_id: String!
+  stakerCount: numeric!
 
   """An array relationship"""
   stakers(
@@ -708,11 +712,14 @@ input LevrProject_bool_exp {
   _and: [LevrProject_bool_exp!]
   _not: LevrProject_bool_exp
   _or: [LevrProject_bool_exp!]
+  activeBoostProposals: numeric_comparison_exp
+  activeTransferProposals: numeric_comparison_exp
   approvalBps: numeric_comparison_exp
   chainId: numeric_comparison_exp
   clankerToken: Token_bool_exp
   clankerToken_id: String_comparison_exp
   createdAt: numeric_comparison_exp
+  currentCycleId: numeric_comparison_exp
   cycles: LevrGovernanceCycle_bool_exp
   governor_id: String_comparison_exp
   id: String_comparison_exp
@@ -726,6 +733,7 @@ input LevrProject_bool_exp {
   rewardStreams: LevrRewardStream_bool_exp
   stakeActions: LevrStakeAction_bool_exp
   stakedToken_id: String_comparison_exp
+  stakerCount: numeric_comparison_exp
   stakers: LevrStaker_bool_exp
   staking_id: String_comparison_exp
   streamWindowSeconds: numeric_comparison_exp
@@ -740,11 +748,14 @@ input LevrProject_bool_exp {
 
 """Ordering options when selecting data from "LevrProject"."""
 input LevrProject_order_by {
+  activeBoostProposals: order_by
+  activeTransferProposals: order_by
   approvalBps: order_by
   chainId: order_by
   clankerToken: Token_order_by
   clankerToken_id: order_by
   createdAt: order_by
+  currentCycleId: order_by
   cycles_aggregate: LevrGovernanceCycle_aggregate_order_by
   governor_id: order_by
   id: order_by
@@ -758,6 +769,7 @@ input LevrProject_order_by {
   rewardStreams_aggregate: LevrRewardStream_aggregate_order_by
   stakeActions_aggregate: LevrStakeAction_aggregate_order_by
   stakedToken_id: order_by
+  stakerCount: order_by
   stakers_aggregate: LevrStaker_aggregate_order_by
   staking_id: order_by
   streamWindowSeconds: order_by
@@ -775,6 +787,12 @@ select columns of table "LevrProject"
 """
 enum LevrProject_select_column {
   """column name"""
+  activeBoostProposals
+
+  """column name"""
+  activeTransferProposals
+
+  """column name"""
   approvalBps
 
   """column name"""
@@ -785,6 +803,9 @@ enum LevrProject_select_column {
 
   """column name"""
   createdAt
+
+  """column name"""
+  currentCycleId
 
   """column name"""
   governor_id
@@ -812,6 +833,9 @@ enum LevrProject_select_column {
 
   """column name"""
   stakedToken_id
+
+  """column name"""
+  stakerCount
 
   """column name"""
   staking_id
@@ -851,10 +875,13 @@ input LevrProject_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input LevrProject_stream_cursor_value_input {
+  activeBoostProposals: numeric
+  activeTransferProposals: numeric
   approvalBps: numeric
   chainId: numeric
   clankerToken_id: String
   createdAt: numeric
+  currentCycleId: numeric
   governor_id: String
   id: String
   maxActiveProposals: numeric
@@ -864,6 +891,7 @@ input LevrProject_stream_cursor_value_input {
   proposalWindowSeconds: numeric
   quorumBps: numeric
   stakedToken_id: String
+  stakerCount: numeric
   staking_id: String
   streamWindowSeconds: numeric
   totalProposals: numeric

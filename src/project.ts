@@ -4,7 +4,6 @@ import {
   IClankerFeeLocker,
   IClankerLpLockerFeeConversion,
   LevrFactory_v1,
-  LevrGovernor_v1,
   LevrStaking_v1,
 } from './abis'
 import { formatBalanceWithUsd } from './balance'
@@ -28,6 +27,16 @@ import { query } from './graphql'
 import { getLevrProjectByIdFields, type LevrProjectByIdData } from './graphql/fields/project'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
 import { getUsdPrice, getWethUsdPrice } from './usd-price'
+
+// ============================================================================
+// Re-export Indexed Project Data Type
+// ============================================================================
+
+/**
+ * Indexed project data from the GraphQL indexer.
+ * Re-exported for external use in ProjectParams.
+ */
+export type IndexedProjectData = LevrProjectByIdData
 
 export type StaticProjectParams = {
   publicClient: PopPublicClient
@@ -216,12 +225,6 @@ type TreasuryContractsResult = [
   MulticallResult<bigint>?, // staking balance (weth) - optional
 ]
 
-type GovernanceContractsResult = [
-  MulticallResult<bigint>, // currentCycleId
-  MulticallResult<bigint>, // activeProposalCount (boost - type 0)
-  MulticallResult<bigint>, // activeProposalCount (transfer - type 1)
-]
-
 type StakingContractsResult = [
   MulticallResult<bigint>, // totalStaked
   MulticallResult<bigint>, // aprBps
@@ -257,14 +260,6 @@ type FactoryData = {
   staking: `0x${string}`
   stakedToken: `0x${string}`
   forwarder: `0x${string}`
-}
-
-type GovernanceData = {
-  currentCycleId: bigint
-  activeProposalCount: {
-    boost: bigint
-    transfer: bigint
-  }
 }
 
 // ---
@@ -307,28 +302,6 @@ function getTreasuryContracts(
   }
 
   return contracts
-}
-
-function getGovernanceContracts(governor: `0x${string}`) {
-  return [
-    {
-      address: governor,
-      abi: LevrGovernor_v1,
-      functionName: 'currentCycleId' as const,
-    },
-    {
-      address: governor,
-      abi: LevrGovernor_v1,
-      functionName: 'activeProposalCount' as const,
-      args: [0], // boost type
-    },
-    {
-      address: governor,
-      abi: LevrGovernor_v1,
-      functionName: 'activeProposalCount' as const,
-      args: [1], // transfer type
-    },
-  ]
 }
 
 function getStakingContracts(
@@ -455,17 +428,6 @@ function parseTreasuryStats(
     stakingContractWethBalance: stakingWethBalanceRaw
       ? formatBalanceWithUsd(stakingWethBalanceRaw, 18, wethUsdPrice ?? null)
       : undefined,
-  }
-}
-
-function parseGovernanceData(results: GovernanceContractsResult): GovernanceData {
-  const [currentCycleId, boostCount, transferCount] = results
-  return {
-    currentCycleId: currentCycleId.result === 0n ? 1n : currentCycleId.result,
-    activeProposalCount: {
-      boost: boostCount.result,
-      transfer: transferCount.result,
-    },
   }
 }
 
@@ -635,8 +597,6 @@ function parseStakingStats(
 // Indexed Project Data
 // ============================================================================
 
-export type IndexedProjectData = LevrProjectByIdData
-
 /**
  * Fetch project data from the indexer
  * Returns null if the project is not found in the indexer
@@ -651,60 +611,6 @@ export async function getIndexedProject(
     return (result.LevrProject_by_pk as IndexedProjectData | null) ?? null
   } catch {
     return null
-  }
-}
-
-/**
- * Parse indexed project data into token data format
- */
-function parseIndexedTokenData(
-  indexed: IndexedProjectData,
-  clankerToken: `0x${string}`
-): TokenData | null {
-  const token = indexed.clankerToken
-  if (!token) return null
-
-  // Parse metadata JSON
-  let parsedMetadata: ProjectMetadata | null = null
-  if (token.metadata && typeof token.metadata === 'string') {
-    try {
-      parsedMetadata = JSON.parse(token.metadata)
-    } catch {
-      // If parsing fails, leave as null
-    }
-  }
-
-  return {
-    address: clankerToken,
-    decimals: token.decimals ?? 18,
-    name: token.name ?? '',
-    symbol: token.symbol ?? '',
-    totalSupply: token.totalSupply ? BigInt(token.totalSupply) : 0n,
-    metadata: parsedMetadata,
-    imageUrl: token.imageUrl ?? undefined,
-    originalAdmin: (token.originalAdmin ?? zeroAddress) as `0x${string}`,
-    admin: (token.admin ?? zeroAddress) as `0x${string}`,
-    context: token.context ?? '',
-  }
-}
-
-/**
- * Parse indexed project data into factory data format
- */
-function parseIndexedFactoryData(indexed: IndexedProjectData): FactoryData | null {
-  const { treasury_id, governor_id, staking_id, stakedToken_id } = indexed
-
-  // Check if project is registered (all addresses are non-empty)
-  if (!treasury_id || !governor_id || !staking_id || !stakedToken_id) {
-    return null
-  }
-
-  return {
-    treasury: treasury_id as `0x${string}`,
-    governor: governor_id as `0x${string}`,
-    staking: staking_id as `0x${string}`,
-    stakedToken: stakedToken_id as `0x${string}`,
-    forwarder: zeroAddress, // Will be fetched via RPC if needed
   }
 }
 
@@ -739,14 +645,46 @@ export async function getStaticProject({
     getFeeSplitter({ publicClient, clankerToken, chainId }),
   ])
 
-  // If project not found in indexer, return null
   if (!indexedProject) return null
 
-  // Parse token and factory data from indexer
-  const tokenData = parseIndexedTokenData(indexedProject, clankerToken)
-  if (!tokenData) return null
+  // Parse token data from indexed project
+  const indexedToken = indexedProject.clankerToken
+  if (!indexedToken) return null
 
-  const indexedFactory = parseIndexedFactoryData(indexedProject)
+  let parsedMetadata: ProjectMetadata | null = null
+  if (indexedToken.metadata && typeof indexedToken.metadata === 'string') {
+    try {
+      parsedMetadata = JSON.parse(indexedToken.metadata)
+    } catch {
+      // If parsing fails, leave as null
+    }
+  }
+
+  const tokenData: TokenData = {
+    address: clankerToken,
+    decimals: indexedToken.decimals ?? 18,
+    name: indexedToken.name ?? '',
+    symbol: indexedToken.symbol ?? '',
+    totalSupply: indexedToken.totalSupply ? BigInt(indexedToken.totalSupply) : 0n,
+    metadata: parsedMetadata,
+    imageUrl: indexedToken.imageUrl ?? undefined,
+    originalAdmin: (indexedToken.originalAdmin ?? zeroAddress) as `0x${string}`,
+    admin: (indexedToken.admin ?? zeroAddress) as `0x${string}`,
+    context: indexedToken.context ?? '',
+  }
+
+  // Parse factory data from indexed project
+  const { treasury_id, governor_id, staking_id, stakedToken_id } = indexedProject
+  const indexedFactory =
+    treasury_id && governor_id && staking_id && stakedToken_id
+      ? {
+          treasury: treasury_id as `0x${string}`,
+          governor: governor_id as `0x${string}`,
+          staking: staking_id as `0x${string}`,
+          stakedToken: stakedToken_id as `0x${string}`,
+          forwarder: zeroAddress as `0x${string}`,
+        }
+      : null
 
   // Only fetch what's not in the indexer: forwarder, fee receivers, fee splitter
   const contracts = [
@@ -889,7 +827,9 @@ export async function getStaticProject({
 /**
  * Get project data for a clanker token
  * Requires staticProject data to avoid refetching static information
- * Fetches dynamic data including treasury, governance, staking stats, and pricing
+ * Fetches dynamic data including treasury, staking stats, and pricing
+ *
+ * Governance stats are fetched from the indexer (no RPC calls needed)
  */
 export async function getProject({
   publicClient,
@@ -905,54 +845,17 @@ export async function getProject({
 
   const wethAddress = WETH(chainId)?.address
   const clankerToken = staticProject.token.address
-  // Use fee splitter from staticProject (already fetched in getStaticProject)
   const feeSplitterAddress = staticProject.feeSplitter?.address
   const rewardTokens = wethAddress ? [clankerToken, wethAddress] : [clankerToken]
 
-  // Fetch pricing data if oracle client is provided and pool exists
-  let pricing: PricingResult | undefined
-
-  if (oraclePublicClient && staticProject.pool) {
-    try {
-      const [wethUsdData, tokenUsdData] = await Promise.all([
-        getWethUsdPrice({ publicClient: oraclePublicClient }),
-        getUsdPrice({
-          oraclePublicClient,
-          quotePublicClient: publicClient,
-          tokenAddress: clankerToken,
-          tokenDecimals: staticProject.token.decimals,
-          quoteFee: staticProject.pool.poolKey.fee,
-          quoteTickSpacing: staticProject.pool.poolKey.tickSpacing,
-          quoteHooks: staticProject.pool.poolKey.hooks,
-        }),
-      ])
-
-      pricing = {
-        wethUsd: wethUsdData.priceUsd,
-        tokenUsd: tokenUsdData.priceUsd,
-      }
-    } catch (error) {
-      // If pricing fails, continue without it (graceful degradation)
-      console.warn('Failed to fetch USD pricing:', error)
-    }
-  }
-
-  // Get current block timestamp for accurate stream status
-  const block = await publicClient.getBlock()
-  const blockTimestamp = block.timestamp
-
-  // Get fee locker address to query pending fees
-  const feeLockerAddress = GET_FEE_LOCKER_ADDRESS(chainId)
-
   // Determine fee recipient for pending fees query
-  // If fee splitter is active, query pending for fee splitter (it receives fees before distribution)
-  // If fee splitter is NOT active, query pending for staking (direct recipient)
+  const feeLockerAddress = GET_FEE_LOCKER_ADDRESS(chainId)
   const stakingFeeRecipient =
     feeSplitterAddress && staticProject.feeSplitter?.isActive
-      ? feeSplitterAddress // Fee splitter is the ClankerFeeLocker recipient
-      : staticProject.staking // Staking is the direct ClankerFeeLocker recipient
+      ? feeSplitterAddress
+      : staticProject.staking
 
-  // Fetch only dynamic data (treasury, governance, staking stats, pending fees, and fee splitter dynamic)
+  // Build contract calls (governance is fetched from indexer, not RPC)
   const contracts = [
     ...getTreasuryContracts(
       clankerToken,
@@ -960,7 +863,6 @@ export async function getProject({
       staticProject.staking,
       wethAddress
     ),
-    ...getGovernanceContracts(staticProject.governor),
     ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
     ...(feeLockerAddress
       ? getPendingFeesContracts(feeLockerAddress, stakingFeeRecipient, clankerToken, wethAddress)
@@ -970,22 +872,26 @@ export async function getProject({
       : []),
   ]
 
-  const results = await publicClient.multicall({ contracts })
+  // Fetch all data in parallel: indexed governance, pricing, block, and RPC multicall
+  const [indexedProject, pricing, block, results] = await Promise.all([
+    getIndexedProject(clankerToken),
+    fetchPricing(oraclePublicClient, publicClient, staticProject),
+    publicClient.getBlock(),
+    publicClient.multicall({ contracts }),
+  ])
 
-  // Calculate slice indices for dynamic data
-  const treasuryCount = wethAddress ? 4 : 3 // treasury balance, staking balance, escrow balance, (optional weth balance)
-  const governanceCount = 3 // currentCycleId + 2 activeProposalCount calls
-  const stakingCount = wethAddress ? 8 : 5 // 5 base + 3 optional weth (including getTokenStreamInfo for weth)
-  const pendingFeesCount = feeLockerAddress ? (wethAddress ? 2 : 1) : 0 // Pending fees from ClankerFeeLocker
+  const blockTimestamp = block.timestamp
+
+  // Calculate slice indices for multicall results
+  const treasuryCount = wethAddress ? 4 : 3
+  const stakingCount = wethAddress ? 8 : 5
+  const pendingFeesCount = feeLockerAddress ? (wethAddress ? 2 : 1) : 0
   const feeSplitterDynamicCount =
     feeSplitterAddress && staticProject.feeSplitter?.isActive ? rewardTokens.length : 0
 
   let idx = 0
   const treasuryResults = results.slice(idx, idx + treasuryCount) as TreasuryContractsResult
   idx += treasuryCount
-
-  const governanceResults = results.slice(idx, idx + governanceCount) as GovernanceContractsResult
-  idx += governanceCount
 
   const stakingResults = results.slice(idx, idx + stakingCount) as StakingContractsResult
   idx += stakingCount
@@ -999,25 +905,21 @@ export async function getProject({
   const feeSplitterDynamicResults =
     feeSplitterDynamicCount > 0 ? results.slice(idx, idx + feeSplitterDynamicCount) : null
 
-  // Calculate USD values for stats if pricing is available
+  // Calculate USD values for stats
   const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
   const wethUsdPrice = pricing ? parseFloat(pricing.wethUsd) : null
 
-  // Parse fee splitter dynamic data first (needed for staking stats)
+  // Parse fee splitter dynamic data
   let feeSplitter = staticProject.feeSplitter
   let feeSplitterPendingFees: { token: bigint; weth: bigint | null } | undefined
+
   if (feeSplitterDynamicResults && staticProject.feeSplitter) {
     const feeSplitterDynamic = parseFeeSplitterDynamic(
       feeSplitterDynamicResults as any,
       wethAddress
     )
-    feeSplitter = {
-      ...staticProject.feeSplitter,
-      ...feeSplitterDynamic,
-    }
+    feeSplitter = { ...staticProject.feeSplitter, ...feeSplitterDynamic }
 
-    // Extract pending fees to add to outstanding rewards
-    // When using fee splitter, fees in LP locker should show as "pending" in outstanding rewards
     if (staticProject.feeSplitter.isActive && feeSplitterDynamic.pendingFees) {
       feeSplitterPendingFees = {
         token: feeSplitterDynamic.pendingFees.token,
@@ -1026,7 +928,7 @@ export async function getProject({
     }
   }
 
-  // Parse treasury and staking stats using individual parsers
+  // Parse stats
   const treasuryStats = parseTreasuryStats(
     treasuryResults,
     staticProject.token.decimals,
@@ -1046,7 +948,16 @@ export async function getProject({
     feeSplitterPendingFees
   )
 
-  const governanceStats = parseGovernanceData(governanceResults)
+  // Use indexed governance data (no RPC calls needed)
+  const governanceStats: GovernanceStats = indexedProject
+    ? {
+        currentCycleId: BigInt(indexedProject.currentCycleId ?? '1'),
+        activeProposalCount: {
+          boost: BigInt(indexedProject.activeBoostProposals ?? '0'),
+          transfer: BigInt(indexedProject.activeTransferProposals ?? '0'),
+        },
+      }
+    : { currentCycleId: 1n, activeProposalCount: { boost: 0n, transfer: 0n } }
 
   return {
     chainId,
@@ -1057,5 +968,40 @@ export async function getProject({
     pricing,
     feeSplitter,
     blockTimestamp,
+  }
+}
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
+
+async function fetchPricing(
+  oraclePublicClient: PopPublicClient | undefined,
+  quotePublicClient: PopPublicClient,
+  staticProject: RegisteredStaticProject
+): Promise<PricingResult | undefined> {
+  if (!oraclePublicClient || !staticProject.pool) return undefined
+
+  try {
+    const [wethUsdData, tokenUsdData] = await Promise.all([
+      getWethUsdPrice({ publicClient: oraclePublicClient }),
+      getUsdPrice({
+        oraclePublicClient,
+        quotePublicClient,
+        tokenAddress: staticProject.token.address,
+        tokenDecimals: staticProject.token.decimals,
+        quoteFee: staticProject.pool.poolKey.fee,
+        quoteTickSpacing: staticProject.pool.poolKey.tickSpacing,
+        quoteHooks: staticProject.pool.poolKey.hooks,
+      }),
+    ])
+
+    return {
+      wethUsd: wethUsdData.priceUsd,
+      tokenUsd: tokenUsdData.priceUsd,
+    }
+  } catch (error) {
+    console.warn('Failed to fetch USD pricing:', error)
+    return undefined
   }
 }
