@@ -10,6 +10,10 @@ export const levrProjectFields = {
   clankerToken: {
     __scalar: true,
   },
+  // Stats are included via __scalar: true, but we explicitly list for clarity:
+  // - verified, totalStaked, totalProposals, stakerCount
+  // - currentCycleId, activeBoostProposals, activeTransferProposals
+  // - createdAt, updatedAt
 } as const satisfies GraphQLSubscriptionArgs['LevrProject']
 
 // ============================================================================

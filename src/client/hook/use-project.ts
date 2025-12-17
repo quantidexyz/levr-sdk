@@ -12,6 +12,19 @@ import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
 import { useGraphQLSubscription } from './use-subscription'
 
+/** Indexed stats available from GraphQL subscription */
+export type IndexedStats = {
+  verified: boolean
+  totalStaked: bigint
+  totalProposals: bigint
+  stakerCount: bigint
+  currentCycleId: bigint
+  activeBoostProposals: bigint
+  activeTransferProposals: bigint
+  createdAt: Date
+  updatedAt: Date
+}
+
 /** Project data from indexer, adapted for UI consumption */
 export type IndexedProject = Omit<
   Project,
@@ -24,7 +37,9 @@ export type IndexedProject = Omit<
   | 'feeReceivers'
   | 'feeSplitter'
   | 'blockTimestamp'
->
+> & {
+  indexedStats: IndexedStats
+}
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
@@ -155,6 +170,19 @@ function adaptIndexedProject(data: LevrProjectData): IndexedProject | null {
       originalAdmin: (token.originalAdmin ?? '') as `0x${string}`,
       admin: (token.admin ?? '') as `0x${string}`,
       context: token.context ?? '',
+    },
+    indexedStats: {
+      verified: data.verified ?? false,
+      totalStaked: data.totalStaked ? BigInt(data.totalStaked) : 0n,
+      totalProposals: data.totalProposals ? BigInt(data.totalProposals) : 0n,
+      stakerCount: data.stakerCount ? BigInt(data.stakerCount) : 0n,
+      currentCycleId: data.currentCycleId ? BigInt(data.currentCycleId) : 1n,
+      activeBoostProposals: data.activeBoostProposals ? BigInt(data.activeBoostProposals) : 0n,
+      activeTransferProposals: data.activeTransferProposals
+        ? BigInt(data.activeTransferProposals)
+        : 0n,
+      createdAt: new Date(Number(data.createdAt ?? 0) * 1000),
+      updatedAt: new Date(Number(data.updatedAt ?? 0) * 1000),
     },
   }
 }

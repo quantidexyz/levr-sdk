@@ -341,10 +341,12 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!proposalData) throw new Error('Proposal data is null')
 
       console.log('📋 Proposal details:', {
         proposalType: proposalData.proposalType,
@@ -392,10 +394,12 @@ describe('#GOVERNANCE_TEST', () => {
       const updatedProposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!updatedProposalData) throw new Error('Updated proposal data is null')
       console.log('  Meets quorum:', updatedProposalData.meetsQuorum)
       console.log('  Meets approval:', updatedProposalData.meetsApproval)
 
@@ -412,10 +416,12 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalAfterVoting = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!proposalAfterVoting) throw new Error('Proposal after voting data is null')
       console.log('  Proposal state after voting:', proposalAfterVoting.state) // 3 = Succeeded
 
       // STEP 6: Execute the winning proposal
@@ -452,10 +458,12 @@ describe('#GOVERNANCE_TEST', () => {
       const executedProposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!executedProposalData) throw new Error('Executed proposal data is null')
       expect(executedProposalData.executed).toBe(true)
       console.log('  Final proposal state:', executedProposalData.state) // 4 = Executed
     },
@@ -509,10 +517,12 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!proposalData) throw new Error('Proposal data is null')
       console.log('📋 Proposal voting window:', {
         votingStartsAt: proposalData.votingStartsAt.date.toISOString(),
         votingEndsAt: proposalData.votingEndsAt.date.toISOString(),
@@ -642,10 +652,12 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         proposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!proposalData) throw new Error('Proposal data is null')
       console.log('📋 Proposal voting window:', {
         votingStartsAt: proposalData.votingStartsAt.date.toISOString(),
         votingEndsAt: proposalData.votingEndsAt.date.toISOString(),
@@ -723,6 +735,7 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalsResult = await proposals({
         publicClient,
         governorAddress: project.governor,
+        projectId: project.token.address,
         tokenDecimals: 18,
         pageSize: 10,
         cycleId: project.governanceStats!.currentCycleId,
@@ -911,6 +924,7 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalsResult = await proposals({
         publicClient,
         governorAddress: project.governor,
+        projectId: project.token.address,
         tokenDecimals: project.token.decimals,
         cycleId,
         userAddress: wallet.account.address,
@@ -933,10 +947,12 @@ describe('#GOVERNANCE_TEST', () => {
       const proposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         boostId,
         project.token.decimals,
         project.pricing
       )
+      if (!proposalData) throw new Error('Proposal data is null')
       const currentTime = await getBlockTimestamp()
       const timeUntilVoting = Number(proposalData.votingStartsAt.timestamp) - currentTime
       if (timeUntilVoting > 0) {
@@ -974,6 +990,7 @@ describe('#GOVERNANCE_TEST', () => {
       const finalProposalsResult = await proposals({
         publicClient,
         governorAddress: project.governor,
+        projectId: project.token.address,
         tokenDecimals: project.token.decimals,
         cycleId,
         userAddress: wallet.account.address,
@@ -1027,10 +1044,12 @@ describe('#GOVERNANCE_TEST', () => {
       const executedProposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         winnerProposalId,
         project.token.decimals,
         project.pricing
       )
+      if (!executedProposalData) throw new Error('Executed proposal data is null')
       expect(executedProposalData.state).toBe(4) // Executed
       console.log('  ✅ Winner executed successfully')
 
@@ -1059,10 +1078,12 @@ describe('#GOVERNANCE_TEST', () => {
       const transfer1ProposalData = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         transferId1,
         project.token.decimals,
         project.pricing
       )
+      if (!transfer1ProposalData) throw new Error('Transfer proposal data is null')
       console.log(`  Description for transfer 1: "${transfer1ProposalData.description}"`)
       expect(typeof transfer1ProposalData.description).toBe('string')
       expect(transfer1ProposalData.description).toBe('Test transfer 1')
@@ -1070,10 +1091,12 @@ describe('#GOVERNANCE_TEST', () => {
       const boostProposalData2 = await proposal(
         publicClient,
         project.governor,
+        project.token.address,
         boostId,
         project.token.decimals,
         project.pricing
       )
+      if (!boostProposalData2) throw new Error('Boost proposal data is null')
       console.log(`  Description for boost: "${boostProposalData2.description}"`)
       expect(typeof boostProposalData2.description).toBe('string')
       expect(boostProposalData2.description).toBe('') // Boost proposals have empty description

@@ -543,6 +543,7 @@ describe('#data-flow', () => {
           await proposals({
             publicClient: mockPublicClient as any,
             governorAddress: projectData.governor,
+            projectId: projectData.token.address,
             tokenDecimals: projectData.token.decimals,
             cycleId: projectData.governanceStats!.currentCycleId, // Pass from project to avoid re-fetching!
           })
@@ -658,6 +659,7 @@ describe('#data-flow', () => {
         await proposals({
           publicClient: mockPublicClient as any,
           governorAddress: projectData.governor,
+          projectId: projectData.token.address,
           tokenDecimals: projectData.token.decimals,
           cycleId: projectData.governanceStats!.currentCycleId,
           pricing: projectData.pricing,
@@ -905,6 +907,7 @@ describe('#data-flow', () => {
         await proposals({
           publicClient: mockPublicClient as any,
           governorAddress: projectData.governor, // Using shared data
+          projectId: projectData.token.address, // Using shared data
           tokenDecimals: projectData.token.decimals, // Using shared data
           cycleId: projectData.governanceStats!.currentCycleId, // Using shared data from project!
           pricing: projectData.pricing, // Using shared pricing from project!

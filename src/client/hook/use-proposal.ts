@@ -22,7 +22,7 @@ export type UseProposalParams = {
 /**
  * Internal: Creates proposals query with all logic
  * Used by LevrProvider
- * Gets proposals for specified cycle (or current cycle if not provided) with enriched data in single multicall
+ * Gets proposals for specified cycle (or current cycle if not provided) with enriched data
  * Includes vote receipts if user is connected
  */
 export function useProposalsQuery({
@@ -47,14 +47,15 @@ export function useProposalsQuery({
       return proposals({
         publicClient: publicClient!,
         governorAddress: project!.governor,
+        projectId: project!.token.address,
+        cycleId: contractCycleId,
         tokenDecimals: project!.token.decimals,
         pricing: project!.pricing,
-        cycleId: contractCycleId,
         pageSize: 50,
-        userAddress, // Include vote receipts if user is connected
+        userAddress,
       })
     },
-    enabled: e && !!publicClient && !!project! && contractCycleId !== undefined,
+    enabled: e && !!publicClient && !!project && contractCycleId !== undefined,
     retry: 1,
     staleTime: 5000,
     refetchInterval: 30000,
@@ -62,8 +63,8 @@ export function useProposalsQuery({
 }
 
 export function useProposal({ proposalId, enabled: e = true }: UseProposalParams) {
-  const { project } = useLevrContext()
   const publicClient = usePublicClient()
+  const { project } = useLevrContext()
 
   return useQuery({
     queryKey: queryKeys.proposal(
@@ -75,6 +76,7 @@ export function useProposal({ proposalId, enabled: e = true }: UseProposalParams
       return proposal(
         publicClient!,
         project.data!.governor,
+        project.data!.token.address,
         proposalId!,
         project.data!.token.decimals,
         project.data!.pricing
