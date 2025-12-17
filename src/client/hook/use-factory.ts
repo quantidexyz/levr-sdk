@@ -1,7 +1,6 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useChainId, usePublicClient } from 'wagmi'
 
 import { getFactoryConfig } from '../../factory'
 import { useLevrContext } from '../levr-provider'
@@ -12,20 +11,13 @@ import { queryKeys } from '../query-keys'
  * @internal
  */
 export function useFactoryConfigQuery(params?: { enabled?: boolean }) {
-  const publicClient = usePublicClient()
-  const chainId = useChainId()
   const enabled = params?.enabled ?? true
 
   return useQuery({
-    queryKey: queryKeys.factoryConfig(chainId),
-    queryFn: async () => {
-      if (!publicClient) {
-        return null
-      }
-      return getFactoryConfig(publicClient, chainId)
-    },
-    enabled: enabled && !!publicClient,
-    staleTime: Infinity, // Factory config never changes unless chain changes
+    queryKey: queryKeys.factoryConfig(),
+    queryFn: () => getFactoryConfig(),
+    enabled,
+    staleTime: Infinity, // Factory config never changes
     gcTime: 1000 * 60 * 60, // Cache for 1 hour
   })
 }
