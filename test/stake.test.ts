@@ -53,6 +53,7 @@ describe('#STAKE_TEST', () => {
       description: 'Test token for swap testing',
       telegramLink: 'https://t.me/swaptoken',
     },
+    pairedToken: 'ETH',
     devBuy: '0.5 ETH', // Add initial liquidity
     fees: {
       type: 'static',

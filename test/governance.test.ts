@@ -69,6 +69,7 @@ describe('#GOVERNANCE_TEST', () => {
       description: 'Test token for governance testing',
       telegramLink: 'https://t.me/govtoken',
     },
+    pairedToken: 'ETH',
     devBuy: '0.5 ETH', // Add initial liquidity
     fees: {
       type: 'static',

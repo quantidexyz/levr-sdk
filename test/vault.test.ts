@@ -38,6 +38,7 @@ describe('#VAULT_TEST', () => {
       description: 'Test token for vault testing',
       telegramLink: 'https://t.me/vaulttoken',
     },
+    pairedToken: 'ETH',
     devBuy: '0.5 ETH',
     fees: {
       type: 'static',

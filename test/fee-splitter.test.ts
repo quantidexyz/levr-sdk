@@ -40,6 +40,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
     metadata: {
       description: 'Real swap fee testing',
     },
+    pairedToken: 'ETH',
     devBuy: '1 ETH', // Initial liquidity
     fees: {
       type: 'static',

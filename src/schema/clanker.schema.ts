@@ -101,13 +101,40 @@ const PoolKey = Schema.Struct({
   .annotations({ description: 'Uniswap V4 pool key' })
   .pipe(Schema.mutable)
 
-export const DevBuy = Schema.Struct({
+const DevBuyV4 = Schema.Struct({
+  poolType: Schema.Literal('v4').annotations({
+    description: 'Use a V4 pool for the ETH -> paired token swap',
+  }),
   ethAmount: Schema.Number.annotations({
     description: 'ETH amount for dev buy',
   }),
   poolKey: Schema.optional(PoolKey),
   amountOutMin: Schema.optional(Schema.Number),
-}).annotations({
+})
+  .annotations({
+    description: 'Developer token buy configuration using V4 pool',
+  })
+  .pipe(Schema.mutable)
+
+const DevBuyV3 = Schema.Struct({
+  poolType: Schema.Literal('v3').annotations({
+    description: 'Use a V3 pool for the ETH -> paired token swap',
+  }),
+  ethAmount: Schema.Number.annotations({
+    description: 'ETH amount for dev buy',
+  }),
+  v3PoolFee: Schema.Number.annotations({
+    description:
+      'V3 pool fee tier. Common values: 100 (0.01%), 500 (0.05%), 2500 (0.25%), 3000 (0.3%), 10000 (1%)',
+  }),
+  amountOutMin: Schema.optional(Schema.Number),
+})
+  .annotations({
+    description: 'Developer token buy configuration using V3 pool',
+  })
+  .pipe(Schema.mutable)
+
+export const DevBuy = Schema.Union(DevBuyV4, DevBuyV3).annotations({
   description: 'Developer token buy configuration',
 })
 

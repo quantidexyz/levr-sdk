@@ -7,25 +7,33 @@ export * from './levr'
 export * from './uniswap'
 
 /**
- * Initial liquidity amount provided by Clanker protocol per chain (in native token units)
- * - ETH-based chains: 10 ETH
- * - BNB chain: 35 BNB
+ * Initial liquidity amount provided by Clanker protocol per paired token address
+ * Keys are lowercase addresses for consistent lookup
+ *
+ * - WETH (Base/Anvil): 10 ETH
+ * - WBNB (BSC): 35 BNB
+ * - USDC (Base): $30,000
+ * - USDT (BSC): $30,000
  */
-export const INITIAL_LIQUIDITY_AMOUNT: Record<number, number> = {
-  [anvil.id]: 10,
-  [base.id]: 10,
-  [baseSepolia.id]: 10,
-  [bsc.id]: 35,
+export const INITIAL_LIQUIDITY_AMOUNT: Record<string, number> = {
+  // WETH on Base/Anvil/Sepolia
+  '0x4200000000000000000000000000000000000006': 10,
+  // WBNB on BSC
+  '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c': 35,
+  // USDC on Base (6 decimals, $30k = 30000)
+  '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': 30_000,
+  // USDT on BSC (18 decimals, $30k = 30000)
+  '0x55d398326f99059ff775485246999027b3197955': 30_000,
 }
 
 /**
- * Get the initial liquidity amount for a given chain ID
- * @param chainId - The chain ID
- * @returns The initial liquidity amount in native token units (ETH/BNB), defaults to 10
+ * Get the initial liquidity amount for a given paired token address
+ * @param address - The paired token address (will be lowercased for lookup)
+ * @returns The initial liquidity amount, defaults to 10
  */
-export const getInitialLiquidityAmount = (chainId?: number): number => {
-  if (!chainId) return 10
-  return INITIAL_LIQUIDITY_AMOUNT[chainId] ?? 10
+export const getInitialLiquidityAmount = (address?: string): number => {
+  if (!address) return 10
+  return INITIAL_LIQUIDITY_AMOUNT[address.toLowerCase()] ?? 10
 }
 
 /**

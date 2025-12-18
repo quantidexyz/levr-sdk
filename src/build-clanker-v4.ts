@@ -1,17 +1,20 @@
 import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import type { ClankerTokenV4 } from 'clanker-sdk'
-import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap } from 'clanker-sdk'
+import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap, POOL_POSITIONS } from 'clanker-sdk'
 import { omit } from 'lodash'
 
 import {
+  GET_USD_STABLECOIN,
   getInitialLiquidityAmount,
   LEVR_TEAM_LP_FEE_PERCENTAGE,
   LEVR_TEAM_WALLET,
   STAKING_REWARDS,
   STATIC_FEE_TIERS,
   TREASURY_AIRDROP_AMOUNTS,
+  USDC_V3_POOL_FEE,
   VAULT_LOCKUP_PERIODS,
   VAULT_VESTING_PERIODS,
+  WETH,
 } from './constants'
 import {
   calculateAllocationBreakdown,
@@ -41,18 +44,18 @@ export const buildClankerV4 = ({
   chainId,
 }: BuildClankerV4Params): BuildClankerV4ReturnType => {
   const { airdrop, merkleTree } = getAirdrop(c.airdrop, treasuryAddress, c.treasuryFunding)
-  const devBuy = getDevBuy(c.devBuy)
   const metadata = getMetadata(c.metadata)
   const fees = getFees(c.fees)
   const rewards = getRewards(deployer, staking, c.stakingReward, c.rewards)
   const vault = getVault(c.vault)
-  const pool = getPool(chainId)
+  const pool = getPool(c.pairedToken, chainId)
+  const devBuy = getDevBuy(c.devBuy, c.pairedToken)
   const { liquidityPercentage } = calculateAllocationBreakdown(c, {
     fallbackTreasuryPercentage: 0,
   })
 
   const config: ClankerTokenV4 = {
-    ...omit(c, 'treasuryFunding', 'stakingReward'),
+    ...omit(c, 'treasuryFunding', 'stakingReward', 'devBuy', 'pairedToken'),
     tokenAdmin: deployer,
     devBuy,
     airdrop,
@@ -73,37 +76,45 @@ export const buildClankerV4 = ({
 }
 
 /**
- * Upper tick boundary for standard pool position (~$1.5B market cap)
- */
-const STANDARD_TICK_UPPER = -120000
-
-/**
- * Builds the pool configuration for the Clanker token using chain-specific initial liquidity
- * @param chainId - The chain ID to determine initial liquidity amount
- * @returns Clanker pool configuration with correct tick for chain's initial liquidity
+ * Builds the pool configuration for the Clanker token based on paired token and chain
+ *
+ * @param pairedToken - Levr paired token ('ETH' | 'USDC')
+ * @param chainId - The chain ID to determine paired token address
+ * @returns Clanker pool configuration with correct tick for initial liquidity
  *
  * @remarks
- * - ETH-based chains (Base, Arbitrum, etc.): 10 ETH initial liquidity -> tick -230400
- * - BNB chain: 35 BNB initial liquidity -> tick -217800
+ * Initial liquidity is looked up by paired token address:
+ * - WETH (Base/Anvil): 10 ETH
+ * - WBNB (BSC): 35 BNB
+ * - USDC/USDT: $30,000
  */
-const getPool = (chainId: number): NonNullable<ClankerDeploymentSchemaType['pool']> => {
-  // Initial liquidity amount equals initial market cap at launch
-  // (100B tokens × price = initial liquidity amount in native tokens)
-  const initialMarketCap = getInitialLiquidityAmount(chainId)
-  const { tickIfToken0IsClanker, tickSpacing } = getTickFromMarketCap(initialMarketCap)
+const getPool = (
+  pairedToken: LevrClankerDeploymentSchemaType['pairedToken'],
+  chainId: number
+): NonNullable<ClankerDeploymentSchemaType['pool']> => {
+  // Get paired token address based on selection
+  const pairedTokenAddress =
+    pairedToken === 'USDC' ? GET_USD_STABLECOIN(chainId)?.address : WETH(chainId)?.address
+
+  if (!pairedTokenAddress) {
+    throw new Error(`Paired token ${pairedToken} not configured for chain ${chainId}`)
+  }
+
+  // Lookup initial liquidity by address
+  const initialLiquidity = getInitialLiquidityAmount(pairedTokenAddress)
+  const { tickIfToken0IsClanker, tickSpacing } = getTickFromMarketCap(initialLiquidity)
+
+  // Use standard position with tickLower at initial price
+  const positions = POOL_POSITIONS.Standard.map((pos) => ({
+    ...pos,
+    tickLower: tickIfToken0IsClanker,
+  }))
 
   return {
-    pairedToken: 'WETH',
+    pairedToken: pairedToken === 'USDC' ? pairedTokenAddress : 'WETH',
     tickIfToken0IsClanker,
     tickSpacing,
-    // Position must have tickLower matching the starting tick
-    positions: [
-      {
-        tickLower: tickIfToken0IsClanker,
-        tickUpper: STANDARD_TICK_UPPER,
-        positionBps: 10_000, // 100% of LP in single position
-      },
-    ],
+    positions,
   }
 }
 
@@ -241,17 +252,34 @@ const getMetadata = (
 }
 
 /**
- * Builds the dev buy for the Clanker token using the Levr dev buy
- * @param devBuy - Levr dev buy
- * @returns Clanker dev buy
+ * Builds the dev buy for the Clanker token using the Levr dev buy amount and paired token
+ * Maps Levr's pairedToken (ETH/USDC) to Clanker's poolType discriminator
+ *
+ * @param devBuyAmount - Levr dev buy amount (e.g., '0.5 ETH')
+ * @param pairedToken - Levr paired token ('ETH' | 'USDC')
+ * @returns Clanker dev buy with poolType discriminator (v4 for ETH, v3 for USDC)
  */
 const getDevBuy = (
-  devBuy: LevrClankerDeploymentSchemaType['devBuy']
+  devBuyAmount: LevrClankerDeploymentSchemaType['devBuy'],
+  pairedToken: LevrClankerDeploymentSchemaType['pairedToken']
 ): ClankerDeploymentSchemaType['devBuy'] => {
-  if (!devBuy) return undefined
+  if (!devBuyAmount) return undefined
 
+  const ethAmount = Number(devBuyAmount.replace(' ETH', ''))
+
+  // USDC paired token uses V3 pool for ETH -> USDC routing
+  if (pairedToken === 'USDC') {
+    return {
+      poolType: 'v3',
+      ethAmount,
+      v3PoolFee: USDC_V3_POOL_FEE,
+    }
+  }
+
+  // ETH (default) uses V4 pool
   return {
-    ethAmount: Number(devBuy.replace(' ETH', '')),
+    poolType: 'v4',
+    ethAmount,
   }
 }
 

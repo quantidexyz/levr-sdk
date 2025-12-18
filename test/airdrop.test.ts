@@ -48,6 +48,7 @@ describe('#AIRDROP_STATUS_TEST', () => {
     metadata: {
       description: 'Test token for airdrop status testing',
     },
+    pairedToken: 'ETH',
     devBuy: '0.5 ETH',
     fees: {
       type: 'static',
