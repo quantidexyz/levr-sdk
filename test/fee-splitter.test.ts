@@ -356,24 +356,24 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         },
         weth: {
           available: formatUnits(
-            projectBefore.stakingStats?.outstandingRewards.weth?.available.raw ?? 0n,
+            projectBefore.stakingStats?.outstandingRewards.pairedToken?.available.raw ?? 0n,
             18
           ),
           pending: formatUnits(
-            projectBefore.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n,
+            projectBefore.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n,
             18
           ),
         },
       })
 
       // SDK should report fee splitter's pending fees (queried for correct recipient in multicall)
-      const stakingWethPending =
-        projectBefore.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
-      expect(stakingWethPending).toBeGreaterThan(0n) // Should show fee splitter's pending from ClankerFeeLocker
+      const stakingPairedTokenPending =
+        projectBefore.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n
+      expect(stakingPairedTokenPending).toBeGreaterThan(0n) // Should show fee splitter's pending from ClankerFeeLocker
       console.log(
-        '✓ Confirmed: SDK multicall correctly fetched WETH pending fees:',
-        formatUnits(stakingWethPending, 18),
-        'WETH'
+        '✓ Confirmed: SDK multicall correctly fetched pairedToken pending fees:',
+        formatUnits(stakingPairedTokenPending, 18),
+        'pairedToken'
       )
 
       console.log('\n=== Step 5.4: Record Balances BEFORE AccrueAll ===')
@@ -412,11 +412,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       console.log({
         staking: {
           token: formatUnits(stakingTokenBalanceBefore, 18),
-          weth: formatUnits(stakingWethBalanceBefore, 18),
+          pairedToken: formatUnits(stakingWethBalanceBefore, 18),
         },
         deployer: {
           token: formatUnits(deployerTokenBalanceBefore, 18),
-          weth: formatUnits(deployerWethBalanceBefore, 18),
+          pairedToken: formatUnits(deployerWethBalanceBefore, 18),
         },
       })
 
@@ -471,11 +471,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       console.log({
         staking: {
           token: formatUnits(stakingTokenBalanceAfter, 18),
-          weth: formatUnits(stakingWethBalanceAfter, 18),
+          pairedToken: formatUnits(stakingWethBalanceAfter, 18),
         },
         deployer: {
           token: formatUnits(deployerTokenBalanceAfter, 18),
-          weth: formatUnits(deployerWethBalanceAfter, 18),
+          pairedToken: formatUnits(deployerWethBalanceAfter, 18),
         },
       })
 
@@ -489,11 +489,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       console.log({
         staking: {
           token: formatUnits(stakingTokenDelta, 18),
-          weth: formatUnits(stakingWethDelta, 18),
+          pairedToken: formatUnits(stakingWethDelta, 18),
         },
         deployer: {
           token: formatUnits(deployerTokenDelta, 18),
-          weth: formatUnits(deployerWethDelta, 18),
+          pairedToken: formatUnits(deployerWethDelta, 18),
         },
       })
 
@@ -515,7 +515,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       console.log('\nFee splitter balances after accrueAll (should be 0):')
       console.log({
         token: formatUnits(splitterTokenAfter, 18),
-        weth: formatUnits(splitterWethAfter, 18),
+        pairedToken: formatUnits(splitterWethAfter, 18),
       })
 
       console.log('\n========================================')
@@ -524,9 +524,9 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       // ✅ STAKING MUST RECEIVE BOTH TOKENS
       if (stakingWethDelta > 0n) {
-        console.log('✅ Staking received WETH:', formatUnits(stakingWethDelta, 18))
+        console.log('✅ Staking received pairedToken:', formatUnits(stakingWethDelta, 18))
       } else {
-        console.log('❌ FAILURE: Staking did NOT receive WETH')
+        console.log('❌ FAILURE: Staking did NOT receive pairedToken')
       }
 
       if (stakingTokenDelta > 0n) {
@@ -537,9 +537,9 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       // ✅ DEPLOYER MUST RECEIVE BOTH TOKENS
       if (deployerWethDelta > 0n) {
-        console.log('✅ Deployer received WETH:', formatUnits(deployerWethDelta, 18))
+        console.log('✅ Deployer received pairedToken:', formatUnits(deployerWethDelta, 18))
       } else {
-        console.log('❌ FAILURE: Deployer did NOT receive WETH')
+        console.log('❌ FAILURE: Deployer did NOT receive pairedToken')
       }
 
       if (deployerTokenDelta > 0n) {
@@ -578,13 +578,13 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
             18
           ),
         },
-        weth: {
+        pairedToken: {
           available: formatUnits(
-            projectAfter.stakingStats?.outstandingRewards.weth?.available.raw ?? 0n,
+            projectAfter.stakingStats?.outstandingRewards.pairedToken?.available.raw ?? 0n,
             18
           ),
           pending: formatUnits(
-            projectAfter.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n,
+            projectAfter.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n,
             18
           ),
         },
@@ -592,19 +592,19 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       console.log('Reward Rates AFTER accrueAll:')
       const tokenRateAfter = projectAfter.stakingStats?.rewardRates.token.raw ?? 0n
-      const wethRateAfter = projectAfter.stakingStats?.rewardRates.weth?.raw ?? 0n
+      const pairedTokenRateAfter = projectAfter.stakingStats?.rewardRates.pairedToken?.raw ?? 0n
       console.log({
         token: formatUnits(tokenRateAfter, 18) + '/sec',
-        weth: formatUnits(wethRateAfter, 18) + '/sec',
+        pairedToken: formatUnits(pairedTokenRateAfter, 18) + '/sec',
       })
 
       console.log('\n🔍 CRITICAL VERIFICATION:')
 
-      // The bug you're seeing: WETH reward rate stays at 0
-      if (wethRateAfter > 0n) {
-        console.log('✅ SUCCESS: WETH reward rate > 0 (accrual worked!)')
+      // The bug you're seeing: pairedToken reward rate stays at 0
+      if (pairedTokenRateAfter > 0n) {
+        console.log('✅ SUCCESS: pairedToken reward rate > 0 (accrual worked!)')
       } else {
-        console.log('❌ FAILURE: WETH reward rate = 0 (accrual FAILED!)')
+        console.log('❌ FAILURE: pairedToken reward rate = 0 (accrual FAILED!)')
       }
 
       if (tokenRateAfter > 0n) {
@@ -614,15 +614,16 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       }
 
       // Both should be > 0 for the test to pass
-      expect(wethRateAfter).toBeGreaterThan(0n)
+      expect(pairedTokenRateAfter).toBeGreaterThan(0n)
       expect(tokenRateAfter).toBeGreaterThan(0n)
 
       // Available should be 0 (everything accrued)
-      const wethAvailable = projectAfter.stakingStats?.outstandingRewards.weth?.available.raw ?? 0n
+      const pairedTokenAvailable =
+        projectAfter.stakingStats?.outstandingRewards.pairedToken?.available.raw ?? 0n
       const tokenAvailable =
         projectAfter.stakingStats?.outstandingRewards.staking.available.raw ?? 0n
 
-      expect(wethAvailable).toBe(0n)
+      expect(pairedTokenAvailable).toBe(0n)
       expect(tokenAvailable).toBe(0n)
       console.log('✅ Available rewards = 0 (everything was accrued)')
 
@@ -777,11 +778,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         },
         weth: {
           available: formatUnits(
-            projectBeforeAccrue.stakingStats?.outstandingRewards.weth?.available.raw ?? 0n,
+            projectBeforeAccrue.stakingStats?.outstandingRewards.pairedToken?.available.raw ?? 0n,
             18
           ),
           pending: formatUnits(
-            projectBeforeAccrue.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n,
+            projectBeforeAccrue.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n,
             18
           ),
         },
@@ -790,7 +791,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       console.log('\nReward Rates BEFORE accrueAll (staking-only):')
       console.log({
         token: `${formatUnits(projectBeforeAccrue.stakingStats?.rewardRates.token.raw ?? 0n, 18)}/sec`,
-        weth: `${formatUnits(projectBeforeAccrue.stakingStats?.rewardRates.weth?.raw ?? 0n, 18)}/sec`,
+        pairedToken: `${formatUnits(projectBeforeAccrue.stakingStats?.rewardRates.pairedToken?.raw ?? 0n, 18)}/sec`,
       })
 
       // Verify fee receiver is now staking (NOT the fee splitter)
@@ -807,7 +808,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       // Check if we have WETH pending fees (going directly to staking)
       const wethPendingDirect =
-        projectBeforeAccrue.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
+        projectBeforeAccrue.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n
 
       if (wethPendingDirect === 0n) {
         console.log(
@@ -848,11 +849,11 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
       const tokenAvailable2 =
         projectAfterAccrue2.stakingStats?.outstandingRewards.staking.available.raw ?? 0n
       const wethAvailable2 =
-        projectAfterAccrue2.stakingStats?.outstandingRewards.weth?.available.raw ?? 0n
+        projectAfterAccrue2.stakingStats?.outstandingRewards.pairedToken?.available.raw ?? 0n
       const tokenPending2 =
         projectAfterAccrue2.stakingStats?.outstandingRewards.staking.pending.raw ?? 0n
       const wethPending2 =
-        projectAfterAccrue2.stakingStats?.outstandingRewards.weth?.pending.raw ?? 0n
+        projectAfterAccrue2.stakingStats?.outstandingRewards.pairedToken?.pending.raw ?? 0n
 
       console.log({
         token: {
@@ -867,18 +868,19 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
 
       console.log('\nReward Rates AFTER accrueAll (staking-only):')
       const tokenRateAfter2 = projectAfterAccrue2.stakingStats?.rewardRates.token.raw ?? 0n
-      const wethRateAfter2 = projectAfterAccrue2.stakingStats?.rewardRates.weth?.raw ?? 0n
+      const pairedTokenRateAfter2 =
+        projectAfterAccrue2.stakingStats?.rewardRates.pairedToken?.raw ?? 0n
 
       console.log({
         token: `${formatUnits(tokenRateAfter2, 18)}/sec`,
-        weth: `${formatUnits(wethRateAfter2, 18)}/sec`,
+        pairedToken: `${formatUnits(pairedTokenRateAfter2, 18)}/sec`,
       })
 
       console.log('\n🔍 CRITICAL VERIFICATION (Staking-Only Mode):')
 
       // Reward rates should still be > 0 (from previous accruals + any new accruals)
       // The key is they shouldn't decrease or become 0 when switching modes
-      if (wethRateAfter2 > 0n) {
+      if (pairedTokenRateAfter2 > 0n) {
         console.log('✅ SUCCESS: WETH reward rate > 0 (direct staking mode maintains rewards!)')
       } else {
         console.log('❌ FAILURE: WETH reward rate = 0 (switching modes broke rewards!)')
@@ -890,7 +892,7 @@ describe('#FEE_SPLITTER_REAL_FLOW', () => {
         console.log('❌ FAILURE: Token reward rate = 0 (switching modes broke rewards!)')
       }
 
-      expect(wethRateAfter2).toBeGreaterThan(0n)
+      expect(pairedTokenRateAfter2).toBeGreaterThan(0n)
       expect(tokenRateAfter2).toBeGreaterThan(0n)
 
       // Available should be 0 (everything gets accrued in both modes)

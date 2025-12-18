@@ -80,7 +80,8 @@ export async function balance({
         balances[key] = {
           raw: nativeBalance,
           formatted,
-          usd: pricing && key === 'eth' ? calculateUsd(formatted, pricing.wethUsd) : undefined,
+          usd:
+            pricing && key === 'eth' ? calculateUsd(formatted, pricing.pairedTokenUsd) : undefined,
         }
       })
     } catch (error) {
@@ -119,8 +120,8 @@ export async function balance({
         if (pricing) {
           if (key === 'token') {
             usd = calculateUsd(formatted, pricing.tokenUsd)
-          } else if (key === 'weth') {
-            usd = calculateUsd(formatted, pricing.wethUsd)
+          } else if (key === 'pairedToken') {
+            usd = calculateUsd(formatted, pricing.pairedTokenUsd)
           }
         }
 

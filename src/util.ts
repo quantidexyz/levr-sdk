@@ -1,6 +1,7 @@
 import { createPublicClient, http, parseUnits } from 'viem'
-import { base, baseSepolia, bsc } from 'viem/chains'
+import { anvil, base, baseSepolia, bsc } from 'viem/chains'
 
+import { WETH } from './constants'
 import type { PopPublicClient } from './types'
 
 /**
@@ -10,6 +11,19 @@ const DEFAULT_RPC_URLS: Record<number, string> = {
   [base.id]: 'https://mainnet.base.org',
   [baseSepolia.id]: 'https://sepolia.base.org',
   [bsc.id]: 'https://bsc-dataseed.binance.org',
+  [anvil.id]: 'http://localhost:8545',
+}
+
+/**
+ * Check if a currency is WETH
+ * @param currency Currency address
+ * @param chainId Chain ID to get WETH address
+ * @returns True if WETH
+ */
+export const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
+  const wethInfo = WETH(chainId)
+  if (!wethInfo) return false
+  return currency.toLowerCase() === wethInfo.address.toLowerCase()
 }
 
 /**

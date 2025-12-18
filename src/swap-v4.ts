@@ -10,9 +10,9 @@ import {
   MSG_SENDER,
   UNISWAP_V4_PERMIT2,
   UNISWAP_V4_UNIVERSAL_ROUTER,
-  WETH,
 } from './constants'
 import type { PoolKey } from './types'
+import { isWETH } from './util'
 
 export type SwapV4Params = {
   publicClient: PublicClient
@@ -39,18 +39,6 @@ export type SwapV4Params = {
 }
 
 export type SwapV4ReturnType = TransactionReceipt
-
-/**
- * @description Check if a currency is WETH
- * @param currency Currency address
- * @param chainId Chain ID to get WETH address
- * @returns True if WETH
- */
-const isWETH = (currency: `0x${string}`, chainId: number): boolean => {
-  const wethInfo = WETH(chainId)
-  if (!wethInfo) return false
-  return currency.toLowerCase() === wethInfo.address.toLowerCase()
-}
 
 /**
  * @description Execute a Uniswap V4 swap with automatic native ETH handling

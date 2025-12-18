@@ -724,8 +724,8 @@ describe('#data-flow', () => {
         // Balances should be in user data
         expect(userData.balances).toBeDefined()
         expect(userData.balances.token).toBeDefined()
-        expect(userData.balances.weth).toBeDefined()
-        expect(userData.balances.eth).toBeDefined()
+        expect(userData.balances.pairedToken).toBeDefined()
+        expect(userData.balances.nativeEth).toBeDefined()
       })
 
       it('should fetch staking data only in user query', async () => {
@@ -899,8 +899,8 @@ describe('#data-flow', () => {
 
         // Verify user uses formatBalanceWithUsd from balance.ts for all balances
         expect(userData.balances.token.formatted).toBeDefined()
-        expect(userData.balances.weth.formatted).toBeDefined()
-        expect(userData.balances.eth.formatted).toBeDefined()
+        expect(userData.balances.pairedToken.formatted).toBeDefined()
+        expect(userData.balances.nativeEth?.formatted).toBeDefined()
         expect(userData.staking.stakedBalance.formatted).toBeDefined()
         expect(userData.staking.allowance.formatted).toBeDefined()
         expect(userData.votingPower).toBeDefined()
@@ -1243,8 +1243,8 @@ describe('#data-flow', () => {
 
         // Individual items should be accessible
         expect(result.current.user.data!.balances.token).toBeDefined()
-        expect(result.current.user.data!.balances.weth).toBeDefined()
-        expect(result.current.user.data!.balances.eth).toBeDefined()
+        expect(result.current.user.data!.balances.pairedToken).toBeDefined()
+        expect(result.current.user.data!.balances.nativeEth).toBeDefined()
 
         expect(result.current.user.data!.staking.stakedBalance).toBeDefined()
         expect(result.current.user.data!.staking.allowance).toBeDefined()

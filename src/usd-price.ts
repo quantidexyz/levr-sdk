@@ -4,10 +4,40 @@ import { formatUnits, parseUnits } from 'viem'
 import { GET_USD_STABLECOIN, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
 import { createPoolKey } from './pool-key'
 import { quote } from './quote'
+import { isWETH } from './util'
 
 /**
- * @description Parameters for getting WETH/USD price
+ * @description Known stablecoin addresses that always have a price of 1.00 USD
  */
+const KNOWN_STABLECOINS: Record<number, Set<string>> = {
+  8453: new Set([
+    '0x833589fcd6edb6e08f4c7c32d4f71b3566915e71'.toLowerCase(), // USDC
+    '0x0b3bd41220dd2eef4e578b3a1f47b07c5e60e1e6'.toLowerCase(), // axlUSDC
+  ]),
+  1: new Set([
+    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'.toLowerCase(), // USDC
+    '0xdac17f958d2ee523a2206206994597c13d831ec7'.toLowerCase(), // USDT
+    '0x6b175474e89094c44da98b954eedeac495271d0f'.toLowerCase(), // DAI
+  ]),
+  56: new Set([
+    '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'.toLowerCase(), // USDC
+    '0x55d398326f99059ff775485246999027b3197955'.toLowerCase(), // USDT
+    '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3'.toLowerCase(), // DAI
+  ]),
+  42161: new Set([
+    '0xff970a61a04b1ca14834a43f5de4533ebddb5f86'.toLowerCase(), // USDC (Arbitrum)
+    '0xfd086bc7cd5c481dcc9c85ffe596854b4a38fb07'.toLowerCase(), // USDT
+  ]),
+}
+
+/**
+ * @description Check if a token is a known stablecoin
+ */
+export const isKnownStablecoin = (tokenAddress: `0x${string}`, chainId: number): boolean => {
+  const stablecoins = KNOWN_STABLECOINS[chainId]
+  if (!stablecoins) return false
+  return stablecoins.has(tokenAddress.toLowerCase())
+}
 export type GetWethUsdPriceParams = {
   /**
    * Public client for WETH/USDC oracle queries
@@ -124,16 +154,122 @@ export const getWethUsdPrice = async ({
 }
 
 /**
+ * @description Parameters for getting paired token USD price
+ */
+export type GetPairedTokenUsdPriceParams = {
+  /**
+   * Public client for price oracle queries
+   * For stablecoins: any client
+   * For WETH: should connect to a chain with reliable USDC liquidity
+   * For other tokens: should connect to a chain with V3 liquidity
+   */
+  publicClient: PublicClient
+  /**
+   * Paired token address
+   */
+  pairedTokenAddress: `0x${string}`
+  /**
+   * Paired token decimals
+   */
+  pairedTokenDecimals: number
+}
+
+/**
+ * @description Get the USD price of a paired token
+ *
+ * @param params Parameters for paired token USD price oracle
+ * @returns USD price as a formatted string
+ *
+ * @remarks
+ * Handles three cases:
+ * 1. Known stablecoins (USDC, USDT, DAI) -> return "1.00"
+ * 2. WETH -> use WETH/USDC V3 oracle
+ * 3. Other tokens -> quote against USDC via V3
+ *
+ * @example
+ * ```typescript
+ * // Get price of USDC (stablecoin)
+ * const { priceUsd } = await getPairedTokenUsdPrice({
+ *   publicClient: baseClient,
+ *   pairedTokenAddress: '0x833589...',
+ *   pairedTokenDecimals: 6,
+ * })
+ * console.log(`Paired token price: $${priceUsd}`) // "1.00"
+ * ```
+ */
+export const getPairedTokenUsdPrice = async ({
+  publicClient,
+  pairedTokenAddress,
+  pairedTokenDecimals,
+}: GetPairedTokenUsdPriceParams): Promise<string> => {
+  const chainId = publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('Chain ID not found on public client')
+  }
+
+  // Case 1: Known stablecoins
+  if (isKnownStablecoin(pairedTokenAddress, chainId)) {
+    return '1.00'
+  }
+
+  // Case 2: WETH
+  if (isWETH(pairedTokenAddress, chainId)) {
+    const { priceUsd } = await getWethUsdPrice({ publicClient })
+    return priceUsd
+  }
+
+  // Case 3: Other tokens - quote against USDC via V3
+  const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
+  if (!quoterAddress) {
+    throw new Error(`V3 Quoter address not found for chain ID ${chainId}`)
+  }
+
+  const usdcAddress = GET_USDC_ADDRESS(chainId)
+  if (!usdcAddress) {
+    throw new Error(`USDC address not found for chain ID ${chainId}`)
+  }
+
+  // V3 fee tiers (in order of preference for token/USDC)
+  const V3_FEE_TIERS = [3000, 500, 10000] // 0.3%, 0.05%, 1%
+
+  // Try each V3 fee tier
+  for (const fee of V3_FEE_TIERS) {
+    try {
+      const oneToken = parseUnits('1', pairedTokenDecimals)
+
+      const quoteResult = await quote.v3.read({
+        publicClient,
+        quoterAddress,
+        tokenIn: pairedTokenAddress,
+        tokenOut: usdcAddress,
+        amountIn: oneToken,
+        fee,
+      })
+
+      if (quoteResult.amountOut > 0n) {
+        const priceUsd = formatUnits(quoteResult.amountOut, 6)
+        return priceUsd
+      }
+    } catch (error) {
+      // This fee tier doesn't work, try next
+      continue
+    }
+  }
+
+  throw new Error(`No liquid ${pairedTokenAddress}/USDC V3 pool found for pricing`)
+}
+
+/**
  * @description Parameters for getting USD price of a token
  */
 export type GetUsdPriceParams = {
   /**
-   * Public client for price oracle queries (WETH/USDC)
+   * Public client for price oracle queries (WETH/USDC or paired token/USDC)
    * This should connect to a chain with reliable USDC liquidity (e.g., Base mainnet)
    */
   oraclePublicClient: PublicClient
   /**
-   * Public client for token quote queries (Token/WETH)
+   * Public client for token quote queries (Token/Paired Token)
    * This should connect to the chain where the token is deployed
    */
   quotePublicClient: PublicClient
@@ -146,21 +282,27 @@ export type GetUsdPriceParams = {
    */
   tokenDecimals: number
   /**
-   * Optional fee tier for the token/WETH pool (in hundredths of a bip, e.g. 3000 = 0.3%)
+   * Optional paired token address (defaults to WETH if not provided)
+   * Can be any ERC20, including stablecoins
+   */
+  pairedTokenAddress?: `0x${string}`
+  /**
+   * Optional paired token decimals (required if pairedTokenAddress is provided)
+   */
+  pairedTokenDecimals?: number
+  /**
+   * Optional fee tier for the token/paired token pool (in hundredths of a bip, e.g. 3000 = 0.3%)
    * If not provided, uses defaults from pool-key module (3000 = 0.3%)
-   * Note: WETH/USDC pool is automatically discovered
    */
   quoteFee?: number
   /**
-   * Optional tick spacing for the token/WETH pool
+   * Optional tick spacing for the token/paired token pool
    * If not provided, uses defaults from pool-key module (60 for 0.3% fee tier)
-   * Note: WETH/USDC pool is automatically discovered
    */
   quoteTickSpacing?: number
   /**
-   * Optional hooks address for the token/WETH pool
+   * Optional hooks address for the token/paired token pool
    * If not provided, uses defaults from pool-key module (zero address = no hooks)
-   * Note: WETH/USDC pool is automatically discovered
    */
   quoteHooks?: `0x${string}`
 }
@@ -174,42 +316,41 @@ export type GetUsdPriceReturnType = {
    */
   priceUsd: string
   /**
-   * Raw price ratio of token to WETH
+   * Raw price ratio of token to paired token
    */
-  tokenPerWeth: bigint
-  /**
-   * Raw price ratio of WETH to USDC
-   */
-  wethPerUsdc: bigint
+  tokenPerPaired: bigint
 }
 
 /**
- * @description Get the USD price of a token paired with WETH
+ * @description Get the USD price of a token paired with any ERC20
  *
  * @param params Parameters including token addresses and chain config
  * @returns USD price and intermediate price ratios
  *
  * @remarks
  * This function calculates the USD price of a token by:
- * 1. Auto-discovering and querying a liquid WETH/USDC pool (oracle chain)
- * 2. Getting the price of the token in WETH (quote chain)
+ * 1. Auto-discovering paired token USD price (stablecoin, WETH, or V3 quote)
+ * 2. Getting the price of the token in the paired token
  * 3. Multiplying them together to get token price in USD
  *
- * The paired token must be WETH, otherwise an error is thrown.
+ * Defaults to WETH as paired token for backward compatibility if not provided.
  * USD pricing always uses USDC as the stable reference.
  *
  * This design allows you to:
- * - Use mainnet for accurate WETH/USDC prices (oracle auto-discovers pool)
+ * - Use mainnet for accurate paired token/USDC prices
  * - Quote tokens from any chain (testnet, L2, etc.)
+ * - Support any paired token (WETH, USDC, or other ERC20)
  *
  * @example
  * ```typescript
- * // Get testnet token price using mainnet oracle
+ * // Get token price when paired with USDC (stablecoin)
  * const { priceUsd } = await getUsdPrice({
- *   oraclePublicClient: mainnetClient,
- *   quotePublicClient: testnetClient,
+ *   oraclePublicClient: baseClient,
+ *   quotePublicClient: baseClient,
  *   tokenAddress: '0x123...',
  *   tokenDecimals: 18,
+ *   pairedTokenAddress: '0x833589...',
+ *   pairedTokenDecimals: 6,
  * })
  * console.log(`Token price: $${priceUsd}`)
  * ```
@@ -219,6 +360,8 @@ export const getUsdPrice = async ({
   quotePublicClient,
   tokenAddress,
   tokenDecimals,
+  pairedTokenAddress,
+  pairedTokenDecimals,
   quoteFee,
   quoteTickSpacing,
   quoteHooks,
@@ -229,50 +372,56 @@ export const getUsdPrice = async ({
     throw new Error('Chain ID not found on quote public client')
   }
 
-  // Get WETH address for quote chain (token is always paired with WETH)
-  const quoteWethData = WETH(quoteChainId)
+  // Default to WETH if no paired token specified (backward compatibility)
+  let pairedToken = pairedTokenAddress
+  let pairedDecimals = pairedTokenDecimals ?? 18
 
-  if (!quoteWethData) {
-    throw new Error(`WETH address not found for quote chain ID ${quoteChainId}`)
+  if (!pairedToken) {
+    const wethData = WETH(quoteChainId)
+    if (!wethData) {
+      throw new Error(`WETH address not found for quote chain ID ${quoteChainId}`)
+    }
+    pairedToken = wethData.address
+    pairedDecimals = wethData.decimals
+  } else if (pairedTokenDecimals === undefined) {
+    throw new Error('pairedTokenDecimals must be provided when pairedTokenAddress is specified')
   }
 
-  // Get WETH/USD price from oracle (automatically discovers best pool)
-  const wethUsdPriceData = await getWethUsdPrice({
+  // Get paired token USD price
+  const pairedTokenPriceUsd = await getPairedTokenUsdPrice({
     publicClient: oraclePublicClient,
+    pairedTokenAddress: pairedToken,
+    pairedTokenDecimals: pairedDecimals,
   })
 
-  // Create pool key for token/WETH
-  const tokenWethPoolKey = createPoolKey(
+  // Create pool key for token/paired token
+  const tokenPairedPoolKey = createPoolKey(
     tokenAddress,
-    quoteWethData.address,
+    pairedToken,
     quoteFee,
     quoteTickSpacing,
     quoteHooks
   )
 
   // Determine trade direction based on sorted currencies
-  const tokenIsToken0InTokenWethPool =
-    tokenAddress.toLowerCase() < quoteWethData.address.toLowerCase()
+  const tokenIsToken0InTokenPairedPool = tokenAddress.toLowerCase() < pairedToken.toLowerCase()
 
-  // Quote 1 token unit -> WETH to get token price in WETH (on quote chain)
-  // Using the actual token decimals
+  // Quote 1 token unit -> paired token to get token price in paired token
   const oneToken = parseUnits('1', tokenDecimals)
-  const tokenWethQuote = await quote.v4.read({
+  const tokenPairedQuote = await quote.v4.read({
     publicClient: quotePublicClient,
-    poolKey: tokenWethPoolKey,
-    zeroForOne: tokenIsToken0InTokenWethPool,
+    poolKey: tokenPairedPoolKey,
+    zeroForOne: tokenIsToken0InTokenPairedPool,
     amountIn: oneToken,
   })
 
-  // WETH has 18 decimals
-  const tokenPriceInWeth = formatUnits(tokenWethQuote.amountOut, 18)
+  // Format the paired token price
+  const tokenPriceInPaired = formatUnits(tokenPairedQuote.amountOut, pairedDecimals)
 
-  // Calculate USD price: (token/WETH) * (WETH/USD) = token/USD
-  const tokenPriceInUsd = parseFloat(tokenPriceInWeth) * parseFloat(wethUsdPriceData.priceUsd)
+  // Calculate USD price: (token/paired) * (paired/USD) = token/USD
+  const tokenPriceInUsd = parseFloat(tokenPriceInPaired) * parseFloat(pairedTokenPriceUsd)
 
   // Use adaptive precision for very small values
-  // For values < $0.01, use up to 10 decimals to capture micro-cap tokens
-  // For values >= $0.01, use 6 decimals (standard for currency)
   let formattedPrice: string
   if (tokenPriceInUsd < 0.01) {
     // For very small values, use 10 decimals or scientific notation if needed
@@ -287,7 +436,6 @@ export const getUsdPrice = async ({
 
   return {
     priceUsd: formattedPrice,
-    tokenPerWeth: tokenWethQuote.amountOut,
-    wethPerUsdc: wethUsdPriceData.wethPerUsdc,
+    tokenPerPaired: tokenPairedQuote.amountOut,
   }
 }

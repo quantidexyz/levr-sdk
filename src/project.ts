@@ -26,7 +26,8 @@ import { getFeeSplitter } from './fee-splitter'
 import { query } from './graphql'
 import { getLevrProjectByIdFields, type LevrProjectByIdData } from './graphql/fields/project'
 import type { BalanceResult, PoolKey, PopPublicClient, PricingResult } from './types'
-import { getUsdPrice, getWethUsdPrice } from './usd-price'
+import { getPairedTokenUsdPrice, getUsdPrice } from './usd-price'
+import { isWETH } from './util'
 
 // ============================================================================
 // Re-export Indexed Project Data Type
@@ -56,10 +57,18 @@ export type ProjectMetadata = {
   auditUrls: []
 }
 
+export type PairedTokenInfo = {
+  address: `0x${string}`
+  symbol: string
+  decimals: number
+  isNative: boolean // true if WETH (enables native ETH UX)
+}
+
 export type PoolInfo = {
   poolKey: PoolKey
   feeDisplay: string
   numPositions: bigint
+  pairedToken: PairedTokenInfo
 }
 
 export type TreasuryStats = {
@@ -68,28 +77,28 @@ export type TreasuryStats = {
   utilization: number // percentage (0-100)
   stakingContractBalance: BalanceResult
   escrowBalance: BalanceResult // Staked principal only (excludes unaccounted rewards)
-  stakingContractWethBalance?: BalanceResult
+  stakingContractPairedBalance?: BalanceResult
 }
 
 export type StakingStats = {
   totalStaked: BalanceResult
   apr: {
     token: { raw: bigint; percentage: number }
-    weth: { raw: bigint; percentage: number } | null
+    pairedToken: { raw: bigint; percentage: number } | null
   }
   outstandingRewards: {
     staking: {
       available: BalanceResult
       pending: BalanceResult
     }
-    weth: {
+    pairedToken: {
       available: BalanceResult
       pending: BalanceResult
     } | null
   }
   rewardRates: {
     token: BalanceResult
-    weth: BalanceResult | null
+    pairedToken: BalanceResult | null
   }
   streamParams: {
     windowSeconds: number
@@ -222,7 +231,7 @@ type TreasuryContractsResult = [
   MulticallResult<bigint>, // treasury balance
   MulticallResult<bigint>, // staking balance (clanker token)
   MulticallResult<bigint>, // escrow balance (clanker token - staked principal only)
-  MulticallResult<bigint>?, // staking balance (weth) - optional
+  MulticallResult<bigint>?, // staking balance (paired token) - optional
 ]
 
 type StakingContractsResult = [
@@ -231,14 +240,14 @@ type StakingContractsResult = [
   MulticallResult<bigint>, // outstandingRewards (token) - now returns only available
   MulticallResult<bigint>, // rewardRatePerSecond (token)
   MulticallResult<[bigint, bigint, bigint]>, // getTokenStreamInfo (token) - returns (streamStart, streamEnd, streamTotal)
-  MulticallResult<bigint>?, // outstandingRewards (weth) - optional, returns only available
-  MulticallResult<bigint>?, // rewardRatePerSecond (weth) - optional
-  MulticallResult<[bigint, bigint, bigint]>?, // getTokenStreamInfo (weth) - optional, returns (streamStart, streamEnd, streamTotal)
+  MulticallResult<bigint>?, // outstandingRewards (paired token) - optional, returns only available
+  MulticallResult<bigint>?, // rewardRatePerSecond (paired token) - optional
+  MulticallResult<[bigint, bigint, bigint]>?, // getTokenStreamInfo (paired token) - optional, returns (streamStart, streamEnd, streamTotal)
 ]
 
 type PendingFeesContractsResult = [
   MulticallResult<bigint>, // pending fees for token (staking recipient)
-  MulticallResult<bigint>?, // pending fees for weth (staking recipient) - optional
+  MulticallResult<bigint>?, // pending fees for paired token (staking recipient) - optional
 ]
 
 type TokenData = {
@@ -269,7 +278,7 @@ function getTreasuryContracts(
   clankerToken: `0x${string}`,
   treasury: `0x${string}`,
   staking: `0x${string}`,
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 ) {
   const contracts = [
     {
@@ -292,9 +301,9 @@ function getTreasuryContracts(
     },
   ]
 
-  if (wethAddress) {
+  if (pairedTokenAddress) {
     contracts.push({
-      address: wethAddress,
+      address: pairedTokenAddress,
       abi: erc20Abi,
       functionName: 'balanceOf' as const,
       args: [staking],
@@ -307,7 +316,7 @@ function getTreasuryContracts(
 function getStakingContracts(
   staking: `0x${string}`,
   clankerToken: `0x${string}`,
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 ) {
   const baseContracts = [
     {
@@ -340,37 +349,37 @@ function getStakingContracts(
     },
   ]
 
-  const wethContracts = wethAddress
+  const pairedContracts = pairedTokenAddress
     ? [
         {
           address: staking,
           abi: LevrStaking_v1,
           functionName: 'outstandingRewards' as const,
-          args: [wethAddress],
+          args: [pairedTokenAddress],
         },
         {
           address: staking,
           abi: LevrStaking_v1,
           functionName: 'rewardRatePerSecond' as const,
-          args: [wethAddress],
+          args: [pairedTokenAddress],
         },
         {
           address: staking,
           abi: LevrStaking_v1,
           functionName: 'getTokenStreamInfo' as const,
-          args: [wethAddress],
+          args: [pairedTokenAddress],
         },
       ]
     : []
 
-  return [...baseContracts, ...wethContracts]
+  return [...baseContracts, ...pairedContracts]
 }
 
 function getPendingFeesContracts(
   feeLockerAddress: `0x${string}`,
   feeRecipient: `0x${string}`,
   clankerToken: `0x${string}`,
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 ) {
   const baseContracts = [
     {
@@ -381,18 +390,18 @@ function getPendingFeesContracts(
     },
   ]
 
-  const wethContracts = wethAddress
+  const pairedContracts = pairedTokenAddress
     ? [
         {
           address: feeLockerAddress,
           abi: IClankerFeeLocker,
           functionName: 'availableFees' as const,
-          args: [feeRecipient, wethAddress],
+          args: [feeRecipient, pairedTokenAddress],
         },
       ]
     : []
 
-  return [...baseContracts, ...wethContracts]
+  return [...baseContracts, ...pairedContracts]
 }
 
 // ---
@@ -403,14 +412,15 @@ function parseTreasuryStats(
   tokenDecimals: number,
   totalSupply: bigint,
   tokenUsdPrice: number | null,
-  wethUsdPrice?: number | null
+  pairedTokenUsdPrice?: number | null,
+  pairedTokenDecimals: number = 18
 ): TreasuryStats {
-  const [treasuryBalance, stakingBalance, escrowBalance, stakingWethBalance] = results
+  const [treasuryBalance, stakingBalance, escrowBalance, stakingPairedBalance] = results
 
   const treasuryBalanceRaw = treasuryBalance.result
   const stakingBalanceRaw = stakingBalance.result
   const escrowBalanceRaw = escrowBalance.result
-  const stakingWethBalanceRaw = stakingWethBalance ? stakingWethBalance.result : null
+  const stakingPairedBalanceRaw = stakingPairedBalance ? stakingPairedBalance.result : null
 
   // Total allocated = treasury + staking balances (protocol-controlled tokens)
   const totalAllocatedRaw = treasuryBalanceRaw + stakingBalanceRaw
@@ -425,8 +435,12 @@ function parseTreasuryStats(
     utilization,
     stakingContractBalance: formatBalanceWithUsd(stakingBalanceRaw, tokenDecimals, tokenUsdPrice),
     escrowBalance: formatBalanceWithUsd(escrowBalanceRaw, tokenDecimals, tokenUsdPrice),
-    stakingContractWethBalance: stakingWethBalanceRaw
-      ? formatBalanceWithUsd(stakingWethBalanceRaw, 18, wethUsdPrice ?? null)
+    stakingContractPairedBalance: stakingPairedBalanceRaw
+      ? formatBalanceWithUsd(
+          stakingPairedBalanceRaw,
+          pairedTokenDecimals,
+          pairedTokenUsdPrice ?? null
+        )
       : undefined,
   }
 }
@@ -436,10 +450,11 @@ function parseStakingStats(
   pendingFeesResults: PendingFeesContractsResult | null,
   tokenDecimals: number,
   tokenUsdPrice: number | null,
-  wethUsdPrice: number | null,
+  pairedTokenUsdPrice: number | null,
+  pairedTokenDecimals: number = 18,
   blockTimestamp: bigint,
   pricing?: PricingResult,
-  feeSplitterPending?: { token: bigint; weth: bigint | null }
+  feeSplitterPending?: { token: bigint; pairedToken: bigint | null }
 ): StakingStats {
   const totalStakedRaw = results[0].result
   const aprBpsRaw = results[1].result
@@ -450,30 +465,32 @@ function parseStakingStats(
   const tokenStreamStartRaw = streamInfoRaw[0]
   const tokenStreamEndRaw = streamInfoRaw[1]
 
-  // Check if WETH data is present
-  const hasWethData = results.length > 5
-  const outstandingRewardsWethAvailable = hasWethData && results[5] ? results[5].result : null
-  const wethRewardRateRaw = hasWethData && results[6] ? results[6].result : null
+  // Check if pairedToken data is present
+  const hasPairedTokenData = results.length > 5
+  const outstandingRewardsPairedAvailable =
+    hasPairedTokenData && results[5] ? results[5].result : null
+  const pairedTokenRewardRateRaw = hasPairedTokenData && results[6] ? results[6].result : null
 
   // Check if token stream is currently active
   const isTokenStreamActive =
     tokenStreamStartRaw <= blockTimestamp && blockTimestamp <= tokenStreamEndRaw
 
-  // Check if WETH stream is active (if available) and get longest active stream window
-  let isWethStreamActive = false
-  let wethStreamStartRaw = 0n
-  let wethStreamEndRaw = 0n
+  // Check if pairedToken stream is active (if available) and get longest active stream window
+  let isPairedTokenStreamActive = false
+  let pairedTokenStreamStartRaw = 0n
+  let pairedTokenStreamEndRaw = 0n
 
-  if (hasWethData && results[7]) {
-    const wethStreamInfoRaw = results[7].result as [bigint, bigint, bigint]
-    wethStreamStartRaw = wethStreamInfoRaw[0]
-    wethStreamEndRaw = wethStreamInfoRaw[1]
+  if (hasPairedTokenData && results[7]) {
+    const pairedTokenStreamInfoRaw = results[7].result as [bigint, bigint, bigint]
+    pairedTokenStreamStartRaw = pairedTokenStreamInfoRaw[0]
+    pairedTokenStreamEndRaw = pairedTokenStreamInfoRaw[1]
 
-    isWethStreamActive = wethStreamStartRaw <= blockTimestamp && blockTimestamp <= wethStreamEndRaw
+    isPairedTokenStreamActive =
+      pairedTokenStreamStartRaw <= blockTimestamp && blockTimestamp <= pairedTokenStreamEndRaw
   }
 
-  // Stream is active if either token or WETH reward stream is active
-  const isStreamActive = isTokenStreamActive || isWethStreamActive
+  // Stream is active if either token or pairedToken reward stream is active
+  const isStreamActive = isTokenStreamActive || isPairedTokenStreamActive
 
   // Determine which stream window to display
   let displayStreamStartRaw = tokenStreamStartRaw
@@ -481,59 +498,62 @@ function parseStakingStats(
 
   const tokenStreamDuration =
     tokenStreamEndRaw > tokenStreamStartRaw ? tokenStreamEndRaw - tokenStreamStartRaw : 0n
-  const wethStreamDuration =
-    wethStreamStartRaw > 0n && wethStreamEndRaw > wethStreamStartRaw
-      ? wethStreamEndRaw - wethStreamStartRaw
+  const pairedTokenStreamDuration =
+    pairedTokenStreamStartRaw > 0n && pairedTokenStreamEndRaw > pairedTokenStreamStartRaw
+      ? pairedTokenStreamEndRaw - pairedTokenStreamStartRaw
       : 0n
 
-  if (isTokenStreamActive && isWethStreamActive) {
+  if (isTokenStreamActive && isPairedTokenStreamActive) {
     // When both streams are active, display the one that ends last
     displayStreamStartRaw =
-      wethStreamEndRaw > tokenStreamEndRaw ? wethStreamStartRaw : tokenStreamStartRaw
+      pairedTokenStreamEndRaw > tokenStreamEndRaw ? pairedTokenStreamStartRaw : tokenStreamStartRaw
     displayStreamEndRaw =
-      wethStreamEndRaw > tokenStreamEndRaw ? wethStreamEndRaw : tokenStreamEndRaw
+      pairedTokenStreamEndRaw > tokenStreamEndRaw ? pairedTokenStreamEndRaw : tokenStreamEndRaw
   } else if (isTokenStreamActive) {
     displayStreamStartRaw = tokenStreamStartRaw
     displayStreamEndRaw = tokenStreamEndRaw
-  } else if (isWethStreamActive) {
-    displayStreamStartRaw = wethStreamStartRaw
-    displayStreamEndRaw = wethStreamEndRaw
-  } else if (wethStreamDuration > tokenStreamDuration) {
+  } else if (isPairedTokenStreamActive) {
+    displayStreamStartRaw = pairedTokenStreamStartRaw
+    displayStreamEndRaw = pairedTokenStreamEndRaw
+  } else if (pairedTokenStreamDuration > tokenStreamDuration) {
     // No active streams: keep prior behaviour of showing the longer window
-    displayStreamStartRaw = wethStreamStartRaw
-    displayStreamEndRaw = wethStreamEndRaw
+    displayStreamStartRaw = pairedTokenStreamStartRaw
+    displayStreamEndRaw = pairedTokenStreamEndRaw
   }
 
   // Get pending fees from ClankerFeeLocker (staking recipient)
   const stakingPendingToken = pendingFeesResults?.[0]?.result ?? 0n
-  const stakingPendingWeth = pendingFeesResults?.[1]?.result ?? 0n
+  const stakingPendingPaired = pendingFeesResults?.[1]?.result ?? 0n
 
-  // Calculate WETH APR if available
-  let wethApr: { raw: bigint; percentage: number } | null = null
+  // Calculate pairedToken APR if available
+  let pairedTokenApr: { raw: bigint; percentage: number } | null = null
 
   if (
-    wethRewardRateRaw !== null &&
-    wethRewardRateRaw !== undefined &&
+    pairedTokenRewardRateRaw !== null &&
+    pairedTokenRewardRateRaw !== undefined &&
     pricing &&
     totalStakedRaw > 0n
   ) {
-    const wethUsd = parseFloat(pricing.wethUsd)
+    const pairedTokenUsd = parseFloat(pricing.pairedTokenUsd)
     const tokenUsd = parseFloat(pricing.tokenUsd)
 
     if (tokenUsd > 0) {
-      const wethPriceInTokens = wethUsd / tokenUsd
+      const pairedTokenPriceInTokens = pairedTokenUsd / tokenUsd
       const secondsPerYear = BigInt(365 * 24 * 60 * 60)
-      const annualWethRewards = wethRewardRateRaw * secondsPerYear
+      const annualPairedRewards = pairedTokenRewardRateRaw * secondsPerYear
 
       const priceScaleFactor = BigInt(1e18)
-      const wethPriceScaled = BigInt(Math.floor(wethPriceInTokens * Number(priceScaleFactor)))
-      const annualRewardsInUnderlying = (annualWethRewards * wethPriceScaled) / priceScaleFactor
+      const pairedTokenPriceScaled = BigInt(
+        Math.floor(pairedTokenPriceInTokens * Number(priceScaleFactor))
+      )
+      const annualRewardsInUnderlying =
+        (annualPairedRewards * pairedTokenPriceScaled) / priceScaleFactor
 
-      const aprBpsWeth =
+      const aprBpsPairedToken =
         totalStakedRaw > 0n ? (annualRewardsInUnderlying * 10000n) / totalStakedRaw : 0n
-      wethApr = {
-        raw: aprBpsWeth,
-        percentage: Number(aprBpsWeth) / 100,
+      pairedTokenApr = {
+        raw: aprBpsPairedToken,
+        percentage: Number(aprBpsPairedToken) / 100,
       }
     }
   }
@@ -549,7 +569,7 @@ function parseStakingStats(
   // When fee splitter is NOT active: stakingPendingToken = staking's pending from ClankerFeeLocker
   // Note: feeSplitterPending is now local balance only (not from ClankerFeeLocker), so we don't add it
   const tokenPendingTotal = stakingPendingToken // Already queried for correct recipient
-  const wethPendingTotal = stakingPendingWeth // Already queried for correct recipient
+  const pairedTokenPendingTotal = stakingPendingPaired // Already queried for correct recipient
 
   return {
     totalStaked: formatBalanceWithUsd(totalStakedRaw, tokenDecimals, tokenUsdPrice),
@@ -558,7 +578,7 @@ function parseStakingStats(
         raw: aprBpsRaw,
         percentage: Number(aprBpsRaw) / 100,
       },
-      weth: wethApr,
+      pairedToken: pairedTokenApr,
     },
     outstandingRewards: {
       staking: {
@@ -569,19 +589,27 @@ function parseStakingStats(
         ),
         pending: formatBalanceWithUsd(tokenPendingTotal, tokenDecimals, tokenUsdPrice),
       },
-      weth:
-        outstandingRewardsWethAvailable !== null
+      pairedToken:
+        outstandingRewardsPairedAvailable !== null
           ? {
-              available: formatBalanceWithUsd(outstandingRewardsWethAvailable, 18, wethUsdPrice),
-              pending: formatBalanceWithUsd(wethPendingTotal, 18, wethUsdPrice),
+              available: formatBalanceWithUsd(
+                outstandingRewardsPairedAvailable,
+                pairedTokenDecimals,
+                pairedTokenUsdPrice
+              ),
+              pending: formatBalanceWithUsd(
+                pairedTokenPendingTotal,
+                pairedTokenDecimals,
+                pairedTokenUsdPrice
+              ),
             }
           : null,
     },
     rewardRates: {
       token: formatBalanceWithUsd(tokenRewardRateRaw, tokenDecimals, tokenUsdPrice),
-      weth:
-        wethRewardRateRaw !== null && wethRewardRateRaw !== undefined
-          ? formatBalanceWithUsd(wethRewardRateRaw, 18, wethUsdPrice)
+      pairedToken:
+        pairedTokenRewardRateRaw !== null && pairedTokenRewardRateRaw !== undefined
+          ? formatBalanceWithUsd(pairedTokenRewardRateRaw, pairedTokenDecimals, pairedTokenUsdPrice)
           : null,
     },
     streamParams: {
@@ -749,10 +777,46 @@ export async function getStaticProject({
     }
 
     const poolKey = tokenRewards.poolKey
+
+    // Derive paired token info from pool key
+    const pairedTokenAddress =
+      poolKey.currency0 === clankerToken ? poolKey.currency1 : poolKey.currency0
+    const isNative = isWETH(pairedTokenAddress, chainId)
+    const wethInfo = WETH(chainId)
+
+    // Get paired token data from indexed v4Pool if available
+    const v4Pool = indexedToken.v4Pool
+    const indexedPairedToken =
+      v4Pool?.token0?.address?.toLowerCase() === pairedTokenAddress.toLowerCase()
+        ? v4Pool.token0
+        : v4Pool?.token1?.address?.toLowerCase() === pairedTokenAddress.toLowerCase()
+          ? v4Pool.token1
+          : null
+
+    // Create paired token info
+    let pairedToken: PairedTokenInfo
+    if (isNative && wethInfo) {
+      pairedToken = {
+        address: wethInfo.address,
+        symbol: wethInfo.symbol,
+        decimals: wethInfo.decimals,
+        isNative: true,
+      }
+    } else {
+      // Use indexed data for non-WETH paired tokens
+      pairedToken = {
+        address: pairedTokenAddress,
+        symbol: indexedPairedToken?.symbol ?? 'TOKEN',
+        decimals: indexedPairedToken?.decimals ?? 18,
+        isNative: false,
+      }
+    }
+
     poolInfo = {
       poolKey,
       feeDisplay: poolKey.fee === 0x800000 ? 'Dynamic' : `${(poolKey.fee / 10000).toFixed(2)}%`,
       numPositions: tokenRewards.numPositions,
+      pairedToken,
     }
 
     const rewardSlotCount =
@@ -844,10 +908,12 @@ export async function getProject({
   const chainId = publicClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found on public client')
 
-  const wethAddress = WETH(chainId)?.address
+  // Get paired token info from static project if available
+  const pairedTokenInfo = staticProject.pool?.pairedToken
+  const pairedTokenAddress = pairedTokenInfo?.address
   const clankerToken = staticProject.token.address
   const feeSplitterAddress = staticProject.feeSplitter?.address
-  const rewardTokens = wethAddress ? [clankerToken, wethAddress] : [clankerToken]
+  const rewardTokens = pairedTokenAddress ? [clankerToken, pairedTokenAddress] : [clankerToken]
 
   // Determine fee recipient for pending fees query
   const feeLockerAddress = GET_FEE_LOCKER_ADDRESS(chainId)
@@ -862,11 +928,16 @@ export async function getProject({
       clankerToken,
       staticProject.treasury,
       staticProject.staking,
-      wethAddress
+      pairedTokenAddress
     ),
-    ...getStakingContracts(staticProject.staking, clankerToken, wethAddress),
+    ...getStakingContracts(staticProject.staking, clankerToken, pairedTokenAddress),
     ...(feeLockerAddress
-      ? getPendingFeesContracts(feeLockerAddress, stakingFeeRecipient, clankerToken, wethAddress)
+      ? getPendingFeesContracts(
+          feeLockerAddress,
+          stakingFeeRecipient,
+          clankerToken,
+          pairedTokenAddress
+        )
       : []),
     ...(feeSplitterAddress && staticProject.feeSplitter?.isActive
       ? getFeeSplitterDynamicContracts(clankerToken, feeSplitterAddress, rewardTokens)
@@ -884,9 +955,9 @@ export async function getProject({
   const blockTimestamp = block.timestamp
 
   // Calculate slice indices for multicall results
-  const treasuryCount = wethAddress ? 4 : 3
-  const stakingCount = wethAddress ? 8 : 5
-  const pendingFeesCount = feeLockerAddress ? (wethAddress ? 2 : 1) : 0
+  const treasuryCount = pairedTokenAddress ? 4 : 3
+  const stakingCount = pairedTokenAddress ? 8 : 5
+  const pendingFeesCount = feeLockerAddress ? (pairedTokenAddress ? 2 : 1) : 0
   const feeSplitterDynamicCount =
     feeSplitterAddress && staticProject.feeSplitter?.isActive ? rewardTokens.length : 0
 
@@ -908,23 +979,23 @@ export async function getProject({
 
   // Calculate USD values for stats
   const tokenUsdPrice = pricing ? parseFloat(pricing.tokenUsd) : null
-  const wethUsdPrice = pricing ? parseFloat(pricing.wethUsd) : null
+  const pairedTokenUsdPrice = pricing ? parseFloat(pricing.pairedTokenUsd) : null
 
   // Parse fee splitter dynamic data
   let feeSplitter = staticProject.feeSplitter
-  let feeSplitterPendingFees: { token: bigint; weth: bigint | null } | undefined
+  let feeSplitterPendingFees: { token: bigint; pairedToken: bigint | null } | undefined
 
   if (feeSplitterDynamicResults && staticProject.feeSplitter) {
     const feeSplitterDynamic = parseFeeSplitterDynamic(
       feeSplitterDynamicResults as any,
-      wethAddress
+      pairedTokenAddress
     )
     feeSplitter = { ...staticProject.feeSplitter, ...feeSplitterDynamic }
 
     if (staticProject.feeSplitter.isActive && feeSplitterDynamic.pendingFees) {
       feeSplitterPendingFees = {
         token: feeSplitterDynamic.pendingFees.token,
-        weth: feeSplitterDynamic.pendingFees.weth ?? null,
+        pairedToken: feeSplitterDynamic.pendingFees.pairedToken ?? null,
       }
     }
   }
@@ -935,7 +1006,8 @@ export async function getProject({
     staticProject.token.decimals,
     staticProject.token.totalSupply,
     tokenUsdPrice,
-    wethUsdPrice
+    pairedTokenUsdPrice,
+    pairedTokenInfo?.decimals ?? 18
   )
 
   const stakingStats = parseStakingStats(
@@ -943,7 +1015,8 @@ export async function getProject({
     pendingFeesResults,
     staticProject.token.decimals,
     tokenUsdPrice,
-    wethUsdPrice,
+    pairedTokenUsdPrice,
+    pairedTokenInfo?.decimals ?? 18,
     blockTimestamp,
     pricing,
     feeSplitterPendingFees
@@ -984,22 +1057,32 @@ async function fetchPricing(
   if (!oraclePublicClient || !staticProject.pool) return undefined
 
   try {
-    const [wethUsdData, tokenUsdData] = await Promise.all([
-      getWethUsdPrice({ publicClient: oraclePublicClient }),
-      getUsdPrice({
-        oraclePublicClient,
-        quotePublicClient,
-        tokenAddress: staticProject.token.address,
-        tokenDecimals: staticProject.token.decimals,
-        quoteFee: staticProject.pool.poolKey.fee,
-        quoteTickSpacing: staticProject.pool.poolKey.tickSpacing,
-        quoteHooks: staticProject.pool.poolKey.hooks,
-      }),
-    ])
+    const pairedToken = staticProject.pool.pairedToken
+
+    const tokenUsdData = await getUsdPrice({
+      oraclePublicClient,
+      quotePublicClient,
+      tokenAddress: staticProject.token.address,
+      tokenDecimals: staticProject.token.decimals,
+      pairedTokenAddress: pairedToken.address,
+      pairedTokenDecimals: pairedToken.decimals,
+      quoteFee: staticProject.pool.poolKey.fee,
+      quoteTickSpacing: staticProject.pool.poolKey.tickSpacing,
+      quoteHooks: staticProject.pool.poolKey.hooks,
+    })
+
+    // For WETH pairs, query the price; for other pairs assume stablecoin (1.00)
+    const pairedTokenUsdPrice = pairedToken.isNative
+      ? await getPairedTokenUsdPrice({
+          publicClient: oraclePublicClient,
+          pairedTokenAddress: pairedToken.address,
+          pairedTokenDecimals: pairedToken.decimals,
+        })
+      : '1.00' // Non-WETH pairs are assumed to be stablecoins
 
     return {
-      wethUsd: wethUsdData.priceUsd,
       tokenUsd: tokenUsdData.priceUsd,
+      pairedTokenUsd: pairedTokenUsdPrice,
     }
   } catch (error) {
     console.warn('Failed to fetch USD pricing:', error)

@@ -2,7 +2,6 @@ import { erc20Abi } from 'viem'
 
 import { LevrStaking_v1 } from './abis'
 import { formatBalanceWithUsd } from './balance'
-import { WETH } from './constants'
 import type { Project } from './project'
 import type { BalanceResult, PopPublicClient } from './types'
 
@@ -14,8 +13,8 @@ export type UserParams = {
 
 export type UserBalances = {
   token: BalanceResult
-  weth: BalanceResult
-  eth: BalanceResult
+  pairedToken: BalanceResult
+  nativeEth?: BalanceResult // Only present when pairedToken.isNative
 }
 
 export type UserStaking = {
@@ -23,7 +22,7 @@ export type UserStaking = {
   allowance: BalanceResult
   claimableRewards: {
     staking: BalanceResult
-    weth: BalanceResult | null
+    pairedToken: BalanceResult | null
   }
 }
 
@@ -43,7 +42,7 @@ export type User = {
 export function balanceContracts(params: {
   userAddress: `0x${string}`
   clankerToken: `0x${string}`
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 }) {
   const contracts = [
     {
@@ -54,9 +53,9 @@ export function balanceContracts(params: {
     },
   ]
 
-  if (params.wethAddress) {
+  if (params.pairedTokenAddress) {
     contracts.push({
-      address: params.wethAddress,
+      address: params.pairedTokenAddress,
       abi: erc20Abi,
       functionName: 'balanceOf' as const,
       args: [params.userAddress],
@@ -75,7 +74,7 @@ export function stakingContracts(params: {
   stakingAddress: `0x${string}`
   stakedTokenAddress: `0x${string}`
   clankerToken: `0x${string}`
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 }) {
   const contracts = [
     {
@@ -104,12 +103,12 @@ export function stakingContracts(params: {
     },
   ]
 
-  if (params.wethAddress) {
+  if (params.pairedTokenAddress) {
     contracts.push({
       address: params.stakingAddress,
       abi: LevrStaking_v1,
       functionName: 'claimableRewards' as const,
-      args: [params.userAddress, params.wethAddress],
+      args: [params.userAddress, params.pairedTokenAddress],
     })
   }
 
@@ -132,7 +131,9 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   const chainId = publicClient.chain?.id
   if (!chainId) throw new Error('Chain ID not found on public client')
 
-  const wethAddress = WETH(chainId)?.address
+  // Get paired token info from project
+  const pairedTokenInfo = project.pool?.pairedToken
+  const pairedTokenAddress = pairedTokenInfo?.address
   const { clankerToken, stakingAddress, stakedTokenAddress, tokenDecimals, pricing } = {
     clankerToken: project.token.address,
     stakingAddress: project.staking,
@@ -152,9 +153,9 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
     },
   ]
 
-  if (wethAddress) {
+  if (pairedTokenAddress) {
     contracts.push({
-      address: wethAddress,
+      address: pairedTokenAddress,
       abi: erc20Abi,
       functionName: 'balanceOf' as const,
       args: [userAddress],
@@ -168,7 +169,7 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
       stakingAddress,
       stakedTokenAddress,
       clankerToken,
-      wethAddress,
+      pairedTokenAddress,
     })
   )
 
@@ -181,10 +182,10 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   const results = multicallResults[0]
 
   // Parse balance results
-  const stakingDataStartIndex = wethAddress ? 2 : 1
+  const stakingDataStartIndex = pairedTokenAddress ? 2 : 1
 
   const tokenBalanceRaw = results[0].result as bigint
-  const wethBalanceRaw = wethAddress ? (results[1].result as bigint) : 0n
+  const pairedTokenBalanceRaw = pairedTokenAddress ? (results[1].result as bigint) : 0n
 
   // Parse user-specific staking results (pool stats now in project)
   const stakedBalance = results[stakingDataStartIndex + 0].result as bigint
@@ -192,29 +193,43 @@ export async function getUser({ publicClient, userAddress, project }: UserParams
   const claimableRewardsToken = results[stakingDataStartIndex + 2].result as bigint
   const votingPower = results[stakingDataStartIndex + 3].result as bigint
 
-  // Parse WETH claimable rewards if available
-  const claimableRewardsWeth = wethAddress
+  // Parse paired token claimable rewards if available
+  const claimableRewardsPaired = pairedTokenAddress
     ? (results[stakingDataStartIndex + 4].result as bigint)
     : null
 
   // Calculate USD values
   const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
-  const wethPrice = pricing ? parseFloat(pricing.wethUsd) : null
+  const pairedTokenPrice = pricing ? parseFloat(pricing.pairedTokenUsd) : null
+
+  const balances: UserBalances = {
+    token: formatBalanceWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
+    pairedToken: formatBalanceWithUsd(
+      pairedTokenBalanceRaw,
+      pairedTokenInfo?.decimals ?? 18,
+      pairedTokenPrice
+    ),
+  }
+
+  // Only add nativeEth if paired token is WETH (isNative = true)
+  if (pairedTokenInfo?.isNative) {
+    balances.nativeEth = formatBalanceWithUsd(nativeBalance, 18, pairedTokenPrice)
+  }
 
   return {
-    balances: {
-      token: formatBalanceWithUsd(tokenBalanceRaw, tokenDecimals, tokenPrice),
-      weth: formatBalanceWithUsd(wethBalanceRaw, 18, wethPrice),
-      eth: formatBalanceWithUsd(nativeBalance, 18, wethPrice),
-    },
+    balances,
     staking: {
       stakedBalance: formatBalanceWithUsd(stakedBalance, tokenDecimals, tokenPrice),
       allowance: formatBalanceWithUsd(allowance, tokenDecimals, tokenPrice),
       claimableRewards: {
         staking: formatBalanceWithUsd(claimableRewardsToken, tokenDecimals, tokenPrice),
-        weth:
-          claimableRewardsWeth !== null && wethAddress
-            ? formatBalanceWithUsd(claimableRewardsWeth, 18, wethPrice)
+        pairedToken:
+          claimableRewardsPaired !== null && pairedTokenAddress
+            ? formatBalanceWithUsd(
+                claimableRewardsPaired,
+                pairedTokenInfo?.decimals ?? 18,
+                pairedTokenPrice
+              )
             : null,
       },
     },

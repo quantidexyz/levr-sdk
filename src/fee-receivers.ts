@@ -533,7 +533,7 @@ export type FeeSplitterStatic = {
 export type FeeSplitterDynamic = {
   pendingFees: {
     token: bigint
-    weth: bigint | null
+    pairedToken: bigint | null
   }
 }
 
@@ -634,22 +634,23 @@ export function getFeeSplitterDynamicContracts(
 
 /**
  * Parse dynamic fee splitter data from multicall results
- * Maps pending fees results to { token, weth } structure
+ * Maps pending fees results to { token, pairedToken } structure
  */
 export function parseFeeSplitterDynamic(
   results: Array<{ result: bigint; status: 'success' | 'failure' }>,
-  wethAddress?: `0x${string}`
+  pairedTokenAddress?: `0x${string}`
 ): FeeSplitterDynamic {
   // First result is always the clanker token
   const tokenPending = results[0]?.status === 'success' ? results[0].result : 0n
 
-  // Second result is WETH (if provided)
-  const wethPending = wethAddress && results[1]?.status === 'success' ? results[1].result : null
+  // Second result is pairedToken (if provided)
+  const pairedTokenPending =
+    pairedTokenAddress && results[1]?.status === 'success' ? results[1].result : null
 
   return {
     pendingFees: {
       token: tokenPending,
-      weth: wethPending,
+      pairedToken: pairedTokenPending,
     },
   }
 }

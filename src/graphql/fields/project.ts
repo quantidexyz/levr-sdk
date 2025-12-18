@@ -50,10 +50,12 @@ export const v4PoolFields = {
   hooks: true,
   token0: {
     address: true,
+    symbol: true,
     decimals: true,
   },
   token1: {
     address: true,
+    symbol: true,
     decimals: true,
   },
 } as const
@@ -198,6 +200,6 @@ export type IndexedPoolData = {
   fee: number
   tickSpacing: number
   hooks: `0x${string}`
-  token0: { address: `0x${string}`; decimals: number }
-  token1: { address: `0x${string}`; decimals: number }
+  token0: { address: `0x${string}`; symbol: string; decimals: number }
+  token1: { address: `0x${string}`; symbol: string; decimals: number }
 }

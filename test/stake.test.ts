@@ -321,7 +321,7 @@ describe('#STAKE_TEST', () => {
           publicClient,
           clankerToken: deployedTokenAddress,
         })
-        const outstandingRewards = currentProject?.stakingStats?.outstandingRewards.weth
+        const outstandingRewards = currentProject?.stakingStats?.outstandingRewards.pairedToken
 
         if (outstandingRewards) {
           console.log(
@@ -352,7 +352,8 @@ describe('#STAKE_TEST', () => {
               publicClient,
               clankerToken: deployedTokenAddress,
             })
-            const outstandingAfter = projectAfterAccrue?.stakingStats?.outstandingRewards.weth
+            const outstandingAfter =
+              projectAfterAccrue?.stakingStats?.outstandingRewards.pairedToken
 
             if (outstandingAfter) {
               console.log(

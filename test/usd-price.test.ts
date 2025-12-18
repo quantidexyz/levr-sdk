@@ -110,11 +110,11 @@ describe('#USD_PRICE_TEST', () => {
         expect(projectData?.pricing).toBeDefined()
 
         console.log('\n💰 USD Pricing (via DRPC):')
-        console.log(`  WETH/USD: $${projectData!.pricing!.wethUsd}`)
+        console.log(`  WETH/USD: $${projectData!.pricing!.pairedTokenUsd}`)
         console.log(`  Token/USD: $${projectData!.pricing!.tokenUsd}`)
 
         // Validate pricing
-        const wethPrice = parseFloat(projectData!.pricing!.wethUsd)
+        const wethPrice = parseFloat(projectData!.pricing!.pairedTokenUsd)
         const tokenPrice = parseFloat(projectData!.pricing!.tokenUsd)
 
         // Validate realistic WETH price from V3 pools (should be $2000-$6000)
