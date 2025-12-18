@@ -3,9 +3,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { TransactionReceipt } from 'viem'
-import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 
-import { WETH } from '../../constants'
 import type { ClaimParams } from '../../stake'
 import { Stake } from '../../stake'
 import { needsApproval } from '../../util'
@@ -52,8 +51,6 @@ export function useStake({
   const { project, user, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
-  const chainId = useChainId()
-  const wethAddress = WETH(chainId)?.address
 
   // Create Stake instance for mutations (like governance does)
   const stakeService = useMemo(() => {
@@ -147,15 +144,13 @@ export function useStake({
   })
 
   // Accrue all rewards mutation (multicall)
+  // Uses underlying token + paired token from project (WETH/WBNB/USDC/etc)
   const accrueAllRewards = useMutation({
     mutationFn: async () => {
       if (!stakeService) throw new Error('Stake service is not connected')
 
-      const tokenAddresses: `0x${string}`[] = []
-      if (project.data?.token.address) tokenAddresses.push(project.data.token.address)
-      if (wethAddress) tokenAddresses.push(wethAddress)
-
-      return stakeService.accrueAllRewards({ tokens: tokenAddresses })
+      // Stake service internally uses getRewardTokens() which gets paired token from project
+      return stakeService.accrueAllRewards()
     },
     onSuccess: async (receipt) => {
       await refetch.afterAccrue()

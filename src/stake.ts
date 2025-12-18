@@ -10,7 +10,7 @@ import {
   LevrForwarder_v1,
   LevrStaking_v1,
 } from './abis'
-import { GET_FEE_LOCKER_ADDRESS, GET_LP_LOCKER_ADDRESS, WETH } from './constants'
+import { GET_FEE_LOCKER_ADDRESS, GET_LP_LOCKER_ADDRESS } from './constants'
 import type { PopPublicClient, PopWalletClient } from './types'
 import { normalizeDecimalInput } from './util'
 
@@ -46,6 +46,7 @@ export class Stake {
   private userAddress: `0x${string}`
   private trustedForwarder?: `0x${string}`
   private isFeeSplitterActive: boolean
+  private pairedTokenAddress?: `0x${string}`
 
   constructor(config: StakeConfig) {
     // Validate required fields only (not optional fields like trustedForwarder, pricing)
@@ -62,6 +63,19 @@ export class Stake {
     this.userAddress = config.wallet.account.address
     this.trustedForwarder = config.project.forwarder
     this.isFeeSplitterActive = config.project.feeSplitter?.isActive ?? false
+    this.pairedTokenAddress = config.project.pool?.pairedToken?.address
+  }
+
+  /**
+   * Get reward token addresses for this project.
+   * Returns [underlyingToken, pairedToken] if paired token exists, otherwise just [underlyingToken].
+   */
+  private getRewardTokens(): `0x${string}`[] {
+    const tokens: `0x${string}`[] = [this.tokenAddress]
+    if (this.pairedTokenAddress) {
+      tokens.push(this.pairedTokenAddress)
+    }
+    return tokens
   }
   /**
    * Approve ERC20 tokens for spending by the staking contract
@@ -188,20 +202,14 @@ export class Stake {
 
   /**
    * Claim rewards from the staking contract
+   * Claims both underlying token and paired token (WETH/WBNB/USDC) rewards
    */
   async claimRewards(params: ClaimParams | void): Promise<TransactionReceipt> {
-    // Default to claiming both staking token and WETH
-    const defaultTokens = [this.tokenAddress]
-    const wethAddress = WETH(this.chainId)?.address
-    if (wethAddress) {
-      defaultTokens.push(wethAddress)
-    }
-
     const hash = await this.wallet.writeContract({
       address: this.stakingAddress,
       abi: LevrStaking_v1,
       functionName: 'claimRewards',
-      args: [params?.tokens ?? defaultTokens, params?.to ?? this.userAddress],
+      args: [params?.tokens ?? this.getRewardTokens(), params?.to ?? this.userAddress],
       chain: this.wallet.chain,
     })
 
@@ -275,16 +283,11 @@ export class Stake {
       throw new Error('Fee splitter not deployed for this token. Deploy it first.')
     }
 
-    // Default to clanker token + WETH if tokens not provided
-    const wethAddress = WETH(this.chainId)?.address
-    const defaultTokens = wethAddress ? [this.tokenAddress, wethAddress] : [this.tokenAddress]
-    const tokens = params?.tokens ?? defaultTokens
-
     const hash = await this.wallet.writeContract({
       address: feeSplitterAddress, // Per-project splitter, not deployer!
       abi: LevrFeeSplitter_v1,
       functionName: 'distributeBatch',
-      args: [tokens],
+      args: [params?.tokens ?? this.getRewardTokens()],
       chain: this.wallet.chain,
     })
 
@@ -309,7 +312,7 @@ export class Stake {
    * 3. If fee splitter: call distribute() (distributes to receivers including staking)
    * 4. Call accrueRewards() on staking contract (detects balance increase)
    *
-   * @param params.tokens - Array of token addresses to accrue (defaults to [clankerToken, WETH])
+   * @param params.tokens - Array of token addresses to accrue (defaults to [underlyingToken, pairedToken])
    * @param params.useFeeSplitter - If true, uses fee splitter distribute (auto-detected if not provided)
    */
   async accrueAllRewards(params?: {
@@ -320,13 +323,7 @@ export class Stake {
       throw new Error('Trusted forwarder is required for multicall operations')
     }
 
-    // Default tokens: clankerToken + WETH (if available)
-    const defaultTokens = [this.tokenAddress]
-    const wethAddress = WETH(this.chainId)?.address
-    if (wethAddress) {
-      defaultTokens.push(wethAddress)
-    }
-    const tokenAddresses = params?.tokens ?? defaultTokens
+    const tokenAddresses = params?.tokens ?? this.getRewardTokens()
 
     // Get LP locker and fee locker addresses
     const lpLockerAddress = GET_LP_LOCKER_ADDRESS(this.chainId)
