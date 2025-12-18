@@ -81,13 +81,15 @@ export const getLevrProjectsFields = ({ search, offset, limit }: ProjectsQueryPa
 }
 
 /**
- * Get fields for querying a single project by clanker token address
+ * Get fields for querying a single project by chainId and clanker token address
+ * Uses composite ID format: ${chainId}-${tokenAddress}
  */
-export const getLevrProjectByIdFields = (clankerTokenAddress: string) => {
+export const getLevrProjectByIdFields = (chainId: number, clankerTokenAddress: string) => {
+  const compositeId = `${chainId}-${clankerTokenAddress.toLowerCase()}`
   return {
     LevrProject_by_pk: {
       __args: {
-        id: clankerTokenAddress.toLowerCase(),
+        id: compositeId,
       },
       ...levrProjectFields,
     },

@@ -602,10 +602,11 @@ function parseStakingStats(
  * Returns null if the project is not found in the indexer
  */
 export async function getIndexedProject(
+  chainId: number,
   clankerToken: `0x${string}`
 ): Promise<IndexedProjectData | null> {
   try {
-    const fields = getLevrProjectByIdFields(clankerToken)
+    const fields = getLevrProjectByIdFields(chainId, clankerToken)
     const result = await query(fields)
     // Cast to our explicit type since the generated types can be complex
     return (result.LevrProject_by_pk as IndexedProjectData | null) ?? null
@@ -641,7 +642,7 @@ export async function getStaticProject({
 
   // Fetch indexed data and fee splitter in parallel
   const [indexedProject, feeSplitterAddress] = await Promise.all([
-    getIndexedProject(clankerToken),
+    getIndexedProject(chainId, clankerToken),
     getFeeSplitter({ publicClient, clankerToken, chainId }),
   ])
 
@@ -874,7 +875,7 @@ export async function getProject({
 
   // Fetch all data in parallel: indexed governance, pricing, block, and RPC multicall
   const [indexedProject, pricing, block, results] = await Promise.all([
-    getIndexedProject(clankerToken),
+    getIndexedProject(chainId, clankerToken),
     fetchPricing(oraclePublicClient, publicClient, staticProject),
     publicClient.getBlock(),
     publicClient.multicall({ contracts }),
