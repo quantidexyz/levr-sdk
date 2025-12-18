@@ -24,19 +24,42 @@ export type UseMetricsReturnType = {
 }
 
 /**
- * Adapts raw metrics data to GlobalMetrics for UI consumption
+ * Aggregates metrics from all chains into a single GlobalMetrics object
  */
-function toGlobalMetrics(data: LevrMetricsData): GlobalMetrics {
+function aggregateMetrics(metricsArray: LevrMetricsData[]): GlobalMetrics {
+  let projectCount = 0
+  let totalStakers = 0
+  let totalStakedUsd = 0
+  let tvlUsd = 0
+  let hasStakedUsd = false
+  let hasTvlUsd = false
+
+  for (const metrics of metricsArray) {
+    projectCount += Number(metrics.projectCount ?? 0)
+    totalStakers += Number(metrics.totalStakers ?? 0)
+
+    if (metrics.totalStakedUsd) {
+      hasStakedUsd = true
+      totalStakedUsd += parseFloat(metrics.totalStakedUsd)
+    }
+
+    if (metrics.tvlUsd) {
+      hasTvlUsd = true
+      tvlUsd += parseFloat(metrics.tvlUsd)
+    }
+  }
+
   return {
-    projectCount: Number(data.projectCount ?? 0),
-    totalStakers: Number(data.totalStakers ?? 0),
-    totalStakedUsd: data.totalStakedUsd ?? null,
-    tvlUsd: data.tvlUsd ?? null,
+    projectCount,
+    totalStakers,
+    totalStakedUsd: hasStakedUsd ? totalStakedUsd.toFixed(2) : null,
+    tvlUsd: hasTvlUsd ? tvlUsd.toFixed(2) : null,
   }
 }
 
 /**
  * Hook for fetching global Levr metrics with real-time updates via GraphQL subscription
+ * Aggregates metrics from all chains
  */
 export function useMetrics({ enabled = true }: UseMetricsParams = {}): UseMetricsReturnType {
   const queryKey = React.useMemo(() => queryKeys.subscription.metrics(), [])
@@ -53,9 +76,9 @@ export function useMetrics({ enabled = true }: UseMetricsParams = {}): UseMetric
   })
 
   const data = React.useMemo(() => {
-    const metrics = rawData?.LevrMetrics?.[0]
-    if (!metrics) return null
-    return toGlobalMetrics(metrics)
+    const metricsArray = rawData?.LevrMetrics
+    if (!metricsArray || metricsArray.length === 0) return null
+    return aggregateMetrics(metricsArray)
   }, [rawData])
 
   const error = React.useMemo(() => {

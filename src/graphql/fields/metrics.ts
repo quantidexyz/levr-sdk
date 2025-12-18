@@ -6,7 +6,7 @@ import type { SubscriptionResult } from '../gen'
 // ============================================================================
 
 /**
- * Fields for global Levr metrics (singleton entity)
+ * Fields for Levr metrics per chain
  */
 export const levrMetricsFields = {
   id: true,
@@ -21,15 +21,12 @@ export const levrMetricsFields = {
 // ============================================================================
 
 /**
- * Get fields for querying global Levr metrics
+ * Get fields for querying Levr metrics from all chains
+ * Each chain has its own metrics entity (id = chainId)
  */
 export const getLevrMetricsFields = () => {
   return {
     LevrMetrics: {
-      __args: {
-        where: { id: { _eq: '1' } },
-        limit: 1,
-      },
       ...levrMetricsFields,
     },
   }
@@ -43,7 +40,7 @@ type LevrMetricsFields = ReturnType<typeof getLevrMetricsFields>
 export type LevrMetricsResult = SubscriptionResult<LevrMetricsFields>
 export type LevrMetricsData = LevrMetricsResult['LevrMetrics'][number]
 
-/** Adapted metrics for UI consumption */
+/** Adapted metrics for UI consumption (aggregated across all chains) */
 export type GlobalMetrics = {
   projectCount: number
   totalStakers: number
