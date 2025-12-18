@@ -271,6 +271,101 @@ type FactoryData = {
   forwarder: `0x${string}`
 }
 
+type IndexedPoolToken = {
+  address?: string | null
+  symbol?: string | null
+  decimals?: number | null
+} | null
+
+type IndexedV4Pool = {
+  token0?: IndexedPoolToken
+  token1?: IndexedPoolToken
+} | null
+
+// ---
+// Paired Token Resolution
+
+/**
+ * Resolves paired token info from pool key and indexed data.
+ * Handles WETH/WBNB detection and fallback symbol resolution.
+ */
+function resolvePairedToken(
+  poolKey: PoolKey,
+  clankerToken: `0x${string}`,
+  clankerSymbol: string | null | undefined,
+  v4Pool: IndexedV4Pool | null | undefined,
+  chainId: number
+): PairedTokenInfo {
+  // Get paired token address from pool key (case-insensitive)
+  const isCurrency0Clanker = poolKey.currency0.toLowerCase() === clankerToken.toLowerCase()
+  const pairedTokenAddress = isCurrency0Clanker ? poolKey.currency1 : poolKey.currency0
+
+  // Check if paired token is native (WETH/WBNB)
+  const wethInfo = WETH(chainId)
+  const isNativeByAddress = isWETH(pairedTokenAddress, chainId)
+
+  // Find paired token from indexed v4Pool data
+  const indexedPairedToken = findIndexedPairedToken(v4Pool, pairedTokenAddress, clankerSymbol)
+
+  // Also check if native by symbol (fallback when address doesn't match)
+  const isNativeBySymbol = wethInfo && indexedPairedToken?.symbol === wethInfo.symbol
+
+  // Return native token info if WETH/WBNB
+  if ((isNativeByAddress || isNativeBySymbol) && wethInfo) {
+    return {
+      address: wethInfo.address,
+      symbol: wethInfo.symbol,
+      decimals: wethInfo.decimals,
+      isNative: true,
+    }
+  }
+
+  // Return non-native paired token info
+  const symbol = resolveSymbol(indexedPairedToken?.symbol, clankerSymbol)
+  return {
+    address: pairedTokenAddress,
+    symbol,
+    decimals: indexedPairedToken?.decimals ?? 18,
+    isNative: false,
+  }
+}
+
+/**
+ * Finds the paired token from indexed v4Pool data.
+ * Tries address matching first, then falls back to symbol exclusion.
+ */
+function findIndexedPairedToken(
+  v4Pool: IndexedV4Pool | null | undefined,
+  pairedTokenAddress: `0x${string}`,
+  clankerSymbol: string | null | undefined
+): IndexedPoolToken | null {
+  if (!v4Pool) return null
+
+  const { token0, token1 } = v4Pool
+  const targetAddress = pairedTokenAddress.toLowerCase()
+
+  // Try matching by address first
+  if (token0?.address?.toLowerCase() === targetAddress) return token0
+  if (token1?.address?.toLowerCase() === targetAddress) return token1
+
+  // Fallback: find token that is NOT the clanker token by symbol
+  if (token0?.symbol && token0.symbol !== clankerSymbol) return token0
+  if (token1?.symbol && token1.symbol !== clankerSymbol) return token1
+
+  return null
+}
+
+/**
+ * Resolves symbol with validation against clanker symbol.
+ */
+function resolveSymbol(
+  symbol: string | null | undefined,
+  clankerSymbol: string | null | undefined
+): string {
+  if (symbol && symbol !== clankerSymbol) return symbol
+  return 'PAIRED'
+}
+
 // ---
 // Contract Getters
 
@@ -778,39 +873,14 @@ export async function getStaticProject({
 
     const poolKey = tokenRewards.poolKey
 
-    // Derive paired token info from pool key
-    const pairedTokenAddress =
-      poolKey.currency0 === clankerToken ? poolKey.currency1 : poolKey.currency0
-    const isNative = isWETH(pairedTokenAddress, chainId)
-    const wethInfo = WETH(chainId)
-
-    // Get paired token data from indexed v4Pool if available
-    const v4Pool = indexedToken.v4Pool
-    const indexedPairedToken =
-      v4Pool?.token0?.address?.toLowerCase() === pairedTokenAddress.toLowerCase()
-        ? v4Pool.token0
-        : v4Pool?.token1?.address?.toLowerCase() === pairedTokenAddress.toLowerCase()
-          ? v4Pool.token1
-          : null
-
-    // Create paired token info
-    let pairedToken: PairedTokenInfo
-    if (isNative && wethInfo) {
-      pairedToken = {
-        address: wethInfo.address,
-        symbol: wethInfo.symbol,
-        decimals: wethInfo.decimals,
-        isNative: true,
-      }
-    } else {
-      // Use indexed data for non-WETH paired tokens
-      pairedToken = {
-        address: pairedTokenAddress,
-        symbol: indexedPairedToken?.symbol ?? 'TOKEN',
-        decimals: indexedPairedToken?.decimals ?? 18,
-        isNative: false,
-      }
-    }
+    // Resolve paired token info from pool key and indexed data
+    const pairedToken = resolvePairedToken(
+      poolKey,
+      clankerToken,
+      indexedToken.symbol,
+      indexedToken.v4Pool,
+      chainId
+    )
 
     poolInfo = {
       poolKey,
