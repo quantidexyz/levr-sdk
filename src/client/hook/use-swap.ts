@@ -76,14 +76,15 @@ export function useSwap({
       const amountInBigInt = parseUnits(quoteParams!.amountIn, quoteParams!.amountInDecimals)
 
       // Determine currency0 and currency1 decimals based on pool key and token
+      const pairedTokenDecimals = project.data?.pool?.pairedToken?.decimals ?? 18
       const currency0Decimals =
         poolKey!.currency0.toLowerCase() === project.data?.token.address.toLowerCase()
           ? project.data.token.decimals
-          : 18 // WETH decimals
+          : pairedTokenDecimals
       const currency1Decimals =
         poolKey!.currency1.toLowerCase() === project.data?.token.address.toLowerCase()
           ? project.data.token.decimals
-          : 18 // WETH decimals
+          : pairedTokenDecimals
 
       const result = await quoteApi.v4.read({
         publicClient: publicClient!,

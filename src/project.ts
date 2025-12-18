@@ -1141,14 +1141,11 @@ async function fetchPricing(
       quoteHooks: staticProject.pool.poolKey.hooks,
     })
 
-    // For WETH pairs, query the price; for other pairs assume stablecoin (1.00)
-    const pairedTokenUsdPrice = pairedToken.isNative
-      ? await getPairedTokenUsdPrice({
-          publicClient: oraclePublicClient,
-          pairedTokenAddress: pairedToken.address,
-          pairedTokenDecimals: pairedToken.decimals,
-        })
-      : '1.00' // Non-WETH pairs are assumed to be stablecoins
+    // Get paired token USD price (WETH/WBNB = oracle, stablecoins = $1.00)
+    const pairedTokenUsdPrice = await getPairedTokenUsdPrice({
+      publicClient: oraclePublicClient,
+      pairedTokenAddress: pairedToken.address,
+    })
 
     return {
       tokenUsd: tokenUsdData.priceUsd,

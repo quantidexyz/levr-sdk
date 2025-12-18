@@ -6,38 +6,6 @@ import { createPoolKey } from './pool-key'
 import { quote } from './quote'
 import { isWETH } from './util'
 
-/**
- * @description Known stablecoin addresses that always have a price of 1.00 USD
- */
-const KNOWN_STABLECOINS: Record<number, Set<string>> = {
-  8453: new Set([
-    '0x833589fcd6edb6e08f4c7c32d4f71b3566915e71'.toLowerCase(), // USDC
-    '0x0b3bd41220dd2eef4e578b3a1f47b07c5e60e1e6'.toLowerCase(), // axlUSDC
-  ]),
-  1: new Set([
-    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'.toLowerCase(), // USDC
-    '0xdac17f958d2ee523a2206206994597c13d831ec7'.toLowerCase(), // USDT
-    '0x6b175474e89094c44da98b954eedeac495271d0f'.toLowerCase(), // DAI
-  ]),
-  56: new Set([
-    '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'.toLowerCase(), // USDC
-    '0x55d398326f99059ff775485246999027b3197955'.toLowerCase(), // USDT
-    '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3'.toLowerCase(), // DAI
-  ]),
-  42161: new Set([
-    '0xff970a61a04b1ca14834a43f5de4533ebddb5f86'.toLowerCase(), // USDC (Arbitrum)
-    '0xfd086bc7cd5c481dcc9c85ffe596854b4a38fb07'.toLowerCase(), // USDT
-  ]),
-}
-
-/**
- * @description Check if a token is a known stablecoin
- */
-export const isKnownStablecoin = (tokenAddress: `0x${string}`, chainId: number): boolean => {
-  const stablecoins = KNOWN_STABLECOINS[chainId]
-  if (!stablecoins) return false
-  return stablecoins.has(tokenAddress.toLowerCase())
-}
 export type GetWethUsdPriceParams = {
   /**
    * Public client for WETH/USDC oracle queries
@@ -159,19 +127,13 @@ export const getWethUsdPrice = async ({
 export type GetPairedTokenUsdPriceParams = {
   /**
    * Public client for price oracle queries
-   * For stablecoins: any client
-   * For WETH: should connect to a chain with reliable USDC liquidity
-   * For other tokens: should connect to a chain with V3 liquidity
+   * For WETH/WBNB: should connect to a chain with reliable USDC liquidity
    */
   publicClient: PublicClient
   /**
    * Paired token address
    */
   pairedTokenAddress: `0x${string}`
-  /**
-   * Paired token decimals
-   */
-  pairedTokenDecimals: number
 }
 
 /**
@@ -181,82 +143,43 @@ export type GetPairedTokenUsdPriceParams = {
  * @returns USD price as a formatted string
  *
  * @remarks
- * Handles three cases:
- * 1. Known stablecoins (USDC, USDT, DAI) -> return "1.00"
- * 2. WETH -> use WETH/USDC V3 oracle
- * 3. Other tokens -> quote against USDC via V3
+ * Handles two cases:
+ * 1. WETH/WBNB (native wrapped tokens) -> use WETH/USDC V3 oracle
+ * 2. All other tokens (stablecoins) -> return "1.00"
  *
  * @example
  * ```typescript
- * // Get price of USDC (stablecoin)
- * const { priceUsd } = await getPairedTokenUsdPrice({
+ * // Get price of USDC (stablecoin) - returns "1.00"
+ * const priceUsd = await getPairedTokenUsdPrice({
  *   publicClient: baseClient,
  *   pairedTokenAddress: '0x833589...',
- *   pairedTokenDecimals: 6,
  * })
- * console.log(`Paired token price: $${priceUsd}`) // "1.00"
+ *
+ * // Get price of WETH - uses oracle
+ * const wethPrice = await getPairedTokenUsdPrice({
+ *   publicClient: baseClient,
+ *   pairedTokenAddress: '0x4200...',
+ * })
  * ```
  */
 export const getPairedTokenUsdPrice = async ({
   publicClient,
   pairedTokenAddress,
-  pairedTokenDecimals,
 }: GetPairedTokenUsdPriceParams): Promise<string> => {
   const chainId = publicClient.chain?.id
   if (!chainId) {
     throw new Error('Chain ID not found on public client')
   }
 
-  // Case 1: Known stablecoins
-  if (isKnownStablecoin(pairedTokenAddress, chainId)) {
-    return '1.00'
-  }
-
-  // Case 2: WETH
+  // Case 1: WETH/WBNB (native wrapped tokens) - use oracle
   if (isWETH(pairedTokenAddress, chainId)) {
     const { priceUsd } = await getWethUsdPrice({ publicClient })
     return priceUsd
   }
 
-  // Case 3: Other tokens - quote against USDC via V3
-  const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
-  if (!quoterAddress) {
-    throw new Error(`V3 Quoter address not found for chain ID ${chainId}`)
-  }
-
-  const usdcAddress = GET_USDC_ADDRESS(chainId)
-  if (!usdcAddress) {
-    throw new Error(`USDC address not found for chain ID ${chainId}`)
-  }
-
-  // V3 fee tiers (in order of preference for token/USDC)
-  const V3_FEE_TIERS = [3000, 500, 10000] // 0.3%, 0.05%, 1%
-
-  // Try each V3 fee tier
-  for (const fee of V3_FEE_TIERS) {
-    try {
-      const oneToken = parseUnits('1', pairedTokenDecimals)
-
-      const quoteResult = await quote.v3.read({
-        publicClient,
-        quoterAddress,
-        tokenIn: pairedTokenAddress,
-        tokenOut: usdcAddress,
-        amountIn: oneToken,
-        fee,
-      })
-
-      if (quoteResult.amountOut > 0n) {
-        const priceUsd = formatUnits(quoteResult.amountOut, 6)
-        return priceUsd
-      }
-    } catch (error) {
-      // This fee tier doesn't work, try next
-      continue
-    }
-  }
-
-  throw new Error(`No liquid ${pairedTokenAddress}/USDC V3 pool found for pricing`)
+  // Case 2: All other paired tokens are stablecoins - always $1.00
+  // This includes USDC, USDT, DAI, and any other non-native paired token
+  return '1.00'
 }
 
 /**
@@ -391,7 +314,6 @@ export const getUsdPrice = async ({
   const pairedTokenPriceUsd = await getPairedTokenUsdPrice({
     publicClient: oraclePublicClient,
     pairedTokenAddress: pairedToken,
-    pairedTokenDecimals: pairedDecimals,
   })
 
   // Create pool key for token/paired token
