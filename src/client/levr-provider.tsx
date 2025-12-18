@@ -9,14 +9,12 @@ import { useAccount, useChainId } from 'wagmi'
 
 import type { AirdropStatus } from '..'
 import type { FactoryConfig } from '../factory'
-import type { PoolData } from '../pool'
 import type { Project } from '../project'
 import type { ProposalsResult } from '../proposal'
 import type { User } from '../user'
 import { getPublicClient } from '../util'
 import { useAirdropStatusQuery } from '.'
 import { useFactoryConfigQuery } from './hook/use-factory'
-import { usePoolQuery } from './hook/use-pool'
 import { useProjectQuery } from './hook/use-project'
 import { useProposalsQuery } from './hook/use-proposal'
 import { useUserQuery } from './hook/use-user'
@@ -39,7 +37,6 @@ export type LevrContextValue = {
   // Data queries (hierarchical structure)
   user: UseQueryResult<User | null>
   project: UseQueryResult<Project | null>
-  pool: UseQueryResult<PoolData | null>
   proposals: UseQueryResult<ProposalsResult | null>
   airdropStatus: UseQueryResult<AirdropStatus | null>
   factoryConfig: UseQueryResult<FactoryConfig | null>
@@ -50,7 +47,6 @@ export type LevrContextValue = {
     all: () => Promise<void>
     user: () => Promise<void>
     project: () => Promise<void>
-    pool: () => Promise<void>
     proposals: () => Promise<void>
 
     // Action-based refetches
@@ -132,7 +128,6 @@ export function LevrProvider({
     ipfsJsonUrl,
   })
   const userQuery = useUserQuery({ project: project.data, enabled })
-  const poolQuery = usePoolQuery({ project: project.data, enabled })
   const proposalsQuery = useProposalsQuery({
     project: project.data,
     cycleId: selectedCycleId ?? undefined,
@@ -142,7 +137,6 @@ export function LevrProvider({
 
   const projectRefetch = project.refetch
   const userRefetch = userQuery.refetch
-  const poolRefetch = poolQuery.refetch
   const proposalsRefetch = proposalsQuery.refetch
   const airdropRefetch = airdropStatus.refetch
 
@@ -170,11 +164,10 @@ export function LevrProvider({
       all: refetchAll,
       user: () => runRefetchChain(userRefetch),
       project: () => runRefetchChain(projectRefetch),
-      pool: () => runRefetchChain(poolRefetch),
       proposals: () => runRefetchChain(proposalsRefetch),
 
       // Action-based refetches
-      afterTrade: () => runRefetchChain(userRefetch, poolRefetch, projectRefetch),
+      afterTrade: () => runRefetchChain(userRefetch, projectRefetch),
       afterStake: () => runRefetchChain(userRefetch, projectRefetch),
       afterUnstake: () => runRefetchChain(userRefetch, projectRefetch),
       afterClaim: () => runRefetchChain(userRefetch, projectRefetch),
@@ -184,15 +177,7 @@ export function LevrProvider({
       afterExecute: () => runRefetchChain(projectRefetch, proposalsRefetch),
       afterAirdrop: () => runRefetchChain(projectRefetch, airdropRefetch),
     }),
-    [
-      refetchAll,
-      runRefetchChain,
-      userRefetch,
-      projectRefetch,
-      poolRefetch,
-      proposalsRefetch,
-      airdropRefetch,
-    ]
+    [refetchAll, runRefetchChain, userRefetch, projectRefetch, proposalsRefetch, airdropRefetch]
   )
 
   // Auto-refetch on wallet/chain change
@@ -215,7 +200,6 @@ export function LevrProvider({
       // Data queries
       user: userQuery,
       project,
-      pool: poolQuery,
       proposals: proposalsQuery,
       airdropStatus,
       factoryConfig,
@@ -232,7 +216,6 @@ export function LevrProvider({
       setSelectedCycleId,
       userQuery,
       project,
-      poolQuery,
       proposalsQuery,
       airdropStatus,
       factoryConfig,

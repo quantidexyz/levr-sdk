@@ -15,11 +15,6 @@ export const useUser = () => useLevrContext().user
 export const useProject = () => useLevrContext().project
 
 /**
- * Hook to access pool data from LevrProvider
- */
-export const usePool = () => useLevrContext().pool
-
-/**
  * Hook to access proposals from LevrProvider
  */
 export const useProposals = () => useLevrContext().proposals
@@ -62,7 +57,6 @@ export * from './use-airdrop'
 export * from './use-deploy'
 export * from './use-factory'
 export * from './use-metrics'
-export * from './use-pool'
 export * from './use-prepare'
 export * from './use-project'
 export * from './use-proposal'

@@ -37,12 +37,35 @@ export const levrProjectListFields = {
 } as const satisfies GraphQLSubscriptionArgs['LevrProject']
 
 /**
+ * V4 Pool fields for token pool data
+ */
+export const v4PoolFields = {
+  id: true,
+  poolId: true,
+  sqrtPriceX96: true,
+  tick: true,
+  liquidity: true,
+  fee: true,
+  tickSpacing: true,
+  hooks: true,
+  token0: {
+    address: true,
+    decimals: true,
+  },
+  token1: {
+    address: true,
+    decimals: true,
+  },
+} as const
+
+/**
  * Full fields for detailed project views
  */
 export const levrProjectFields = {
   __scalar: true,
   clankerToken: {
     __scalar: true,
+    v4Pool: v4PoolFields,
   },
 } as const satisfies GraphQLSubscriptionArgs['LevrProject']
 
@@ -147,4 +170,17 @@ export type ProjectListItem = {
   chainId: number
   token: TokenInfo
   stats: ProjectStats
+}
+
+/** Indexed V4 pool data from clankerToken.v4Pool */
+export type IndexedPoolData = {
+  poolId: string
+  sqrtPriceX96: bigint
+  tick: number
+  liquidity: bigint
+  fee: number
+  tickSpacing: number
+  hooks: `0x${string}`
+  token0: { address: `0x${string}`; decimals: number }
+  token1: { address: `0x${string}`; decimals: number }
 }

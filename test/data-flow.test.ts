@@ -24,7 +24,6 @@ mock.module('../src/util', () => ({
 }))
 
 import { LevrProvider, useLevrContext, useProject, useUser } from '../src/client'
-import { pool } from '../src/pool'
 import { getProject, getStaticProject } from '../src/project'
 import { proposals } from '../src/proposal'
 import { getUser } from '../src/user'
@@ -526,18 +525,7 @@ describe('#data-flow', () => {
 
           const userCallsAdded = tracker.getTotalCalls() - projectCalls
           // User should add: 1 multicall (balances + staking) + 1 getBalance = 2 calls
-          // User data is separate from pool-level stats (which are in project)
           expect(userCallsAdded).toBe(2)
-
-          // Fetch pool data (shares project data)
-          await pool({
-            publicClient: mockPublicClient as any,
-            project: projectData,
-          })
-
-          const poolCallsAdded = tracker.getTotalCalls() - projectCalls - userCallsAdded
-          // Pool should add: 1 multicall (exactly 1, no duplicates)
-          expect(poolCallsAdded).toBe(1)
 
           // Fetch proposals (uses project.governor and project.governanceStats.currentCycleId)
           await proposals({
@@ -548,8 +536,7 @@ describe('#data-flow', () => {
             cycleId: projectData.governanceStats!.currentCycleId, // Pass from project to avoid re-fetching!
           })
 
-          const proposalsCallsAdded =
-            tracker.getTotalCalls() - projectCalls - userCallsAdded - poolCallsAdded
+          const proposalsCallsAdded = tracker.getTotalCalls() - projectCalls - userCallsAdded
 
           // Proposals should add: 1 getProposalsForCycle + 1 multicall + 1 getWinner = 2-3 calls
           // Uses cycleId from project (no refetch!)
@@ -559,7 +546,7 @@ describe('#data-flow', () => {
         }
 
         // Verify total calls
-        // Project: 3 (getSplitter + 2 multicalls), User: 2, Pool: 1, Proposals: 2-3 = 8-9 total (without oracle)
+        // Project: 3 (getSplitter + 2 multicalls), User: 2, Proposals: 2-3 = 7-8 total (without oracle)
         const totalCalls = tracker.getTotalCalls()
         expect(totalCalls).toBeGreaterThanOrEqual(8)
         expect(totalCalls).toBeLessThanOrEqual(9) // Exact range - any more would be duplicates!
@@ -644,15 +631,10 @@ describe('#data-flow', () => {
 
         tracker.reset()
 
-        // Call user, pool, proposals - they should NOT refetch any project data
+        // Call user, proposals - they should NOT refetch any project data
         await getUser({
           publicClient: mockPublicClient as any,
           userAddress: MOCK_USER_ADDRESS,
-          project: projectData,
-        })
-
-        await pool({
-          publicClient: mockPublicClient as any,
           project: projectData,
         })
 
@@ -790,26 +772,6 @@ describe('#data-flow', () => {
         // Voting power should be directly in user object
         expect(userData.votingPower).toBeDefined()
       })
-
-      it('should fetch pool state only in pool query', async () => {
-        const projectData = await getFullProject({
-          publicClient: mockPublicClient as any,
-          clankerToken: MOCK_CLANKER_TOKEN,
-        })
-
-        if (!projectData) throw new Error('Project data is null')
-
-        const poolData = await pool({
-          publicClient: mockPublicClient as any,
-          project: projectData,
-        })
-
-        // Pool state should be in pool data
-        expect(poolData).toBeDefined()
-        expect(poolData?.sqrtPriceX96).toBeDefined()
-        expect(poolData?.tick).toBeDefined()
-        expect(poolData?.liquidity).toBeDefined()
-      })
     })
 
     describe('Data Sharing Patterns', () => {
@@ -861,36 +823,6 @@ describe('#data-flow', () => {
 
         // User should only make: 1 multicall + 1 getBalance + 1 airdrop check
         expect(tracker.getTotalCalls()).toBeLessThanOrEqual(4)
-      })
-
-      it('should share project.pool data to pool query (verify poolKey NOT refetched)', async () => {
-        const projectData = await getFullProject({
-          publicClient: mockPublicClient as any,
-          clankerToken: MOCK_CLANKER_TOKEN,
-        })
-
-        if (!projectData) throw new Error('Project data is null')
-
-        tracker.reset()
-
-        // Pool should use project.pool.poolKey
-        const poolData = await pool({
-          publicClient: mockPublicClient as any,
-          project: projectData, // Sharing project data
-        })
-
-        // Pool should use poolKey from project (exact same object)
-        expect(poolData?.poolKey).toEqual(projectData.pool?.poolKey)
-        expect(poolData?.feeDisplay).toBe(projectData.pool?.feeDisplay)
-
-        // Verify pool() doesn't fetch poolKey (should come from project.pool)
-        const poolKeyCalls = tracker.calls.filter(
-          (c) => c.functionName === 'tokenRewards' // This fetches poolKey
-        )
-        expect(poolKeyCalls.length).toBe(0) // Should NOT be called again!
-
-        // Pool should only make 1 multicall for state (getSlot0, getLiquidity)
-        expect(tracker.getTotalCalls()).toBe(1)
       })
 
       it('should share project.governor to proposals query (verify NOT refetched)', async () => {
@@ -1108,12 +1040,12 @@ describe('#data-flow', () => {
         expect(eventCalls.length).toBeLessThanOrEqual(3) // Allow airdrop event checks with retries
 
         // Should make EXACTLY the expected number of calls (no duplicates!)
-        expect(multicallCount).toBeLessThanOrEqual(6) // project (2), user (1), pool (1), proposals (1), possible refetches = 5-6
+        expect(multicallCount).toBeLessThanOrEqual(6) // project (2), user (1), proposals (1), possible refetches = 4-6
         expect(readContractCount).toBeLessThanOrEqual(5) // getSplitter, getProposalsForCycle, getWinner, possible refetches = 3-5
         expect(getBalanceCount).toBeLessThanOrEqual(1) // Native ETH balance
 
         // CRITICAL: Total should be ~9-14 (with duplicates it would be 20+)
-        // Project: 3-5 (getSplitter + 2 multicalls + pending fees queries), User: 2, Pool: 1, Proposals: 2-3, Events: 0-3 = 8-14
+        // Project: 3-5 (getSplitter + 2 multicalls + pending fees queries), User: 2, Proposals: 2-3, Events: 0-3 = 7-13
         // Updated range due to pending fees queries added in security fix
         expect(totalCalls).toBeGreaterThanOrEqual(8)
         expect(totalCalls).toBeLessThan(15)
@@ -1211,25 +1143,6 @@ describe('#data-flow', () => {
         )
 
         expect(result.current.user.data).toBeDefined()
-      })
-
-      it('should expose pool query through context', async () => {
-        const wrapper = createWrapper()
-
-        const { result } = renderHook(() => useLevrContext(), { wrapper })
-
-        act(() => {
-          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
-        })
-
-        await waitFor(
-          () => {
-            expect(result.current.pool).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        expect(result.current.pool).toBeDefined()
       })
 
       it('should expose proposals query through context', async () => {
@@ -1405,7 +1318,7 @@ describe('#data-flow', () => {
         expect(newCalls).toBeLessThan(10)
       })
 
-      it('refetch.afterTrade() should trigger ONLY user + pool (NOT project or proposals)', async () => {
+      it('refetch.afterTrade() should trigger ONLY user + project (NOT proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1426,28 +1339,26 @@ describe('#data-flow', () => {
         // Trigger afterTrade refetch
         await result.current.refetch.afterTrade()
 
-        // Verify call pattern: should make user + pool queries
+        // Verify call pattern: should make user + project queries
         // User: 1 multicall + 1 getBalance = 2 calls
-        // Pool: 1 multicall = 1 call
-        // Static project may be refetched: 1 multicall (if stale)
-        // Total: 3-4 calls
+        // Project: 1-2 multicalls
         const totalCalls = tracker.getTotalCalls()
         const multicalls = tracker.getCallCount('multicall')
         const getBalanceCalls = tracker.getCallCount('getBalance')
 
-        // Should have user multicall + pool multicall (+ possibly static project) = 2-3
+        // Should have user multicall + project multicall(s)
         expect(multicalls).toBeGreaterThanOrEqual(2)
-        expect(multicalls).toBeLessThanOrEqual(3)
+        expect(multicalls).toBeLessThanOrEqual(4)
 
         // Should have getBalance for user
         expect(getBalanceCalls).toBe(1)
 
-        // Total should be user + pool (+ possibly static project): 3-4 calls
+        // Total should be user + project calls
         expect(totalCalls).toBeGreaterThanOrEqual(3)
-        expect(totalCalls).toBeLessThanOrEqual(4)
+        expect(totalCalls).toBeLessThanOrEqual(5)
       })
 
-      it('refetch.afterStake() should trigger ONLY user + project (NOT pool or proposals)', async () => {
+      it('refetch.afterStake() should trigger ONLY user + project (NOT proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1484,7 +1395,7 @@ describe('#data-flow', () => {
         expect(readContracts).toBeLessThanOrEqual(1)
       })
 
-      it('refetch.afterClaim() should trigger ONLY user (NOT project, pool, or proposals)', async () => {
+      it('refetch.afterClaim() should trigger ONLY user + project (NOT proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1521,7 +1432,7 @@ describe('#data-flow', () => {
         expect(tracker.getTotalCalls()).toBeLessThanOrEqual(3)
       })
 
-      it('refetch.afterAccrue() should trigger ONLY project (NOT user, pool, or proposals)', async () => {
+      it('refetch.afterAccrue() should trigger ONLY project (NOT user or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1562,7 +1473,7 @@ describe('#data-flow', () => {
         expect(tracker.getTotalCalls()).toBeLessThanOrEqual(4)
       })
 
-      it('refetch.afterAirdrop() should trigger ONLY project (NOT user, pool, or proposals)', async () => {
+      it('refetch.afterAirdrop() should trigger ONLY project (NOT user or proposals)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1601,7 +1512,7 @@ describe('#data-flow', () => {
         expect(tracker.getTotalCalls()).toBeLessThanOrEqual(5)
       })
 
-      it('refetch.afterVote() should trigger ONLY user + proposals (NOT project or pool)', async () => {
+      it('refetch.afterVote() should trigger ONLY user + proposals (NOT project)', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1643,7 +1554,7 @@ describe('#data-flow', () => {
         expect(tracker.getTotalCalls()).toBeLessThanOrEqual(7)
       })
 
-      it('refetch.afterExecute() should trigger ONLY project + proposals + user (NOT pool)', async () => {
+      it('refetch.afterExecute() should trigger project + proposals + user', async () => {
         const wrapper = createWrapper()
 
         const { result } = renderHook(() => useLevrContext(), { wrapper })
@@ -1722,34 +1633,6 @@ describe('#data-flow', () => {
         expect(afterClaimCalls).toBeLessThanOrEqual(afterStakeCalls)
         // But afterClaim should be lean (max 3 calls)
         expect(afterClaimCalls).toBeLessThanOrEqual(3)
-      })
-
-      it('should not refetch pool when only user data changes', async () => {
-        const wrapper = createWrapper()
-
-        const { result } = renderHook(() => useLevrContext(), { wrapper })
-
-        act(() => {
-          result.current.setClankerToken(MOCK_CLANKER_TOKEN)
-        })
-
-        await waitFor(
-          () => {
-            expect(result.current.user.data).toBeDefined()
-          },
-          { timeout: 3000 }
-        )
-
-        tracker.reset()
-
-        // afterClaim should NOT refetch pool
-        await result.current.refetch.afterClaim()
-
-        // Verify pool multicall was not triggered
-        const multicalls = tracker.getCallCount('multicall')
-
-        // Should only be 1 multicall (for user), not 2 (user + pool)
-        expect(multicalls).toBeLessThanOrEqual(2)
       })
     })
   })
@@ -1832,7 +1715,7 @@ describe('#data-flow', () => {
 
         const stakeCalls = tracker.getTotalCalls()
 
-        // Should only refetch user + project (not pool or proposals)
+        // Should only refetch user + project (not proposals)
         expect(stakeCalls).toBeGreaterThanOrEqual(2)
         expect(stakeCalls).toBeLessThan(12)
 

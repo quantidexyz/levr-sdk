@@ -23,6 +23,7 @@ export type UseGraphQLSubscriptionReturnType<TSubscriptionArgs extends GraphQLSu
   data: SubscriptionResult<TSubscriptionArgs> | null
   error: string | null
   isLoading: boolean
+  isStale: boolean
 }
 
 /**
@@ -31,10 +32,11 @@ export type UseGraphQLSubscriptionReturnType<TSubscriptionArgs extends GraphQLSu
  * Uses useSyncExternalStore for synchronous cache reads, providing:
  * - Instant cached data on navigation (no loading flash)
  * - Real-time updates via WebSocket subscription
- * - Cached data persists across navigations
+ * - Cached data persists across navigations and reconnections
+ * - Automatic reconnection with exponential backoff
  *
  * @param params - The parameters including fields and enabled flag
- * @returns Object with data, error, and isLoading states
+ * @returns Object with data, error, isLoading, and isStale states
  */
 export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscriptionArgs>({
   queryKey,
@@ -54,14 +56,22 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
   // This prevents permanent loading state on re-subscriptions
   const hasLoadedOnceRef = React.useRef(false)
 
+  // Track the last received data timestamp to detect staleness
+  const lastDataTimestampRef = React.useRef<number>(0)
+
+  // Store the last known good data to preserve across reconnections
+  const lastKnownDataRef = React.useRef<SubscriptionResult<TSubscriptionArgs> | null>(null)
+
   // Reset hasLoadedOnce when the query key changes (new subscription)
+  // But preserve data in cache for smooth transitions
   React.useEffect(() => {
     hasLoadedOnceRef.current = false
+    lastDataTimestampRef.current = 0
   }, [queryKeyStr])
 
   // Subscribe to cache changes synchronously via useSyncExternalStore
   // This ensures cached data is available immediately on first render
-  const data = React.useSyncExternalStore(
+  const cachedData = React.useSyncExternalStore(
     React.useCallback(
       (onStoreChange) => {
         // Subscribe to query cache changes
@@ -82,12 +92,18 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
     React.useCallback(() => null, [])
   )
 
-  // Update hasLoadedOnce when we receive data
+  // Use cached data, falling back to last known data if cache is empty
+  // This preserves data during temporary disconnections
+  const data = cachedData ?? lastKnownDataRef.current
+
+  // Update refs when we receive new data
   React.useEffect(() => {
-    if (data !== null) {
+    if (cachedData !== null) {
       hasLoadedOnceRef.current = true
+      lastDataTimestampRef.current = Date.now()
+      lastKnownDataRef.current = cachedData
     }
-  }, [data])
+  }, [cachedData])
 
   // Set up GraphQL subscription to update React Query cache
   React.useEffect(() => {
@@ -98,11 +114,13 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
     try {
       const sub = subscription(stableFields)
       const callbackId = sub.addCallback((newData) => {
+        // Update the cache with new data
         queryClient.setQueryData<SubscriptionResult<TSubscriptionArgs>>(queryKey, newData)
       })
 
       return () => {
         sub.removeCallback(callbackId)
+        // Don't clear cache on unmount - preserve for next mount
       }
     } catch (err: unknown) {
       const errorMessage =
@@ -113,13 +131,20 @@ export const useGraphQLSubscription = <TSubscriptionArgs extends GraphQLSubscrip
     }
   }, [queryKeyStr, fieldsStr, enabled, queryClient])
 
-  // Only show loading if we haven't received data yet AND we haven't loaded once before
-  // This prevents the permanent loading state on window focus / re-subscription
+  // Only show loading if we have no data at all (not even cached/last known)
   const isLoading = enabled && !data && !subscriptionError && !hasLoadedOnceRef.current
+
+  // Data is stale if we haven't received an update in over 60 seconds
+  // This indicates potential connection issues
+  const isStale =
+    hasLoadedOnceRef.current &&
+    lastDataTimestampRef.current > 0 &&
+    Date.now() - lastDataTimestampRef.current > 60_000
 
   return {
     data,
     error: subscriptionError,
     isLoading,
+    isStale,
   }
 }

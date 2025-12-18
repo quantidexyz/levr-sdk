@@ -25,11 +25,6 @@ export const queryKeys = {
     ['user', userAddress, token, staking, treasury] as const,
 
   /**
-   * Pool query keys
-   */
-  pool: (poolKey?: unknown) => ['pool', poolKey] as const,
-
-  /**
    * Clanker SDK query keys
    */
   clanker: (chainId?: number, walletAddress?: Address) =>

@@ -55,7 +55,7 @@ export function useSwap({
   onSwapSuccess,
   onSwapError,
 }: UseSwapParams = {}) {
-  const { user, project, pool, refetch } = useLevrContext()
+  const { user, project, refetch } = useLevrContext()
   const wallet = useWalletClient()
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
@@ -177,7 +177,7 @@ export function useSwap({
     buildSwapConfig,
 
     // Loading states
-    isLoading: user.isLoading || project.isLoading || pool.isLoading,
+    isLoading: user.isLoading || project.isLoading,
     isSwapping: swap.isPending,
   }
 }
