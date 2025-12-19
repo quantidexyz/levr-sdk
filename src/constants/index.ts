@@ -7,6 +7,28 @@ export * from './levr'
 export * from './uniswap'
 
 /**
+ * Initial liquidity amount provided by Clanker protocol per chain (in native token units)
+ * - ETH-based chains: 10 ETH
+ * - BNB chain: 35 BNB
+ */
+export const INITIAL_LIQUIDITY_AMOUNT: Record<number, number> = {
+  [anvil.id]: 10,
+  [base.id]: 10,
+  [baseSepolia.id]: 10,
+  [bsc.id]: 35,
+}
+
+/**
+ * Get the initial liquidity amount for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The initial liquidity amount in native token units (ETH/BNB), defaults to 10
+ */
+export const getInitialLiquidityAmount = (chainId?: number): number => {
+  if (!chainId) return 10
+  return INITIAL_LIQUIDITY_AMOUNT[chainId] ?? 10
+}
+
+/**
  * Get the wrapped native token address for a given chain ID (WETH/WBNB)
  * @param chainId - The chain ID
  * @returns The wrapped native token info

@@ -1,9 +1,10 @@
 import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import type { ClankerTokenV4 } from 'clanker-sdk'
-import { createMerkleTree, FEE_CONFIGS } from 'clanker-sdk'
+import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap } from 'clanker-sdk'
 import { omit } from 'lodash'
 
 import {
+  getInitialLiquidityAmount,
   LEVR_TEAM_LP_FEE_PERCENTAGE,
   LEVR_TEAM_WALLET,
   STAKING_REWARDS,
@@ -45,6 +46,7 @@ export const buildClankerV4 = ({
   const fees = getFees(c.fees)
   const rewards = getRewards(deployer, staking, c.stakingReward, c.rewards)
   const vault = getVault(c.vault)
+  const pool = getPool(chainId)
   const { liquidityPercentage } = calculateAllocationBreakdown(c, {
     fallbackTreasuryPercentage: 0,
   })
@@ -58,6 +60,7 @@ export const buildClankerV4 = ({
     metadata,
     fees,
     rewards,
+    pool,
     chainId: chainId as ClankerTokenV4['chainId'],
     vanity: true,
   } as const
@@ -66,6 +69,41 @@ export const buildClankerV4 = ({
     config,
     merkleTree,
     liquidityPercentage,
+  }
+}
+
+/**
+ * Upper tick boundary for standard pool position (~$1.5B market cap)
+ */
+const STANDARD_TICK_UPPER = -120000
+
+/**
+ * Builds the pool configuration for the Clanker token using chain-specific initial liquidity
+ * @param chainId - The chain ID to determine initial liquidity amount
+ * @returns Clanker pool configuration with correct tick for chain's initial liquidity
+ *
+ * @remarks
+ * - ETH-based chains (Base, Arbitrum, etc.): 10 ETH initial liquidity -> tick -230400
+ * - BNB chain: 35 BNB initial liquidity -> tick -217800
+ */
+const getPool = (chainId: number): NonNullable<ClankerDeploymentSchemaType['pool']> => {
+  // Initial liquidity amount equals initial market cap at launch
+  // (100B tokens × price = initial liquidity amount in native tokens)
+  const initialMarketCap = getInitialLiquidityAmount(chainId)
+  const { tickIfToken0IsClanker, tickSpacing } = getTickFromMarketCap(initialMarketCap)
+
+  return {
+    pairedToken: 'WETH',
+    tickIfToken0IsClanker,
+    tickSpacing,
+    // Position must have tickLower matching the starting tick
+    positions: [
+      {
+        tickLower: tickIfToken0IsClanker,
+        tickUpper: STANDARD_TICK_UPPER,
+        positionBps: 10_000, // 100% of LP in single position
+      },
+    ],
   }
 }
 
