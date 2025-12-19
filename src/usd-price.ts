@@ -1,7 +1,7 @@
 import type { PublicClient } from 'viem'
 import { formatUnits, parseUnits } from 'viem'
 
-import { GET_USDC_ADDRESS, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
+import { GET_USD_STABLECOIN, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
 import { createPoolKey } from './pool-key'
 import { quote } from './quote'
 
@@ -75,16 +75,16 @@ export const getWethUsdPrice = async ({
     throw new Error(`V3 Quoter address not found for chain ID ${chainId}`)
   }
 
-  // Get WETH and USDC addresses
+  // Get WETH and USD stablecoin data
   const wethData = WETH(chainId)
-  const usdcAddress = GET_USDC_ADDRESS(chainId)
+  const usdStablecoin = GET_USD_STABLECOIN(chainId)
 
   if (!wethData) {
     throw new Error(`WETH address not found for chain ID ${chainId}`)
   }
 
-  if (!usdcAddress) {
-    throw new Error(`USDC address not found for chain ID ${chainId}`)
+  if (!usdStablecoin) {
+    throw new Error(`USD stablecoin address not found for chain ID ${chainId}`)
   }
 
   // V3 fee tiers (in order of preference for WETH/USDC)
@@ -99,13 +99,14 @@ export const getWethUsdPrice = async ({
         publicClient,
         quoterAddress,
         tokenIn: wethData.address,
-        tokenOut: usdcAddress,
+        tokenOut: usdStablecoin.address,
         amountIn: oneWeth,
         fee,
       })
 
       if (quoteResult.amountOut > 0n) {
-        const priceUsd = formatUnits(quoteResult.amountOut, 6)
+        // Use the stablecoin's actual decimals (6 for USDC, 18 for BSC USDT)
+        const priceUsd = formatUnits(quoteResult.amountOut, usdStablecoin.decimals)
 
         return {
           priceUsd,
