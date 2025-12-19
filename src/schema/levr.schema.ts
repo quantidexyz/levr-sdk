@@ -58,9 +58,9 @@ const LevrDevBuy = Schema.Literal('0.1 ETH', '0.5 ETH', '1 ETH', '1.5 ETH').anno
   description: 'Amount of ETH to spend on dev buy',
 })
 
-const LevrPairedToken = Schema.Literal('ETH', 'USDC').annotations({
+const LevrPairedToken = Schema.Literal('ETH', 'USDC', 'DAI').annotations({
   description:
-    'Token to pair the clanker with. ETH uses V4 pool (recommended), USDC uses V3 pool for routing.',
+    'Token to pair the clanker with. ETH uses V4 pool (recommended), USDC/DAI use V3 pool for routing.',
 })
 
 const LevrStaticFeeTier = Schema.Literal(
@@ -181,7 +181,7 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   }),
   metadata: Schema.optional(LevrMetadata),
   pairedToken: LevrPairedToken.annotations({
-    description: 'Token to pair with. ETH uses V4 pool (default), USDC uses V3 pool.',
+    description: 'Token to pair with. ETH uses V4 pool (default), USDC/DAI use V3 pool.',
   }),
   devBuy: Schema.optional(LevrDevBuy),
   airdrop: Schema.optional(LevrAirdrop),

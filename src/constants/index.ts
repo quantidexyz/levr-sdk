@@ -14,6 +14,7 @@ export * from './uniswap'
  * - WBNB (BSC): 35 BNB
  * - USDC (Base): $30,000
  * - USDT (BSC): $30,000
+ * - DAI (Base): $30,000
  */
 export const INITIAL_LIQUIDITY_AMOUNT: Record<string, number> = {
   // WETH on Base/Anvil/Sepolia
@@ -24,6 +25,8 @@ export const INITIAL_LIQUIDITY_AMOUNT: Record<string, number> = {
   '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': 30_000,
   // USDT on BSC (18 decimals, $30k = 30000)
   '0x55d398326f99059ff775485246999027b3197955': 30_000,
+  // DAI on Base (18 decimals, $30k = 30000)
+  '0x50c5725949a6f0c72e6c4a641f24049a917db0cb': 30_000,
 }
 
 /**
@@ -136,4 +139,32 @@ export const GET_USD_STABLECOIN = (
  */
 export const GET_USDC_ADDRESS = (chainId?: number): `0x${string}` | undefined => {
   return GET_USD_STABLECOIN(chainId)?.address
+}
+
+/**
+ * Get the DAI token info for a given chain ID
+ * @param chainId - The chain ID
+ * @returns The DAI address and decimals
+ */
+export const GET_DAI = (
+  chainId?: number
+):
+  | {
+      address: `0x${string}`
+      decimals: number
+      symbol: string
+    }
+  | undefined => {
+  if (!chainId) return undefined
+
+  const dai = {
+    address: '0x50c5725949a6f0c72e6c4a641f24049a917db0cb' as `0x${string}`,
+    decimals: 18,
+    symbol: 'DAI',
+  }
+
+  return {
+    [anvil.id]: dai,
+    [base.id]: dai,
+  }[chainId]
 }

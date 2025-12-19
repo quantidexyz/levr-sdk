@@ -4,6 +4,8 @@ import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap, POOL_POSITIONS } f
 import { omit } from 'lodash'
 
 import {
+  DAI_V3_POOL_FEE,
+  GET_DAI,
   GET_USD_STABLECOIN,
   getInitialLiquidityAmount,
   LEVR_TEAM_LP_FEE_PERCENTAGE,
@@ -76,9 +78,55 @@ export const buildClankerV4 = ({
 }
 
 /**
+ * Calculate the starting tick for a pool with a specific paired token
+ *
+ * The standard getTickFromMarketCap assumes 18-decimal paired tokens (WETH).
+ * For tokens with different decimals (e.g., USDC with 6), we need to adjust
+ * the tick to account for the decimal difference.
+ *
+ * The tick represents: log_{1.0001}(price) where price = token1_raw / token0_raw
+ *
+ * For a given real price P:
+ * - With 18-decimal paired: raw_price = P (decimals cancel out)
+ * - With 6-decimal paired: raw_price = P * 10^(18-6) = P * 10^-12
+ *   (when clanker is token0, paired is token1)
+ *
+ * So we need to adjust the tick by log_{1.0001}(10^-12) ≈ -276324
+ *
+ * @param initialLiquidity - The initial liquidity amount in paired token units
+ * @param pairedTokenDecimals - Decimals of the paired token (default: 18)
+ * @returns Tick and tick spacing for the pool
+ */
+const getTickForPairedToken = (
+  initialLiquidity: number,
+  pairedTokenDecimals: number
+): { tickIfToken0IsClanker: number; tickSpacing: number } => {
+  // Start with the standard calculation (assumes 18 decimals)
+  const { tickIfToken0IsClanker: baseTick, tickSpacing } = getTickFromMarketCap(initialLiquidity)
+
+  // If paired token has 18 decimals, no adjustment needed
+  if (pairedTokenDecimals === 18) {
+    return { tickIfToken0IsClanker: baseTick, tickSpacing }
+  }
+
+  // Calculate decimal adjustment
+  // When clanker (18 decimals) is token0 and paired (N decimals) is token1:
+  // raw_price = real_price * 10^(N-18)
+  // tick_adjustment = log_{1.0001}(10^(N-18))
+  const decimalDiff = pairedTokenDecimals - 18 // e.g., 6 - 18 = -12 for USDC
+  const logBase = Math.log(1.0001)
+  const tickAdjustment = Math.floor((decimalDiff * Math.log(10)) / logBase)
+
+  // Adjust tick and round to nearest tick spacing
+  const adjustedTick = Math.floor((baseTick + tickAdjustment) / tickSpacing) * tickSpacing
+
+  return { tickIfToken0IsClanker: adjustedTick, tickSpacing }
+}
+
+/**
  * Builds the pool configuration for the Clanker token based on paired token and chain
  *
- * @param pairedToken - Levr paired token ('ETH' | 'USDC')
+ * @param pairedToken - Levr paired token ('ETH' | 'USDC' | 'DAI')
  * @param chainId - The chain ID to determine paired token address
  * @returns Clanker pool configuration with correct tick for initial liquidity
  *
@@ -86,23 +134,35 @@ export const buildClankerV4 = ({
  * Initial liquidity is looked up by paired token address:
  * - WETH (Base/Anvil): 10 ETH
  * - WBNB (BSC): 35 BNB
- * - USDC/USDT: $30,000
+ * - USDC/USDT/DAI: $30,000
  */
 const getPool = (
   pairedToken: LevrClankerDeploymentSchemaType['pairedToken'],
   chainId: number
 ): NonNullable<ClankerDeploymentSchemaType['pool']> => {
-  // Get paired token address based on selection
-  const pairedTokenAddress =
-    pairedToken === 'USDC' ? GET_USD_STABLECOIN(chainId)?.address : WETH(chainId)?.address
+  // Get paired token info based on selection
+  const pairedTokenInfo =
+    pairedToken === 'USDC'
+      ? GET_USD_STABLECOIN(chainId)
+      : pairedToken === 'DAI'
+        ? GET_DAI(chainId)
+        : WETH(chainId)
 
-  if (!pairedTokenAddress) {
+  if (!pairedTokenInfo) {
     throw new Error(`Paired token ${pairedToken} not configured for chain ${chainId}`)
   }
 
+  const pairedTokenAddress = pairedTokenInfo.address
+  const pairedTokenDecimals = pairedTokenInfo.decimals
+
   // Lookup initial liquidity by address
   const initialLiquidity = getInitialLiquidityAmount(pairedTokenAddress)
-  const { tickIfToken0IsClanker, tickSpacing } = getTickFromMarketCap(initialLiquidity)
+
+  // Calculate tick with proper decimal adjustment
+  const { tickIfToken0IsClanker, tickSpacing } = getTickForPairedToken(
+    initialLiquidity,
+    pairedTokenDecimals
+  )
 
   // Use standard position with tickLower at initial price
   const positions = POOL_POSITIONS.Standard.map((pos) => ({
@@ -111,7 +171,7 @@ const getPool = (
   }))
 
   return {
-    pairedToken: pairedToken === 'USDC' ? pairedTokenAddress : 'WETH',
+    pairedToken: pairedToken === 'USDC' || pairedToken === 'DAI' ? pairedTokenAddress : 'WETH',
     tickIfToken0IsClanker,
     tickSpacing,
     positions,
@@ -253,11 +313,11 @@ const getMetadata = (
 
 /**
  * Builds the dev buy for the Clanker token using the Levr dev buy amount and paired token
- * Maps Levr's pairedToken (ETH/USDC) to Clanker's poolType discriminator
+ * Maps Levr's pairedToken (ETH/USDC/DAI) to Clanker's poolType discriminator
  *
  * @param devBuyAmount - Levr dev buy amount (e.g., '0.5 ETH')
- * @param pairedToken - Levr paired token ('ETH' | 'USDC')
- * @returns Clanker dev buy with poolType discriminator (v4 for ETH, v3 for USDC)
+ * @param pairedToken - Levr paired token ('ETH' | 'USDC' | 'DAI')
+ * @returns Clanker dev buy with poolType discriminator (v4 for ETH, v3 for USDC/DAI)
  */
 const getDevBuy = (
   devBuyAmount: LevrClankerDeploymentSchemaType['devBuy'],
@@ -273,6 +333,15 @@ const getDevBuy = (
       poolType: 'v3',
       ethAmount,
       v3PoolFee: USDC_V3_POOL_FEE,
+    }
+  }
+
+  // DAI paired token uses V3 pool for ETH -> DAI routing
+  if (pairedToken === 'DAI') {
+    return {
+      poolType: 'v3',
+      ethAmount,
+      v3PoolFee: DAI_V3_POOL_FEE,
     }
   }
 
