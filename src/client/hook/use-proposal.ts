@@ -47,7 +47,7 @@ export function useProposalsQuery({
       return proposals({
         publicClient: publicClient!,
         governorAddress: project!.governor,
-        projectId: project!.token.address,
+        projectId: `${project!.chainId}-${project!.token.address.toLowerCase()}`,
         cycleId: contractCycleId,
         tokenDecimals: project!.token.decimals,
         pricing: project!.pricing,
@@ -76,7 +76,7 @@ export function useProposal({ proposalId, enabled: e = true }: UseProposalParams
       return proposal(
         publicClient!,
         project.data!.governor,
-        project.data!.token.address,
+        `${project.data!.chainId}-${project.data!.token.address.toLowerCase()}`,
         proposalId!,
         project.data!.token.decimals,
         project.data!.pricing
