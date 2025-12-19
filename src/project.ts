@@ -304,7 +304,7 @@ function resolvePairedToken(
   const isNativeByAddress = isWETH(pairedTokenAddress, chainId)
 
   // Find paired token from indexed v4Pool data
-  const indexedPairedToken = findIndexedPairedToken(v4Pool, pairedTokenAddress, clankerSymbol)
+  const indexedPairedToken = findIndexedPairedToken(v4Pool, pairedTokenAddress)
 
   // Also check if native by symbol (fallback when address doesn't match)
   const isNativeBySymbol = wethInfo && indexedPairedToken?.symbol === wethInfo.symbol
@@ -320,7 +320,7 @@ function resolvePairedToken(
   }
 
   // Return non-native paired token info
-  const symbol = resolveSymbol(indexedPairedToken?.symbol, clankerSymbol)
+  const symbol = resolveSymbol(indexedPairedToken?.symbol)
   return {
     address: pairedTokenAddress,
     symbol,
@@ -330,38 +330,34 @@ function resolvePairedToken(
 }
 
 /**
- * Finds the paired token from indexed v4Pool data.
- * Tries address matching first, then falls back to symbol exclusion.
+ * Finds the paired token from indexed v4Pool data by address matching.
  */
 function findIndexedPairedToken(
   v4Pool: IndexedV4Pool | null | undefined,
-  pairedTokenAddress: `0x${string}`,
-  clankerSymbol: string | null | undefined
+  pairedTokenAddress: `0x${string}`
 ): IndexedPoolToken | null {
   if (!v4Pool) return null
 
   const { token0, token1 } = v4Pool
   const targetAddress = pairedTokenAddress.toLowerCase()
 
-  // Try matching by address first
+  // Match by address
   if (token0?.address?.toLowerCase() === targetAddress) return token0
   if (token1?.address?.toLowerCase() === targetAddress) return token1
-
-  // Fallback: find token that is NOT the clanker token by symbol
-  if (token0?.symbol && token0.symbol !== clankerSymbol) return token0
-  if (token1?.symbol && token1.symbol !== clankerSymbol) return token1
 
   return null
 }
 
 /**
- * Resolves symbol with validation against clanker symbol.
+ * Resolves symbol for paired token.
+ * Returns the symbol if available, otherwise falls back to 'PAIRED'.
+ *
+ * Note: We no longer check against clankerSymbol because tokens can legitimately
+ * have the same symbol (e.g., a clanker named "U" paired with U stablecoin).
+ * Address matching in findIndexedPairedToken ensures we get the correct token.
  */
-function resolveSymbol(
-  symbol: string | null | undefined,
-  clankerSymbol: string | null | undefined
-): string {
-  if (symbol && symbol !== clankerSymbol) return symbol
+function resolveSymbol(symbol: string | null | undefined): string {
+  if (symbol) return symbol
   return 'PAIRED'
 }
 
