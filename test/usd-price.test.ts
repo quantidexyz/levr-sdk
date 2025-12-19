@@ -21,14 +21,14 @@ async function getFullProject(params: Parameters<typeof getStaticProject>[0]) {
  *
  * These tests validate the USD pricing system:
  * - WETH/USD pricing using V3 quoter (simulates swap)
- * - Token/USD pricing via V4 quotes
+ * - Token/Paired pricing via V4 sqrtPriceX96 (spot price from pool state)
  *
  * Prerequisites:
  * 1. DRPC_API_KEY environment variable (recommended for better RPC limits)
  *
  * Architecture:
  * - WETH/USDC pricing: V3 quoter (tries multiple fee tiers)
- * - Token/WETH pricing: Uniswap V4 (where Clanker tokens are deployed)
+ * - Token/WETH pricing: V4 sqrtPriceX96 from StateView (efficient single view call)
  * - Combined calculation: Token/USD = (Token/WETH) × (WETH/USD)
  */
 describe('#USD_PRICE_TEST', () => {

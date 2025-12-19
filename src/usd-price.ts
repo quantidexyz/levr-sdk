@@ -3,8 +3,7 @@ import { formatUnits, parseUnits } from 'viem'
 
 import { V3QuoterV2 } from './abis'
 import { GET_USD_STABLECOIN, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
-import { createPoolKey } from './pool-key'
-import { quote } from './quote'
+import { discoverPool, sortTokens } from './pool-key'
 import { isWETH } from './util'
 
 // =============================================================================
@@ -279,17 +278,17 @@ export type GetUsdPriceParams = {
   pairedTokenDecimals?: number
   /**
    * Optional fee tier for the token/paired token pool (in hundredths of a bip, e.g. 3000 = 0.3%)
-   * If not provided, uses defaults from pool-key module (3000 = 0.3%)
+   * If provided with quoteTickSpacing, uses specific pool instead of discovery
    */
   quoteFee?: number
   /**
    * Optional tick spacing for the token/paired token pool
-   * If not provided, uses defaults from pool-key module (60 for 0.3% fee tier)
+   * If provided with quoteFee, uses specific pool instead of discovery
    */
   quoteTickSpacing?: number
   /**
    * Optional hooks address for the token/paired token pool
-   * If not provided, uses defaults from pool-key module (zero address = no hooks)
+   * If not provided, discovers pools with any hooks
    */
   quoteHooks?: `0x${string}`
 }
@@ -303,9 +302,9 @@ export type GetUsdPriceReturnType = {
    */
   priceUsd: string
   /**
-   * Raw price ratio of token to paired token
+   * Price of token in paired token (e.g. token price in WETH)
    */
-  tokenPerPaired: bigint
+  tokenPriceInPaired: number
 }
 
 /**
@@ -316,21 +315,20 @@ export type GetUsdPriceReturnType = {
  *
  * @remarks
  * This function calculates the USD price of a token by:
- * 1. Auto-discovering paired token USD price (stablecoin or WETH via sqrtPriceX96)
- * 2. Getting the price of the token in the paired token via V4 quote
+ * 1. Reading sqrtPriceX96 directly from V4 pool state (efficient single view call)
+ * 2. Auto-discovering paired token USD price (stablecoin = $1.00, WETH via V3 quoter)
  * 3. Multiplying them together to get token price in USD
  *
+ * Uses sqrtPriceX96 for spot price calculation (same approach as the indexer).
  * Defaults to WETH as paired token if not provided.
  *
  * @example
  * ```typescript
- * // Get token price when paired with USDC (stablecoin)
+ * // Get token price when paired with WETH
  * const { priceUsd } = await getUsdPrice({
  *   publicClient: baseClient,
  *   tokenAddress: '0x123...',
  *   tokenDecimals: 18,
- *   pairedTokenAddress: '0x833589...',
- *   pairedTokenDecimals: 6,
  * })
  * console.log(`Token price: $${priceUsd}`)
  * ```
@@ -365,38 +363,49 @@ export const getUsdPrice = async ({
     throw new Error('pairedTokenDecimals must be provided when pairedTokenAddress is specified')
   }
 
+  // Build fee tiers - use specific pool if fee and tickSpacing are provided
+  const feeTiers =
+    quoteFee !== undefined && quoteTickSpacing !== undefined
+      ? [{ fee: quoteFee, tickSpacing: quoteTickSpacing }]
+      : undefined // Use defaults from discoverPool
+
+  // Discover the pool and get sqrtPriceX96 in one call
+  const pool = await discoverPool({
+    publicClient,
+    token0: tokenAddress,
+    token1: pairedToken,
+    hooks: quoteHooks,
+    feeTiers,
+  })
+
+  if (!pool) {
+    throw new Error(`No liquid V4 pool found for ${tokenAddress}/${pairedToken}`)
+  }
+
+  // Determine token ordering in the pool
+  const [currency0] = sortTokens(tokenAddress, pairedToken)
+  const tokenIsToken0 = tokenAddress.toLowerCase() === currency0.toLowerCase()
+
+  // Calculate decimals in pool order
+  const decimals0 = tokenIsToken0 ? tokenDecimals : pairedDecimals
+  const decimals1 = tokenIsToken0 ? pairedDecimals : tokenDecimals
+
+  // Calculate token price in paired token using sqrtPriceX96
+  const tokenPriceInPaired = computePriceFromSqrtPriceX96(
+    pool.sqrtPriceX96,
+    decimals0,
+    decimals1,
+    tokenIsToken0
+  )
+
   // Get paired token USD price
   const pairedTokenPriceUsd = await getPairedTokenUsdPrice({
     publicClient,
     pairedTokenAddress: pairedToken,
   })
 
-  // Create pool key for token/paired token
-  const tokenPairedPoolKey = createPoolKey(
-    tokenAddress,
-    pairedToken,
-    quoteFee,
-    quoteTickSpacing,
-    quoteHooks
-  )
-
-  // Determine trade direction based on sorted currencies
-  const tokenIsToken0InTokenPairedPool = tokenAddress.toLowerCase() < pairedToken.toLowerCase()
-
-  // Quote 1 token unit -> paired token to get token price in paired token
-  const oneToken = parseUnits('1', tokenDecimals)
-  const tokenPairedQuote = await quote.v4.read({
-    publicClient,
-    poolKey: tokenPairedPoolKey,
-    zeroForOne: tokenIsToken0InTokenPairedPool,
-    amountIn: oneToken,
-  })
-
-  // Format the paired token price
-  const tokenPriceInPaired = formatUnits(tokenPairedQuote.amountOut, pairedDecimals)
-
   // Calculate USD price: (token/paired) * (paired/USD) = token/USD
-  const tokenPriceInUsd = parseFloat(tokenPriceInPaired) * parseFloat(pairedTokenPriceUsd)
+  const tokenPriceInUsd = tokenPriceInPaired * parseFloat(pairedTokenPriceUsd)
 
   // Use adaptive precision for very small values
   let formattedPrice: string
@@ -413,6 +422,6 @@ export const getUsdPrice = async ({
 
   return {
     priceUsd: formattedPrice,
-    tokenPerPaired: tokenPairedQuote.amountOut,
+    tokenPriceInPaired,
   }
 }
