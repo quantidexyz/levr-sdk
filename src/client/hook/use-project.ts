@@ -16,7 +16,6 @@ import {
   type TokenInfo,
 } from '../../graphql/fields/project'
 import { getProject, getStaticProject } from '../../project'
-import type { PopPublicClient } from '../../types'
 import { queryKeys } from '../query-keys'
 import { useGraphQLSubscription } from './use-subscription'
 
@@ -57,7 +56,6 @@ export function useStaticProjectQuery({
 
 export type UseProjectQueryParams = {
   clankerToken: Address | null
-  oraclePublicClient: PopPublicClient
   enabled?: boolean
 }
 
@@ -66,11 +64,7 @@ export type UseProjectQueryParams = {
  * Used by LevrProvider
  * Fetches dynamic stats (treasury, staking, governance, pricing) using static data from useStaticProjectQuery
  */
-export function useProjectQuery({
-  clankerToken,
-  oraclePublicClient,
-  enabled: e = true,
-}: UseProjectQueryParams) {
+export function useProjectQuery({ clankerToken, enabled: e = true }: UseProjectQueryParams) {
   const publicClient = usePublicClient()
   const chainId = publicClient?.chain?.id
 
@@ -93,7 +87,6 @@ export function useProjectQuery({
       getProject({
         publicClient: publicClient!,
         staticProject: registeredStaticProject!,
-        oraclePublicClient: oraclePublicClient,
       }),
     staleTime: 30_000, // 30 seconds cache for dynamic data
   })

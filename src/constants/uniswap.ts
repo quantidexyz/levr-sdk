@@ -95,3 +95,44 @@ export const UNISWAP_V3_QUOTER_V2 = (chainId?: number): `0x${string}` | undefine
     [bsc.id]: '0x78D78E420Da98ad378D7799bE8f4AF69033EB077',
   }[chainId] as `0x${string}` | undefined
 }
+
+/**
+ * Get the WETH/Stablecoin V3 pool address for price discovery
+ * These are high-liquidity pools used for price oracle functionality
+ *
+ * @param chainId - The chain ID
+ * @returns The WETH/USD V3 pool address and metadata
+ */
+export const UNISWAP_V3_WETH_USD_POOL = (
+  chainId?: number
+):
+  | {
+      address: `0x${string}`
+      fee: number
+      /** true if WETH is token0 in the pool */
+      wethIsToken0: boolean
+    }
+  | undefined => {
+  if (!chainId) return undefined
+
+  return {
+    // Base WETH/USDC 0.3% pool - WETH is token0, USDC is token1
+    [base.id]: {
+      address: '0x6c561b446416e1a00e8e93e221854d6ea4171372' as `0x${string}`,
+      fee: 3000,
+      wethIsToken0: true,
+    },
+    // Anvil uses same pool as Base (fork)
+    [anvil.id]: {
+      address: '0x6c561b446416e1a00e8e93e221854d6ea4171372' as `0x${string}`,
+      fee: 3000,
+      wethIsToken0: true,
+    },
+    // BNB WBNB/USDT 0.01% pool (PancakeSwap V3) - WBNB is token1, USDT is token0
+    [bsc.id]: {
+      address: '0xF9878A5dD55EdC120Fde01893ea713a4f032229c' as `0x${string}`,
+      fee: 100,
+      wethIsToken0: false,
+    },
+  }[chainId]
+}

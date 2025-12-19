@@ -48,7 +48,6 @@ export type StaticProjectParams = {
 export type ProjectParams = {
   publicClient: PopPublicClient
   staticProject: RegisteredStaticProject
-  oraclePublicClient?: PopPublicClient
 }
 
 export type ProjectMetadata = {
@@ -969,7 +968,6 @@ export async function getStaticProject({
 export async function getProject({
   publicClient,
   staticProject,
-  oraclePublicClient,
 }: ProjectParams): Promise<Project | null> {
   if (Object.values({ publicClient, staticProject }).some((value) => !value)) {
     throw new Error('Invalid project params')
@@ -1017,7 +1015,7 @@ export async function getProject({
   // Fetch all data in parallel: indexed governance, pricing, block, and RPC multicall
   const [indexedProject, pricing, block, results] = await Promise.all([
     getIndexedProject(chainId, clankerToken),
-    fetchPricing(oraclePublicClient, publicClient, staticProject),
+    fetchPricing(publicClient, staticProject),
     publicClient.getBlock(),
     publicClient.multicall({ contracts }),
   ])
@@ -1120,18 +1118,16 @@ export async function getProject({
 // ============================================================================
 
 async function fetchPricing(
-  oraclePublicClient: PopPublicClient | undefined,
-  quotePublicClient: PopPublicClient,
+  publicClient: PopPublicClient,
   staticProject: RegisteredStaticProject
 ): Promise<PricingResult | undefined> {
-  if (!oraclePublicClient || !staticProject.pool) return undefined
+  if (!staticProject.pool) return undefined
 
   try {
     const pairedToken = staticProject.pool.pairedToken
 
     const tokenUsdData = await getUsdPrice({
-      oraclePublicClient,
-      quotePublicClient,
+      publicClient,
       tokenAddress: staticProject.token.address,
       tokenDecimals: staticProject.token.decimals,
       pairedTokenAddress: pairedToken.address,
@@ -1143,7 +1139,7 @@ async function fetchPricing(
 
     // Get paired token USD price (WETH/WBNB = oracle, stablecoins = $1.00)
     const pairedTokenUsdPrice = await getPairedTokenUsdPrice({
-      publicClient: oraclePublicClient,
+      publicClient,
       pairedTokenAddress: pairedToken.address,
     })
 

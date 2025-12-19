@@ -1,10 +1,69 @@
 import type { PublicClient } from 'viem'
 import { formatUnits, parseUnits } from 'viem'
 
+import { V3QuoterV2 } from './abis'
 import { GET_USD_STABLECOIN, UNISWAP_V3_QUOTER_V2, WETH } from './constants'
 import { createPoolKey } from './pool-key'
 import { quote } from './quote'
 import { isWETH } from './util'
+
+// =============================================================================
+// Price Calculation from sqrtPriceX96
+// =============================================================================
+
+/**
+ * Convert sqrtPriceX96 to a decimal price
+ * Formula: price = (sqrtPriceX96 / 2^96)^2
+ * Adjusted for token decimals
+ *
+ * Uses bigint arithmetic to maintain precision for large values.
+ *
+ * sqrtPriceX96² gives token1/token0 (how much token1 per 1 token0).
+ *
+ * @param sqrtPriceX96 - The sqrtPriceX96 value from Uniswap
+ * @param decimals0 - Decimals of token0
+ * @param decimals1 - Decimals of token1
+ * @param isToken0 - Whether we're calculating price OF token0 (true) or token1 (false)
+ * @returns Price of the specified token in terms of the other token
+ */
+export const computePriceFromSqrtPriceX96 = (
+  sqrtPriceX96: bigint,
+  decimals0: number,
+  decimals1: number,
+  isToken0: boolean
+): number => {
+  const Q96 = 2n ** 96n
+
+  // Use fixed-point arithmetic with 18 decimal precision to avoid overflow
+  // price = (sqrtPriceX96 / Q96)^2
+  // price_scaled = (sqrtPriceX96^2 * SCALE) / Q96^2
+  const SCALE = 10n ** 18n
+
+  // Calculate: (sqrtPriceX96^2 * SCALE) / (Q96^2)
+  const numerator = sqrtPriceX96 * sqrtPriceX96 * SCALE
+  const denominator = Q96 * Q96
+  const priceScaled = numerator / denominator
+
+  // Convert to number (safe now since priceScaled is reasonable size)
+  let price = Number(priceScaled) / 1e18
+
+  // Adjust for decimal places
+  // sqrtPriceX96 gives price as token1/token0 in raw units
+  // We need to adjust for the difference in decimals
+  if (decimals0 !== decimals1) {
+    const decimalAdjustment = 10 ** (decimals0 - decimals1)
+    price = price * decimalAdjustment
+  }
+
+  // sqrtPriceX96² gives token1/token0 = "price of token0 in terms of token1"
+  // - If isToken0 = true: we want token0's price in token1, which is token1/token0 ✓ (no inversion)
+  // - If isToken0 = false: we want token1's price in token0, which is token0/token1 (need to invert)
+  if (!isToken0) {
+    price = price > 0 ? 1 / price : 0
+  }
+
+  return price
+}
 
 export type GetWethUsdPriceParams = {
   /**
@@ -33,19 +92,30 @@ export type GetWethUsdPriceReturnType = {
 }
 
 /**
- * @description Get the USD price of WETH from a WETH/USDC pool using Uniswap V3
+ * Get V3 fee tiers for a given chain
+ * - Uniswap V3 (Base): 3000, 500, 10000 (0.3%, 0.05%, 1%)
+ * - PancakeSwap V3 (BNB): 100, 500, 2500, 10000 (0.01%, 0.05%, 0.25%, 1%)
+ */
+const getV3FeeTiers = (chainId: number): number[] => {
+  if (chainId === 56) {
+    // PancakeSwap V3 on BNB - order by liquidity
+    return [100, 500, 2500, 10000]
+  }
+  // Uniswap V3 (Base, Anvil)
+  return [3000, 500, 10000]
+}
+
+/**
+ * @description Get the USD price of WETH from a WETH/USDC pool using V3 quoter
  *
  * @param params Parameters for WETH/USD price oracle
  * @returns WETH price in USD and raw quote data
  *
  * @remarks
- * This function queries Uniswap V3 WETH/USDC pools for accurate pricing.
- * V3 is used instead of V4 because V3 has much deeper liquidity on most chains.
+ * This function uses the V3 quoter to simulate a swap and get accurate pricing.
+ * It tries multiple fee tiers in order of liquidity preference.
  *
- * The function:
- * 1. Tries common V3 fee tiers (0.3%, 0.05%, 1%) in order of preference
- * 2. Quotes 1 WETH to get USDC output
- * 3. Returns the first successful quote
+ * V3 is used instead of V4 because V3 has much deeper liquidity on most chains.
  *
  * This is commonly used as a price oracle for other token pricing calculations.
  *
@@ -61,64 +131,63 @@ export type GetWethUsdPriceReturnType = {
 export const getWethUsdPrice = async ({
   publicClient,
 }: GetWethUsdPriceParams): Promise<GetWethUsdPriceReturnType> => {
-  // Get chain ID from client
   const chainId = publicClient.chain?.id
   if (!chainId) {
     throw new Error('Chain ID not found on public client')
   }
 
-  // Get V3 Quoter address
+  const wethData = WETH(chainId)
+  if (!wethData) {
+    throw new Error(`WETH address not found for chain ID ${chainId}`)
+  }
+
+  const usdStablecoin = GET_USD_STABLECOIN(chainId)
+  if (!usdStablecoin) {
+    throw new Error(`USD stablecoin address not found for chain ID ${chainId}`)
+  }
+
   const quoterAddress = UNISWAP_V3_QUOTER_V2(chainId)
   if (!quoterAddress) {
     throw new Error(`V3 Quoter address not found for chain ID ${chainId}`)
   }
 
-  // Get WETH and USD stablecoin data
-  const wethData = WETH(chainId)
-  const usdStablecoin = GET_USD_STABLECOIN(chainId)
+  const feeTiers = getV3FeeTiers(chainId)
+  const oneWeth = parseUnits('1', wethData.decimals)
 
-  if (!wethData) {
-    throw new Error(`WETH address not found for chain ID ${chainId}`)
-  }
-
-  if (!usdStablecoin) {
-    throw new Error(`USD stablecoin address not found for chain ID ${chainId}`)
-  }
-
-  // V3 fee tiers (in order of preference for WETH/USDC)
-  const V3_FEE_TIERS = [3000, 500, 10000] // 0.3%, 0.05%, 1%
-
-  // Try each V3 fee tier
-  for (const fee of V3_FEE_TIERS) {
+  // Try each fee tier until one works
+  for (const fee of feeTiers) {
     try {
-      const oneWeth = parseUnits('1', wethData.decimals)
-
-      const quoteResult = await quote.v3.read({
-        publicClient,
-        quoterAddress,
-        tokenIn: wethData.address,
-        tokenOut: usdStablecoin.address,
-        amountIn: oneWeth,
-        fee,
+      const result = await publicClient.simulateContract({
+        address: quoterAddress,
+        abi: V3QuoterV2,
+        functionName: 'quoteExactInputSingle',
+        args: [
+          {
+            tokenIn: wethData.address,
+            tokenOut: usdStablecoin.address,
+            amountIn: oneWeth,
+            fee,
+            sqrtPriceLimitX96: 0n,
+          },
+        ],
       })
 
-      if (quoteResult.amountOut > 0n) {
-        // Use the stablecoin's actual decimals (6 for USDC, 18 for BSC USDT)
-        const priceUsd = formatUnits(quoteResult.amountOut, usdStablecoin.decimals)
-
+      const [amountOut] = result.result
+      if (amountOut > 0n) {
+        const priceUsd = formatUnits(amountOut, usdStablecoin.decimals)
         return {
           priceUsd,
-          wethPerUsdc: quoteResult.amountOut,
+          wethPerUsdc: amountOut,
           fee,
         }
       }
-    } catch (error) {
+    } catch {
       // This fee tier doesn't work, try next
       continue
     }
   }
 
-  throw new Error('No liquid WETH/USDC V3 pool found')
+  throw new Error('No liquid WETH/USD V3 pool found')
 }
 
 /**
@@ -187,15 +256,10 @@ export const getPairedTokenUsdPrice = async ({
  */
 export type GetUsdPriceParams = {
   /**
-   * Public client for price oracle queries (WETH/USDC or paired token/USDC)
-   * This should connect to a chain with reliable USDC liquidity (e.g., Base mainnet)
+   * Public client for all price queries (WETH/USD oracle and token/paired quotes)
+   * Uses the chain's WETH/USD V3 pool for price discovery
    */
-  oraclePublicClient: PublicClient
-  /**
-   * Public client for token quote queries (Token/Paired Token)
-   * This should connect to the chain where the token is deployed
-   */
-  quotePublicClient: PublicClient
+  publicClient: PublicClient
   /**
    * Token address to get price for
    */
@@ -252,24 +316,17 @@ export type GetUsdPriceReturnType = {
  *
  * @remarks
  * This function calculates the USD price of a token by:
- * 1. Auto-discovering paired token USD price (stablecoin, WETH, or V3 quote)
- * 2. Getting the price of the token in the paired token
+ * 1. Auto-discovering paired token USD price (stablecoin or WETH via sqrtPriceX96)
+ * 2. Getting the price of the token in the paired token via V4 quote
  * 3. Multiplying them together to get token price in USD
  *
- * Defaults to WETH as paired token for backward compatibility if not provided.
- * USD pricing always uses USDC as the stable reference.
- *
- * This design allows you to:
- * - Use mainnet for accurate paired token/USDC prices
- * - Quote tokens from any chain (testnet, L2, etc.)
- * - Support any paired token (WETH, USDC, or other ERC20)
+ * Defaults to WETH as paired token if not provided.
  *
  * @example
  * ```typescript
  * // Get token price when paired with USDC (stablecoin)
  * const { priceUsd } = await getUsdPrice({
- *   oraclePublicClient: baseClient,
- *   quotePublicClient: baseClient,
+ *   publicClient: baseClient,
  *   tokenAddress: '0x123...',
  *   tokenDecimals: 18,
  *   pairedTokenAddress: '0x833589...',
@@ -279,8 +336,7 @@ export type GetUsdPriceReturnType = {
  * ```
  */
 export const getUsdPrice = async ({
-  oraclePublicClient,
-  quotePublicClient,
+  publicClient,
   tokenAddress,
   tokenDecimals,
   pairedTokenAddress,
@@ -289,20 +345,19 @@ export const getUsdPrice = async ({
   quoteTickSpacing,
   quoteHooks,
 }: GetUsdPriceParams): Promise<GetUsdPriceReturnType> => {
-  // Get chain ID from quote client
-  const quoteChainId = quotePublicClient.chain?.id
-  if (!quoteChainId) {
-    throw new Error('Chain ID not found on quote public client')
+  const chainId = publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('Chain ID not found on public client')
   }
 
-  // Default to WETH if no paired token specified (backward compatibility)
+  // Default to WETH if no paired token specified
   let pairedToken = pairedTokenAddress
   let pairedDecimals = pairedTokenDecimals ?? 18
 
   if (!pairedToken) {
-    const wethData = WETH(quoteChainId)
+    const wethData = WETH(chainId)
     if (!wethData) {
-      throw new Error(`WETH address not found for quote chain ID ${quoteChainId}`)
+      throw new Error(`WETH address not found for chain ID ${chainId}`)
     }
     pairedToken = wethData.address
     pairedDecimals = wethData.decimals
@@ -312,7 +367,7 @@ export const getUsdPrice = async ({
 
   // Get paired token USD price
   const pairedTokenPriceUsd = await getPairedTokenUsdPrice({
-    publicClient: oraclePublicClient,
+    publicClient,
     pairedTokenAddress: pairedToken,
   })
 
@@ -331,7 +386,7 @@ export const getUsdPrice = async ({
   // Quote 1 token unit -> paired token to get token price in paired token
   const oneToken = parseUnits('1', tokenDecimals)
   const tokenPairedQuote = await quote.v4.read({
-    publicClient: quotePublicClient,
+    publicClient,
     poolKey: tokenPairedPoolKey,
     zeroForOne: tokenIsToken0InTokenPairedPool,
     amountIn: oneToken,

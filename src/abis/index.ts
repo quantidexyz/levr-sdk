@@ -11,6 +11,7 @@ export { default as LevrTreasury_v1 } from './LevrTreasury_v1'
 
 // -----------------------------
 // Uniswap V3
+export { default as V3Pool } from './V3Pool'
 export { default as V3QuoterV2 } from './V3QuoterV2'
 
 // -----------------------------
@@ -28,8 +29,8 @@ export { default as IClankerFeeLocker } from './IClankerFeeLocker'
 export { default as IClankerHookDynamicFee } from './IClankerHookDynamicFee'
 export { default as IClankerHookStaticFee } from './IClankerHookStaticFee'
 export { default as IClankerLPLocker } from './IClankerLPLocker'
-export { default as IClankerLpLockerMultiple } from './IClankerLpLockerMultiple'
 export { default as IClankerLpLockerFeeConversion } from './IClankerLpLockerFeeConversion'
+export { default as IClankerLpLockerMultiple } from './IClankerLpLockerMultiple'
 export { default as IClankerToken } from './IClankerToken'
 
 // -----------------------------

@@ -4,7 +4,6 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import type { Address } from 'viem'
-import { base } from 'viem/chains'
 import { useAccount, useChainId } from 'wagmi'
 
 import type { AirdropStatus } from '..'
@@ -12,7 +11,6 @@ import type { FactoryConfig } from '../factory'
 import type { Project } from '../project'
 import type { ProposalsResult } from '../proposal'
 import type { User } from '../user'
-import { getPublicClient } from '../util'
 import { useAirdropStatusQuery } from '.'
 import { useFactoryConfigQuery } from './hook/use-factory'
 import { useProjectQuery } from './hook/use-project'
@@ -72,16 +70,6 @@ export type LevrProviderProps = {
    */
   enabled?: boolean
   /**
-   * Chain ID for price oracle (WETH/USDC)
-   * @default 8453 (Base mainnet)
-   */
-  oracleChainId?: number
-  /**
-   * Optional RPC URL for oracle client
-   * If not provided, uses public RPC endpoints
-   */
-  oracleRpcUrl?: string
-  /**
    * Full URL to /api/ipfs-search endpoint
    * Required for multi-recipient airdrop proof generation
    */
@@ -100,8 +88,6 @@ export type LevrProviderProps = {
 export function LevrProvider({
   children,
   enabled = true,
-  oracleChainId = base.id,
-  oracleRpcUrl,
   ipfsSearchUrl,
   ipfsJsonUrl,
 }: LevrProviderProps) {
@@ -111,16 +97,11 @@ export function LevrProvider({
   const { address: userAddress } = useAccount()
   const chainId = useChainId()
 
-  // Create oracle public client for WETH/USD pricing
-  const oraclePublicClient = useMemo(() => {
-    return getPublicClient(oracleChainId, oracleRpcUrl)
-  }, [oracleChainId, oracleRpcUrl])
-
   // ========================================
   // USE INTERNAL QUERY HOOKS
   // ========================================
 
-  const project = useProjectQuery({ clankerToken, oraclePublicClient, enabled })
+  const project = useProjectQuery({ clankerToken, enabled })
   const airdropStatus = useAirdropStatusQuery({
     project: project.data,
     enabled,
