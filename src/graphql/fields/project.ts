@@ -73,13 +73,24 @@ export const levrProjectFields = {
 // Query/Subscription Field Builders
 // ============================================================================
 
+export type ProjectSortField = 'stakerCount' | 'createdAt' | 'marketCap'
+export type ProjectSortDirection = 'asc' | 'desc'
+
 export type ProjectsQueryParams = {
   search?: string
   offset?: number
   limit?: number
+  sortBy?: ProjectSortField
+  sortDirection?: ProjectSortDirection
 }
 
-export const getLevrProjectsFields = ({ search, offset, limit }: ProjectsQueryParams = {}) => {
+export const getLevrProjectsFields = ({
+  search,
+  offset,
+  limit,
+  sortBy = 'stakerCount',
+  sortDirection = 'desc',
+}: ProjectsQueryParams = {}) => {
   const searchFilter = search
     ? {
         _or: [
@@ -90,11 +101,17 @@ export const getLevrProjectsFields = ({ search, offset, limit }: ProjectsQueryPa
       }
     : undefined
 
+  // Handle nested sorting for market cap (uses token priceUsd as proxy)
+  const orderBy =
+    sortBy === 'marketCap'
+      ? [{ clankerToken: { priceUsd: sortDirection } }]
+      : [{ [sortBy]: sortDirection }]
+
   return {
     LevrProject: {
       __args: {
         ...(searchFilter && { where: searchFilter }),
-        order_by: [{ stakerCount: 'desc' as const }],
+        order_by: orderBy,
         ...(offset !== undefined && { offset }),
         ...(limit !== undefined && { limit }),
       },

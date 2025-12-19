@@ -89,7 +89,20 @@ export const queryKeys = {
    */
   subscription: {
     metrics: () => ['sub:metrics'] as const,
-    projects: (search?: string, offset?: number, limit?: number) =>
-      ['sub:projects', search ?? '', offset ?? 0, limit ?? 0] as const,
+    projects: (
+      search?: string,
+      offset?: number,
+      limit?: number,
+      sortBy?: string,
+      sortDirection?: string
+    ) =>
+      [
+        'sub:projects',
+        search ?? '',
+        offset ?? 0,
+        limit ?? 0,
+        sortBy ?? 'stakerCount',
+        sortDirection ?? 'desc',
+      ] as const,
   },
 } as const

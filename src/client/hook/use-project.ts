@@ -10,6 +10,8 @@ import {
   getLevrProjectsFields,
   type LevrProjectData,
   type ProjectListItem,
+  type ProjectSortDirection,
+  type ProjectSortField,
   type ProjectStats,
   type TokenInfo,
 } from '../../graphql/fields/project'
@@ -19,7 +21,7 @@ import { queryKeys } from '../query-keys'
 import { useGraphQLSubscription } from './use-subscription'
 
 // Re-export types from fields for convenience
-export type { ProjectListItem, ProjectStats, TokenInfo }
+export type { ProjectListItem, ProjectSortDirection, ProjectSortField, ProjectStats, TokenInfo }
 
 export type UseStaticProjectQueryParams = {
   clankerToken: Address | null
@@ -106,6 +108,8 @@ export type UseProjectsParams = {
   search?: string
   offset?: number
   limit?: number
+  sortBy?: ProjectSortField
+  sortDirection?: ProjectSortDirection
   enabled?: boolean
 }
 
@@ -163,22 +167,24 @@ function toProjectListItem(data: LevrProjectData): ProjectListItem | null {
 
 /**
  * Hook for fetching projects with real-time updates via GraphQL subscription
- * Supports search, pagination, and orders by last updated first
+ * Supports search, pagination, and sorting
  */
 export function useProjects({
   search,
   offset,
   limit,
+  sortBy = 'stakerCount',
+  sortDirection = 'desc',
   enabled: e = true,
 }: UseProjectsParams = {}): UseProjectsReturnType {
   const queryKey = React.useMemo(
-    () => queryKeys.subscription.projects(search, offset, limit),
-    [search, offset, limit]
+    () => queryKeys.subscription.projects(search, offset, limit, sortBy, sortDirection),
+    [search, offset, limit, sortBy, sortDirection]
   )
 
   const fields = React.useMemo(
-    () => getLevrProjectsFields({ search, offset, limit }),
-    [search, offset, limit]
+    () => getLevrProjectsFields({ search, offset, limit, sortBy, sortDirection }),
+    [search, offset, limit, sortBy, sortDirection]
   )
 
   const {
