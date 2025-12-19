@@ -246,7 +246,7 @@ export const getPairedTokenUsdPrice = async ({
   }
 
   // Case 2: All other paired tokens are stablecoins - always $1.00
-  // This includes USDC, USDT, DAI, and any other non-native paired token
+  // This includes USDC, USDT, and any other non-native paired token
   return '1.00'
 }
 

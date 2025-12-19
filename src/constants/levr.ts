@@ -42,9 +42,3 @@ export const LEVR_TEAM_WALLET = '0x4B7ddAc59cEeC3dE4706C460f34Bbce758a58bED' as 
  * 500 = 0.05% fee tier (most common for stable pairs)
  */
 export const USDC_V3_POOL_FEE = 500 as const
-
-/**
- * V3 pool fee tier for ETH/DAI swaps during devBuy
- * 3000 = 0.3% fee tier (common for DAI pairs)
- */
-export const DAI_V3_POOL_FEE = 3000 as const

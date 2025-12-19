@@ -4,10 +4,9 @@ import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap, POOL_POSITIONS } f
 import { omit } from 'lodash'
 
 import {
-  DAI_V3_POOL_FEE,
-  GET_DAI,
-  GET_USD_STABLECOIN,
-  getInitialLiquidityAmount,
+  getInitialLiquidity,
+  getPairedTokenInfo as getChainPairedTokenInfo,
+  isStablecoin,
   LEVR_TEAM_LP_FEE_PERCENTAGE,
   LEVR_TEAM_WALLET,
   STAKING_REWARDS,
@@ -16,7 +15,6 @@ import {
   USDC_V3_POOL_FEE,
   VAULT_LOCKUP_PERIODS,
   VAULT_VESTING_PERIODS,
-  WETH,
 } from './constants'
 import {
   calculateAllocationBreakdown,
@@ -126,7 +124,7 @@ const getTickForPairedToken = (
 /**
  * Builds the pool configuration for the Clanker token based on paired token and chain
  *
- * @param pairedToken - Levr paired token ('ETH' | 'USDC' | 'DAI')
+ * @param pairedToken - Levr paired token ('ETH', 'BNB', 'USDC', 'USDT')
  * @param chainId - The chain ID to determine paired token address
  * @returns Clanker pool configuration with correct tick for initial liquidity
  *
@@ -134,19 +132,15 @@ const getTickForPairedToken = (
  * Initial liquidity is looked up by paired token address:
  * - WETH (Base/Anvil): 10 ETH
  * - WBNB (BSC): 35 BNB
- * - USDC/USDT/DAI: $30,000
+ * - USDC (Anvil): $30,000
  */
+
 const getPool = (
   pairedToken: LevrClankerDeploymentSchemaType['pairedToken'],
   chainId: number
 ): NonNullable<ClankerDeploymentSchemaType['pool']> => {
-  // Get paired token info based on selection
-  const pairedTokenInfo =
-    pairedToken === 'USDC'
-      ? GET_USD_STABLECOIN(chainId)
-      : pairedToken === 'DAI'
-        ? GET_DAI(chainId)
-        : WETH(chainId)
+  // Get paired token info using centralized chain config
+  const pairedTokenInfo = getChainPairedTokenInfo(chainId, pairedToken)
 
   if (!pairedTokenInfo) {
     throw new Error(`Paired token ${pairedToken} not configured for chain ${chainId}`)
@@ -155,8 +149,8 @@ const getPool = (
   const pairedTokenAddress = pairedTokenInfo.address
   const pairedTokenDecimals = pairedTokenInfo.decimals
 
-  // Lookup initial liquidity by address
-  const initialLiquidity = getInitialLiquidityAmount(pairedTokenAddress)
+  // Lookup initial liquidity by address using centralized chain config
+  const initialLiquidity = getInitialLiquidity(chainId, pairedTokenAddress)
 
   // Calculate tick with proper decimal adjustment
   const { tickIfToken0IsClanker, tickSpacing } = getTickForPairedToken(
@@ -170,8 +164,12 @@ const getPool = (
     tickLower: tickIfToken0IsClanker,
   }))
 
+  // For native tokens, use 'WETH' (clanker SDK convention)
+  // For stablecoins, use the actual address
+  const poolPairedToken = !isStablecoin(pairedToken) ? 'WETH' : pairedTokenAddress
+
   return {
-    pairedToken: pairedToken === 'USDC' || pairedToken === 'DAI' ? pairedTokenAddress : 'WETH',
+    pairedToken: poolPairedToken,
     tickIfToken0IsClanker,
     tickSpacing,
     positions,
@@ -312,12 +310,22 @@ const getMetadata = (
 }
 
 /**
+ * Parses the dev buy amount string to extract the numeric value
+ * Handles formats like '0.5 ETH', '1.5 BNB', etc.
+ */
+const parseDevBuyAmount = (devBuyAmount: string): number => {
+  // Remove currency suffix (ETH, BNB, etc.) and parse number
+  const numericPart = devBuyAmount.replace(/\s*(ETH|BNB|WETH|WBNB)$/i, '')
+  return Number(numericPart)
+}
+
+/**
  * Builds the dev buy for the Clanker token using the Levr dev buy amount and paired token
- * Maps Levr's pairedToken (ETH/USDC/DAI) to Clanker's poolType discriminator
+ * Maps Levr's pairedToken to Clanker's poolType discriminator
  *
- * @param devBuyAmount - Levr dev buy amount (e.g., '0.5 ETH')
- * @param pairedToken - Levr paired token ('ETH' | 'USDC' | 'DAI')
- * @returns Clanker dev buy with poolType discriminator (v4 for ETH, v3 for USDC/DAI)
+ * @param devBuyAmount - Levr dev buy amount (e.g., '0.5 ETH', '0.5 BNB')
+ * @param pairedToken - Levr paired token ('ETH', 'BNB', 'USDC', 'USDT')
+ * @returns Clanker dev buy with poolType discriminator (v4 for native tokens, v3 for stablecoins)
  */
 const getDevBuy = (
   devBuyAmount: LevrClankerDeploymentSchemaType['devBuy'],
@@ -325,27 +333,18 @@ const getDevBuy = (
 ): ClankerDeploymentSchemaType['devBuy'] => {
   if (!devBuyAmount) return undefined
 
-  const ethAmount = Number(devBuyAmount.replace(' ETH', ''))
+  const ethAmount = parseDevBuyAmount(devBuyAmount)
 
-  // USDC paired token uses V3 pool for ETH -> USDC routing
-  if (pairedToken === 'USDC') {
+  // Stablecoins use V3 pool for native -> stablecoin routing
+  if (isStablecoin(pairedToken)) {
     return {
       poolType: 'v3',
       ethAmount,
-      v3PoolFee: USDC_V3_POOL_FEE,
+      v3PoolFee: USDC_V3_POOL_FEE, // 0.05% fee tier works for most stablecoins
     }
   }
 
-  // DAI paired token uses V3 pool for ETH -> DAI routing
-  if (pairedToken === 'DAI') {
-    return {
-      poolType: 'v3',
-      ethAmount,
-      v3PoolFee: DAI_V3_POOL_FEE,
-    }
-  }
-
-  // ETH (default) uses V4 pool
+  // Native tokens (ETH, BNB) use V4 pool
   return {
     poolType: 'v4',
     ethAmount,
