@@ -14,14 +14,14 @@ export const levrFactoryFields = {
 // ============================================================================
 
 /**
- * Get fields for querying the factory config singleton
- * Factory config is stored as a singleton with id "1"
+ * Get fields for querying the factory config by chainId
+ * Factory config is stored with chainId as the primary key
  */
-export const getLevrFactoryFields = () => {
+export const getLevrFactoryFields = (chainId: number) => {
   return {
     LevrFactory_by_pk: {
       __args: {
-        id: '1',
+        id: chainId.toString(),
       },
       ...levrFactoryFields,
     },

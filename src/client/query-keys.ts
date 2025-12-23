@@ -77,7 +77,7 @@ export const queryKeys = {
   /**
    * Factory config query keys (fetched from indexer)
    */
-  factoryConfig: () => ['factory-config'] as const,
+  factoryConfig: (chainId?: number) => ['factory-config', chainId] as const,
 
   /**
    * Vault query keys

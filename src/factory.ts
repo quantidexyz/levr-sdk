@@ -38,11 +38,12 @@ function adaptIndexedFactory(data: LevrFactoryData): FactoryConfig {
 
 /**
  * Fetches the factory configuration from the indexer
+ * @param chainId - The chain ID to fetch factory config for
  * @returns The factory configuration or null if not found
  */
-export async function getFactoryConfig(): Promise<FactoryConfig | null> {
+export async function getFactoryConfig(chainId: number): Promise<FactoryConfig | null> {
   try {
-    const fields = getLevrFactoryFields()
+    const fields = getLevrFactoryFields(chainId)
     const result = await query(fields)
 
     if (!result.LevrFactory_by_pk) {
