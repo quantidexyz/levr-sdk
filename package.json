@@ -1,7 +1,7 @@
 {
   "name": "levr-sdk",
   "description": "Leverage your Clanker launch with DAO capabilities",
-  "version": "0.5.0-alpha.1",
+  "version": "0.5.0-alpha.2",
   "license": "Apache-2.0",
   "sideEffects": false,
   "exports": {
@@ -33,7 +33,7 @@
     "build": "bun build:esm && bun build:types && bun build:cleanup",
     "build:esm": "tsc --project ./tsconfig.esm.json && tsc-alias --outDir ./dist/esm && ts-add-js-extension --dir=dist/esm --showprogress=false",
     "build:types": "tsc --project ./tsconfig.types.json && tsc-alias --outDir ./dist/types",
-    "build:cleanup": "rm -f dist/types/abis/*.d.ts.map dist/esm/abis/*.js.map && find dist/esm/abis -name '*.js' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + && find dist/types/abis -name '*.d.ts' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + && find dist -name '*.bak' -type f -delete",
+    "build:cleanup": "rm -f dist/types/abis/*.d.ts.map dist/esm/abis/*.js.map; [ -d dist/esm/abis ] && find dist/esm/abis -name '*.js' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + || true; [ -d dist/types/abis ] && find dist/types/abis -name '*.d.ts' -type f -exec sed -i.bak '/^\\/\\/# sourceMappingURL=/d' {} + || true; find dist -name '*.bak' -type f -delete 2>/dev/null || true",
     "clean": "rm -rf dist tsconfig.tsbuildinfo node_modules bun.lockb",
     "postinstall": "husky || true",
     "prepack": "pinst --disable",
@@ -66,13 +66,16 @@
     "@uniswap/universal-router-sdk": "^4.19.7",
     "@uniswap/v4-sdk": "^1.21.4",
     "@urql/core": "^6.0.1",
+    "abitype": "^1.2.3",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
     "ethers": "^5",
     "graphql-ws": "^6.0.6",
+    "inquirer": "^13.1.0",
     "type-fest-4": "npm:type-fest@latest",
     "uuid": "^13.0.0",
-    "wonka": "^6.3.5"
+    "wonka": "^6.3.5",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
