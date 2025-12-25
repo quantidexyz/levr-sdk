@@ -18,6 +18,7 @@
     "dist"
   ],
   "scripts": {
+    "build:clanker-sdk": "git submodule update --init packages/clanker-sdk && bun --cwd=packages/clanker-sdk tsup",
     "compile:genql": "bunx genql --endpoint \"http://localhost:8080/v1/graphql\" --output src/graphql/gen && prettier --write src/graphql/gen/**/*.ts && eslint --fix src/graphql/gen/**/*.ts",
     "devnet": "bash script/devnet.sh",
     "devnet:redeploy": "bash script/devnet.sh --redeploy",
@@ -75,13 +76,14 @@
     "wonka": "^6.3.5"
   },
   "devDependencies": {
-    "@genql/cli": "^6.3.3",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@genql/cli": "^6.3.3",
     "@happy-dom/global-registrator": "^20.0.0",
     "@testing-library/react": "^16.3.0",
     "@types/bun": "^1.2.22",
     "@types/debug": "^4.1.12",
+    "@types/react": "^19.2.7",
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "happy-dom": "^20.0.0",
