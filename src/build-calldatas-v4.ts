@@ -3,7 +3,7 @@ import type { Clanker } from 'clanker-sdk/v4'
 import type { PublicClient, WalletClient } from 'viem'
 import { decodeFunctionResult, encodeFunctionData } from 'viem'
 
-import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
+import { IClankerToken, LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import { buildClankerV4 } from './build-clanker-v4'
 import { GET_CLANKER_FACTORY_ADDRESS } from './constants/clanker'
 import type { LevrClankerDeploymentSchemaType } from './schema'
@@ -123,6 +123,20 @@ export const buildCalldatasV4 = async ({
       }),
     },
   ]
+
+  // If adminOverwrite is provided, add transaction to transfer token admin after registration
+  if (c.adminOverwrite) {
+    callDatas.push({
+      target: tokenAddress,
+      allowFailure: false,
+      value: 0n,
+      callData: encodeFunctionData({
+        abi: IClankerToken,
+        functionName: 'updateAdmin',
+        args: [c.adminOverwrite],
+      }),
+    })
+  }
 
   return {
     callDatas,

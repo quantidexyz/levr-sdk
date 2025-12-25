@@ -56,7 +56,7 @@ export const buildClankerV4 = ({
 
   const config: ClankerTokenV4 = {
     ...omit(c, 'treasuryFunding', 'stakingReward', 'devBuy', 'pairedToken', 'adminOverwrite'),
-    tokenAdmin: c.adminOverwrite ?? deployer,
+    tokenAdmin: deployer, // Must be deployer for register step; adminOverwrite is applied after
     devBuy,
     airdrop,
     vault,
