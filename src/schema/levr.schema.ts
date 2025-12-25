@@ -199,6 +199,9 @@ export const LevrClankerDeploymentSchema = Schema.Struct({
   fees: LevrFees,
   stakingReward: LevrStakingReward,
   rewards: Schema.optional(LevrRewardRecipients),
+  adminOverwrite: Schema.optional(EthereumAddress).annotations({
+    description: 'Optional admin address to override the deployer as token admin',
+  }),
 }).pipe(
   Schema.filter(
     (data) => {

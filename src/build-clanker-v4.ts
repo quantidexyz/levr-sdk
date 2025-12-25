@@ -55,8 +55,8 @@ export const buildClankerV4 = ({
   })
 
   const config: ClankerTokenV4 = {
-    ...omit(c, 'treasuryFunding', 'stakingReward', 'devBuy', 'pairedToken'),
-    tokenAdmin: deployer,
+    ...omit(c, 'treasuryFunding', 'stakingReward', 'devBuy', 'pairedToken', 'adminOverwrite'),
+    tokenAdmin: c.adminOverwrite ?? deployer,
     devBuy,
     airdrop,
     vault,
