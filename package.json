@@ -1,7 +1,7 @@
 {
   "name": "levr-sdk",
   "description": "Leverage your Clanker launch with DAO capabilities",
-  "version": "0.5.0-alpha.0",
+  "version": "0.5.0-alpha.1",
   "license": "Apache-2.0",
   "sideEffects": false,
   "exports": {
@@ -18,7 +18,7 @@
     "dist"
   ],
   "scripts": {
-    "build:clanker-sdk": "git submodule update --init packages/clanker-sdk && bun --cwd=packages/clanker-sdk tsup",
+    "init:clanker-sdk": "git submodule update --init packages/clanker-sdk",
     "compile:genql": "bunx genql --endpoint \"http://localhost:8080/v1/graphql\" --output src/graphql/gen && prettier --write src/graphql/gen/**/*.ts && eslint --fix src/graphql/gen/**/*.ts",
     "devnet": "bash script/devnet.sh",
     "devnet:redeploy": "bash script/devnet.sh --redeploy",
@@ -66,7 +66,6 @@
     "@uniswap/universal-router-sdk": "^4.19.7",
     "@uniswap/v4-sdk": "^1.21.4",
     "@urql/core": "^6.0.1",
-    "clanker-sdk": "file:./packages/clanker-sdk",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
     "ethers": "^5",

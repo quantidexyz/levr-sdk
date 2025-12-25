@@ -1,6 +1,12 @@
 {
-  "include": ["src", "example", "test", "script"],
-  "exclude": ["**/bak/*", "dist", "node_modules", "src/graphql/gen/*"],
+  "include": ["src", "example", "test", "script", "packages/clanker-sdk/src"],
+  "exclude": [
+    "**/bak/*",
+    "dist",
+    "node_modules",
+    "src/graphql/gen/*",
+    "packages/clanker-sdk/src/cli"
+  ],
   "compilerOptions": {
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
 
@@ -31,6 +37,12 @@
     "module": "ESNext",
     "target": "ESNext",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
+
+    "paths": {
+      "clanker-sdk": ["./packages/clanker-sdk/src/index.ts"],
+      "clanker-sdk/v3": ["./packages/clanker-sdk/src/v3/index.ts"],
+      "clanker-sdk/v4": ["./packages/clanker-sdk/src/v4/index.ts"]
+    },
 
     // Skip type checking for node modules
     "skipLibCheck": true
