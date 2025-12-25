@@ -1,12 +1,12 @@
 {
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": "./dist/esm/src/index.js",
+      "types": "./dist/types/src/index.d.ts"
     },
     "./client": {
-      "import": "./dist/esm/client/index.js",
-      "types": "./dist/types/client/index.d.ts"
+      "import": "./dist/esm/src/client/index.js",
+      "types": "./dist/types/src/client/index.d.ts"
     }
   }
 }
