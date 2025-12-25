@@ -1,3 +1,7 @@
 [submodule "contracts"]
 	path = contracts
 	url = https://github.com/quantidexyz/levr-sc.git
+[submodule "packages/clanker-sdk"]
+	path = packages/clanker-sdk
+	url = https://github.com/mguleryuz/clanker-sdk.git
+	branch = main

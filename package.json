@@ -65,7 +65,7 @@
     "@uniswap/universal-router-sdk": "^4.19.7",
     "@uniswap/v4-sdk": "^1.21.4",
     "@urql/core": "^6.0.1",
-    "clanker-sdk": "^4.1.23",
+    "clanker-sdk": "file:./packages/clanker-sdk",
     "debug": "^4.4.1",
     "effect": "^3.18.1",
     "ethers": "^5",
