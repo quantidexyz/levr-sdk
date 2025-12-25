@@ -1,7 +1,7 @@
 import type { Clanker } from 'clanker-sdk/v4'
 import type { TransactionReceipt } from 'viem'
 
-import { LevrFactory_v1, LevrForwarder_v1 } from './abis'
+import { IClankerToken, LevrFactory_v1, LevrForwarder_v1 } from './abis'
 import ClankerAirdropV2 from './abis/ClankerAirdropV2'
 import { buildCalldatasV4 } from './build-calldatas-v4'
 import { GET_CLANKER_AIRDROP_ADDRESS, GET_FACTORY_ADDRESS } from './constants'
@@ -64,6 +64,28 @@ export const deployV4 = async ({
 
   if (receipt.status === 'reverted') {
     throw new Error('Deployment transaction reverted')
+  }
+
+  // Transfer token admin if adminOverwrite is provided (standalone transaction)
+  if (c.adminOverwrite) {
+    try {
+      const updateAdminTxHash = await wallet.writeContract({
+        address: clankerTokenAddress,
+        abi: IClankerToken,
+        functionName: 'updateAdmin',
+        args: [c.adminOverwrite],
+      })
+
+      const updateAdminReceipt = await publicClient.waitForTransactionReceipt({
+        hash: updateAdminTxHash,
+      })
+
+      if (updateAdminReceipt.status === 'reverted') {
+        console.warn('Admin transfer transaction reverted, proceeding with deployer as admin')
+      }
+    } catch (error) {
+      console.warn('Failed to transfer admin, proceeding with deployer as admin:', error)
+    }
   }
 
   // Store merkle tree to IPFS if ipfsJsonUploadUrl is provided and airdrop exists
