@@ -74,6 +74,7 @@ export const deployV4 = async ({
         abi: IClankerToken,
         functionName: 'updateAdmin',
         args: [c.adminOverwrite],
+        gas: 100_000n, // Explicit gas limit to avoid underestimation
       })
 
       const updateAdminReceipt = await publicClient.waitForTransactionReceipt({
