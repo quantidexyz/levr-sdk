@@ -104,9 +104,19 @@ export const getLevrProjectsFields = ({
     : undefined
 
   // Handle nested sorting for market cap (uses token priceUsd as proxy)
+  // Use nulls_last to ensure 0/null marketcap values appear at the end
   const orderBy =
     sortBy === 'marketCap'
-      ? [{ clankerToken: { priceUsd: sortDirection } }]
+      ? [
+          {
+            clankerToken: {
+              priceUsd:
+                sortDirection === 'desc'
+                  ? ('desc_nulls_last' as const)
+                  : ('asc_nulls_last' as const),
+            },
+          },
+        ]
       : [{ [sortBy]: sortDirection }]
 
   return {
