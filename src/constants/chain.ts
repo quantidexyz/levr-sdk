@@ -78,6 +78,12 @@ const TOKENS = {
     symbol: 'U',
     name: 'U Stablecoin',
   },
+  USD1_BSC: {
+    address: '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d' as `0x${string}`,
+    decimals: 18,
+    symbol: 'USD1',
+    name: 'USD1 Stablecoin',
+  },
 } as const
 
 // =============================================================================
@@ -151,17 +157,19 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     name: 'BNB Chain',
     deploy: {
       nativeSymbol: 'BNB',
-      pairedTokenOptions: ['BNB', 'U'],
+      pairedTokenOptions: ['BNB', 'U', 'USD1'],
       defaultPairedToken: 'BNB',
       devBuyOptions: ['0.1 BNB', '0.5 BNB', '1 BNB', '1.5 BNB'],
     },
     wrappedNative: TOKENS.WBNB,
     stablecoins: {
       U: TOKENS.U_BSC,
+      USD1: TOKENS.USD1_BSC,
     },
     initialLiquidity: {
       [TOKENS.WBNB.address.toLowerCase()]: 35,
       [TOKENS.U_BSC.address.toLowerCase()]: 30_000,
+      [TOKENS.USD1_BSC.address.toLowerCase()]: 30_000,
     },
   },
 }
@@ -205,7 +213,7 @@ export const getWrappedNative = (chainId: number | undefined): TokenInfo | undef
 /**
  * Get stablecoin info by symbol
  * @param chainId - The chain ID
- * @param symbol - The stablecoin symbol (e.g., 'USDC', 'U')
+ * @param symbol - The stablecoin symbol (e.g., 'USDC', 'U', 'USD1')
  * @returns Token info or undefined if not found
  */
 export const getStablecoin = (
@@ -249,7 +257,7 @@ export const getInitialLiquidity = (
  * Get token info for a paired token symbol
  * Resolves symbol to actual token info based on chain
  * @param chainId - The chain ID
- * @param pairedToken - The paired token symbol (e.g., 'ETH', 'BNB', 'USDC', 'U')
+ * @param pairedToken - The paired token symbol (e.g., 'ETH', 'BNB', 'USDC', 'U', 'USD1')
  * @returns Token info or undefined if not found
  */
 export const getPairedTokenInfo = (
@@ -297,6 +305,11 @@ export const GET_USD_STABLECOIN = (chainId?: number) => getUsdStablecoin(chainId
  * @deprecated Use getStablecoin(chainId, 'U') instead
  */
 export const GET_U_STABLECOIN = (chainId?: number) => getStablecoin(chainId, 'U')
+
+/**
+ * @deprecated Use getStablecoin(chainId, 'USD1') instead
+ */
+export const GET_USD1_STABLECOIN = (chainId?: number) => getStablecoin(chainId, 'USD1')
 
 /**
  * @deprecated Use getInitialLiquidity instead
