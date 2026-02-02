@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import * as React from 'react'
 import type { Address } from 'viem'
-import { useAccount, usePublicClient } from 'wagmi'
+import { useConnection, usePublicClient } from 'wagmi'
 
 import type { RegisteredStaticProject, StaticProject } from '../..'
 import {
@@ -36,7 +36,7 @@ export function useStaticProjectQuery({
   enabled: e = true,
 }: UseStaticProjectQueryParams) {
   const publicClient = usePublicClient()
-  const { address: userAddress } = useAccount()
+  const { address: userAddress } = useConnection()
   const chainId = publicClient?.chain?.id
 
   const enabled = !!publicClient && !!clankerToken && !!chainId && e

@@ -4,7 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import type { Address } from 'viem'
-import { useAccount, useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 
 import type { AirdropStatus } from '..'
 import type { FactoryConfig } from '../factory'
@@ -94,7 +94,7 @@ export function LevrProvider({
   const [clankerToken, setClankerToken] = React.useState<Address | null>(null)
   const [selectedCycleId, setSelectedCycleId] = React.useState<bigint | null>(1n)
   const queryClient = useQueryClient()
-  const { address: userAddress } = useAccount()
+  const { address: userAddress } = useConnection()
   const chainId = useChainId()
 
   // ========================================

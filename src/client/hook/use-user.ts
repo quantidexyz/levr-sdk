@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useAccount, usePublicClient } from 'wagmi'
+import { useConnection, usePublicClient } from 'wagmi'
 
 import type { Project } from '../../project'
 import type { User } from '../../user'
@@ -20,7 +20,7 @@ export type UseUserQueryParams = {
  */
 export function useUserQuery({ project: projectData, enabled: e = true }: UseUserQueryParams) {
   const publicClient = usePublicClient()
-  const { address: userAddress } = useAccount()
+  const { address: userAddress } = useConnection()
 
   return useQuery({
     queryKey: queryKeys.user(
