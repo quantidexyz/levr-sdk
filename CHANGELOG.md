@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.3](https://github.com/quantidexyz/levr-sdk/compare/v0.5.2...v0.5.3) (2026-02-03)
+
+### Features
+
+- implement airdrop claim querying and add GraphQL fields for LevrAirdropClaim ([a66e144](https://github.com/quantidexyz/levr-sdk/commit/a66e1444c6383a2f4b6dac0e5a8626d4e2944d7e))
+
 ### [0.5.2](https://github.com/quantidexyz/levr-sdk/compare/v0.5.1...v0.5.2) (2026-02-03)
 
 ### [0.5.2](https://github.com/quantidexyz/levr-sdk/compare/v0.5.1...v0.5.2) (2026-02-02)
