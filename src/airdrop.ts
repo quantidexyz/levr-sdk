@@ -3,8 +3,40 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import ClankerAirdropV2 from './abis/ClankerAirdropV2'
 import { formatBalanceWithUsd } from './balance'
 import { GET_CLANKER_AIRDROP_ADDRESS } from './constants'
+import { query } from './graphql'
 import { type MerkleTreeWithMetadata, retrieveMerkleTreeFromIPFS } from './ipfs-merkle-tree'
 import type { BalanceResult, PopPublicClient } from './types'
+
+/**
+ * Query the indexer for airdrop claims on a specific token
+ * Returns a Set of addresses that have claimed (lowercase)
+ */
+async function getClaimedAddressesFromIndexer(
+  chainId: number,
+  tokenAddress: string
+): Promise<Set<string>> {
+  try {
+    // Query the indexer for all claims on this token
+    // Using raw query since types may not be generated yet
+    const result = await query({
+      LevrAirdropClaim: {
+        __args: {
+          where: {
+            chainId: { _eq: chainId },
+            token: { address: { _eq: tokenAddress.toLowerCase() } },
+          },
+        },
+        user: true,
+      },
+    } as any)
+
+    const claims = (result as any)?.LevrAirdropClaim ?? []
+    return new Set(claims.map((claim: { user: string }) => claim.user.toLowerCase()))
+  } catch (error) {
+    console.warn('[AIRDROP] Failed to query indexer for claims:', (error as Error).message)
+    return new Set()
+  }
+}
 
 export type AirdropRecipient = {
   address: `0x${string}`
@@ -29,8 +61,7 @@ export async function getAirdropStatus(
   tokenDecimals: number,
   tokenUsdPrice: number | null,
   ipfsSearchUrl?: string, // Full URL to /api/ipfs-search
-  ipfsJsonUrl?: string, // Full URL to /api/ipfs-json
-  maxBlocksToSearch?: bigint // Optional: limit block range for getLogs (default: 100k)
+  ipfsJsonUrl?: string // Full URL to /api/ipfs-json
 ): Promise<AirdropStatus | null> {
   const chainId = publicClient.chain?.id
   const airdropAddress = GET_CLANKER_AIRDROP_ADDRESS(chainId)
@@ -107,49 +138,8 @@ export async function getAirdropStatus(
       })
     }
 
-    // Get current block number for claim event search
-    // PERFORMANCE FIX: Reduce block search range to prevent timeouts
-    // Base produces ~2 blocks/sec, so:
-    // - 50k blocks = ~18 hours (covers recent airdrops)
-    // - 100k blocks = ~1.5 days
-    // - Airdrops are typically claimed within hours of deployment
-    const currentBlockNumber = await publicClient.getBlockNumber()
-    const blocksToSearch = maxBlocksToSearch ?? 50_000n // Default: last 50k blocks (~18 hours on Base)
-    const fromBlock = currentBlockNumber > blocksToSearch ? currentBlockNumber - blocksToSearch : 0n
-
-    // Get AirdropClaimed events to check who has actually claimed
-    const airdropClaimedEvent = ClankerAirdropV2.find(
-      (item) => item.type === 'event' && item.name === 'AirdropClaimed'
-    )
-
-    let claimLogs: any[] = []
-
-    try {
-      claimLogs = airdropClaimedEvent
-        ? await publicClient.getLogs({
-            address: airdropAddress,
-            event: airdropClaimedEvent,
-            args: {
-              token: clankerToken,
-            },
-            fromBlock,
-            toBlock: 'latest',
-          })
-        : []
-    } catch (error) {
-      // If getLogs times out, continue without claim status
-      // This is acceptable - we can still show allocated amounts
-      console.warn(
-        '[AIRDROP] Failed to fetch claim logs (timeout or RPC limit):',
-        (error as Error).message
-      )
-      claimLogs = []
-    }
-
-    // Track which addresses have claimed
-    const claimedAddresses = new Set(
-      claimLogs.map((log) => (log.args.user as `0x${string}`).toLowerCase())
-    )
+    // Query the indexer for claimed addresses (covers all historical claims)
+    const claimedAddresses = await getClaimedAddressesFromIndexer(chainId!, clankerToken)
 
     // Batch check available amounts for all recipients
     const availableAmounts = (await publicClient.multicall({
@@ -201,8 +191,9 @@ export async function getAirdropStatus(
             error = 'Airdrop is still locked (lockup period not passed)'
             isAvailable = false
           } else {
-            // Unlocked but 0 available and not claimed - shouldn't happen
-            error = 'No airdrop available'
+            // Unlocked but 0 available - this means already claimed
+            // (claim event may not be found if it's older than our block search range)
+            error = 'Airdrop already claimed'
             isAvailable = false
           }
         }

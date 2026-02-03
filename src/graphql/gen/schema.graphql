@@ -43,6 +43,139 @@ input Int_comparison_exp {
 }
 
 """
+columns and relationships of "LevrAirdropClaim"
+"""
+type LevrAirdropClaim {
+  amountStillLocked: numeric!
+  blockNumber: numeric!
+  blockTimestamp: numeric!
+  chainId: numeric!
+  createdAt: numeric!
+  id: String!
+
+  """An object relationship"""
+  project: LevrProject
+  project_id: String
+
+  """An object relationship"""
+  token: Token
+  token_id: String!
+  totalAmountClaimed: numeric!
+  transactionHash: String!
+  updatedAt: numeric!
+  user: String!
+}
+
+"""
+Boolean expression to filter rows from the table "LevrAirdropClaim". All fields are combined with a logical 'AND'.
+"""
+input LevrAirdropClaim_bool_exp {
+  _and: [LevrAirdropClaim_bool_exp!]
+  _not: LevrAirdropClaim_bool_exp
+  _or: [LevrAirdropClaim_bool_exp!]
+  amountStillLocked: numeric_comparison_exp
+  blockNumber: numeric_comparison_exp
+  blockTimestamp: numeric_comparison_exp
+  chainId: numeric_comparison_exp
+  createdAt: numeric_comparison_exp
+  id: String_comparison_exp
+  project: LevrProject_bool_exp
+  project_id: String_comparison_exp
+  token: Token_bool_exp
+  token_id: String_comparison_exp
+  totalAmountClaimed: numeric_comparison_exp
+  transactionHash: String_comparison_exp
+  updatedAt: numeric_comparison_exp
+  user: String_comparison_exp
+}
+
+"""Ordering options when selecting data from "LevrAirdropClaim"."""
+input LevrAirdropClaim_order_by {
+  amountStillLocked: order_by
+  blockNumber: order_by
+  blockTimestamp: order_by
+  chainId: order_by
+  createdAt: order_by
+  id: order_by
+  project: LevrProject_order_by
+  project_id: order_by
+  token: Token_order_by
+  token_id: order_by
+  totalAmountClaimed: order_by
+  transactionHash: order_by
+  updatedAt: order_by
+  user: order_by
+}
+
+"""
+select columns of table "LevrAirdropClaim"
+"""
+enum LevrAirdropClaim_select_column {
+  """column name"""
+  amountStillLocked
+
+  """column name"""
+  blockNumber
+
+  """column name"""
+  blockTimestamp
+
+  """column name"""
+  chainId
+
+  """column name"""
+  createdAt
+
+  """column name"""
+  id
+
+  """column name"""
+  project_id
+
+  """column name"""
+  token_id
+
+  """column name"""
+  totalAmountClaimed
+
+  """column name"""
+  transactionHash
+
+  """column name"""
+  updatedAt
+
+  """column name"""
+  user
+}
+
+"""
+Streaming cursor of the table "LevrAirdropClaim"
+"""
+input LevrAirdropClaim_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: LevrAirdropClaim_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input LevrAirdropClaim_stream_cursor_value_input {
+  amountStillLocked: numeric
+  blockNumber: numeric
+  blockTimestamp: numeric
+  chainId: numeric
+  createdAt: numeric
+  id: String
+  project_id: String
+  token_id: String
+  totalAmountClaimed: numeric
+  transactionHash: String
+  updatedAt: numeric
+  user: String
+}
+
+"""
 columns and relationships of "LevrContractMapping"
 """
 type LevrContractMapping {
@@ -475,11 +608,9 @@ type LevrMetrics {
   createdAt: numeric!
   id: String!
   projectCount: numeric!
-  totalStaked: numeric!
-  totalStakedUsd: String
+  totalStakedUsd: numeric
   totalStakers: numeric!
-  tvl: numeric!
-  tvlUsd: String
+  tvlUsd: numeric
   updatedAt: numeric!
 }
 
@@ -493,11 +624,9 @@ input LevrMetrics_bool_exp {
   createdAt: numeric_comparison_exp
   id: String_comparison_exp
   projectCount: numeric_comparison_exp
-  totalStaked: numeric_comparison_exp
-  totalStakedUsd: String_comparison_exp
+  totalStakedUsd: numeric_comparison_exp
   totalStakers: numeric_comparison_exp
-  tvl: numeric_comparison_exp
-  tvlUsd: String_comparison_exp
+  tvlUsd: numeric_comparison_exp
   updatedAt: numeric_comparison_exp
 }
 
@@ -506,10 +635,8 @@ input LevrMetrics_order_by {
   createdAt: order_by
   id: order_by
   projectCount: order_by
-  totalStaked: order_by
   totalStakedUsd: order_by
   totalStakers: order_by
-  tvl: order_by
   tvlUsd: order_by
   updatedAt: order_by
 }
@@ -528,16 +655,10 @@ enum LevrMetrics_select_column {
   projectCount
 
   """column name"""
-  totalStaked
-
-  """column name"""
   totalStakedUsd
 
   """column name"""
   totalStakers
-
-  """column name"""
-  tvl
 
   """column name"""
   tvlUsd
@@ -562,11 +683,9 @@ input LevrMetrics_stream_cursor_value_input {
   createdAt: numeric
   id: String
   projectCount: numeric
-  totalStaked: numeric
-  totalStakedUsd: String
+  totalStakedUsd: numeric
   totalStakers: numeric
-  tvl: numeric
-  tvlUsd: String
+  tvlUsd: numeric
   updatedAt: numeric
 }
 
@@ -685,12 +804,12 @@ type LevrProject {
     where: LevrStaker_bool_exp
   ): [LevrStaker!]!
   stakingContractBalance: numeric!
-  stakingContractBalanceUsd: String
+  stakingContractBalanceUsd: numeric
   staking_id: String!
   streamWindowSeconds: numeric!
   totalProposals: numeric!
   totalStaked: numeric!
-  totalStakedUsd: String
+  totalStakedUsd: numeric
 
   """An array relationship"""
   transfers(
@@ -710,10 +829,10 @@ type LevrProject {
     where: LevrTreasuryTransfer_bool_exp
   ): [LevrTreasuryTransfer!]!
   treasuryBalance: numeric!
-  treasuryBalanceUsd: String
+  treasuryBalanceUsd: numeric
   treasury_id: String!
   tvl: numeric!
-  tvlUsd: String
+  tvlUsd: numeric
   updatedAt: numeric!
   verified: Boolean!
   votingWindowSeconds: numeric!
@@ -750,18 +869,18 @@ input LevrProject_bool_exp {
   stakerCount: numeric_comparison_exp
   stakers: LevrStaker_bool_exp
   stakingContractBalance: numeric_comparison_exp
-  stakingContractBalanceUsd: String_comparison_exp
+  stakingContractBalanceUsd: numeric_comparison_exp
   staking_id: String_comparison_exp
   streamWindowSeconds: numeric_comparison_exp
   totalProposals: numeric_comparison_exp
   totalStaked: numeric_comparison_exp
-  totalStakedUsd: String_comparison_exp
+  totalStakedUsd: numeric_comparison_exp
   transfers: LevrTreasuryTransfer_bool_exp
   treasuryBalance: numeric_comparison_exp
-  treasuryBalanceUsd: String_comparison_exp
+  treasuryBalanceUsd: numeric_comparison_exp
   treasury_id: String_comparison_exp
   tvl: numeric_comparison_exp
-  tvlUsd: String_comparison_exp
+  tvlUsd: numeric_comparison_exp
   updatedAt: numeric_comparison_exp
   verified: Boolean_comparison_exp
   votingWindowSeconds: numeric_comparison_exp
@@ -942,17 +1061,17 @@ input LevrProject_stream_cursor_value_input {
   stakedToken_id: String
   stakerCount: numeric
   stakingContractBalance: numeric
-  stakingContractBalanceUsd: String
+  stakingContractBalanceUsd: numeric
   staking_id: String
   streamWindowSeconds: numeric
   totalProposals: numeric
   totalStaked: numeric
-  totalStakedUsd: String
+  totalStakedUsd: numeric
   treasuryBalance: numeric
-  treasuryBalanceUsd: String
+  treasuryBalanceUsd: numeric
   treasury_id: String
   tvl: numeric
-  tvlUsd: String
+  tvlUsd: numeric
   updatedAt: numeric
   verified: Boolean
   votingWindowSeconds: numeric
@@ -2535,1681 +2654,6 @@ input LevrVote_variance_order_by {
 }
 
 """
-columns and relationships of "MoneyMachine"
-"""
-type MoneyMachine {
-  activePositions: numeric!
-  id: String!
-  lastHeartbeatBlock: numeric!
-  totalHeartbeats: numeric!
-  totalPositions: numeric!
-  totalRebalances: numeric!
-  updatedAt: numeric!
-}
-
-"""
-columns and relationships of "MoneyMachineConfig"
-"""
-type MoneyMachineConfig {
-  callerIncentive: numeric!
-  feeRecipient: String
-  formula: String
-  heartbeatInterval: numeric!
-  hook: String
-  id: String!
-  poolManager: String
-  protocolFeeBps: numeric!
-  rebalanceGas: numeric!
-  tickAggregator: String
-  updatedAt: numeric!
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachineConfig". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachineConfig_bool_exp {
-  _and: [MoneyMachineConfig_bool_exp!]
-  _not: MoneyMachineConfig_bool_exp
-  _or: [MoneyMachineConfig_bool_exp!]
-  callerIncentive: numeric_comparison_exp
-  feeRecipient: String_comparison_exp
-  formula: String_comparison_exp
-  heartbeatInterval: numeric_comparison_exp
-  hook: String_comparison_exp
-  id: String_comparison_exp
-  poolManager: String_comparison_exp
-  protocolFeeBps: numeric_comparison_exp
-  rebalanceGas: numeric_comparison_exp
-  tickAggregator: String_comparison_exp
-  updatedAt: numeric_comparison_exp
-}
-
-"""Ordering options when selecting data from "MoneyMachineConfig"."""
-input MoneyMachineConfig_order_by {
-  callerIncentive: order_by
-  feeRecipient: order_by
-  formula: order_by
-  heartbeatInterval: order_by
-  hook: order_by
-  id: order_by
-  poolManager: order_by
-  protocolFeeBps: order_by
-  rebalanceGas: order_by
-  tickAggregator: order_by
-  updatedAt: order_by
-}
-
-"""
-select columns of table "MoneyMachineConfig"
-"""
-enum MoneyMachineConfig_select_column {
-  """column name"""
-  callerIncentive
-
-  """column name"""
-  feeRecipient
-
-  """column name"""
-  formula
-
-  """column name"""
-  heartbeatInterval
-
-  """column name"""
-  hook
-
-  """column name"""
-  id
-
-  """column name"""
-  poolManager
-
-  """column name"""
-  protocolFeeBps
-
-  """column name"""
-  rebalanceGas
-
-  """column name"""
-  tickAggregator
-
-  """column name"""
-  updatedAt
-}
-
-"""
-Streaming cursor of the table "MoneyMachineConfig"
-"""
-input MoneyMachineConfig_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachineConfig_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachineConfig_stream_cursor_value_input {
-  callerIncentive: numeric
-  feeRecipient: String
-  formula: String
-  heartbeatInterval: numeric
-  hook: String
-  id: String
-  poolManager: String
-  protocolFeeBps: numeric
-  rebalanceGas: numeric
-  tickAggregator: String
-  updatedAt: numeric
-}
-
-"""
-columns and relationships of "MoneyMachineHeartbeat"
-"""
-type MoneyMachineHeartbeat {
-  blockNumber: numeric!
-  blockTimestamp: numeric!
-  caller: String!
-  id: String!
-  incentivePaid: numeric!
-  positionsProcessed: numeric!
-  rebalancesExecuted: numeric!
-  transactionHash: String!
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachineHeartbeat". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachineHeartbeat_bool_exp {
-  _and: [MoneyMachineHeartbeat_bool_exp!]
-  _not: MoneyMachineHeartbeat_bool_exp
-  _or: [MoneyMachineHeartbeat_bool_exp!]
-  blockNumber: numeric_comparison_exp
-  blockTimestamp: numeric_comparison_exp
-  caller: String_comparison_exp
-  id: String_comparison_exp
-  incentivePaid: numeric_comparison_exp
-  positionsProcessed: numeric_comparison_exp
-  rebalancesExecuted: numeric_comparison_exp
-  transactionHash: String_comparison_exp
-}
-
-"""Ordering options when selecting data from "MoneyMachineHeartbeat"."""
-input MoneyMachineHeartbeat_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  caller: order_by
-  id: order_by
-  incentivePaid: order_by
-  positionsProcessed: order_by
-  rebalancesExecuted: order_by
-  transactionHash: order_by
-}
-
-"""
-select columns of table "MoneyMachineHeartbeat"
-"""
-enum MoneyMachineHeartbeat_select_column {
-  """column name"""
-  blockNumber
-
-  """column name"""
-  blockTimestamp
-
-  """column name"""
-  caller
-
-  """column name"""
-  id
-
-  """column name"""
-  incentivePaid
-
-  """column name"""
-  positionsProcessed
-
-  """column name"""
-  rebalancesExecuted
-
-  """column name"""
-  transactionHash
-}
-
-"""
-Streaming cursor of the table "MoneyMachineHeartbeat"
-"""
-input MoneyMachineHeartbeat_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachineHeartbeat_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachineHeartbeat_stream_cursor_value_input {
-  blockNumber: numeric
-  blockTimestamp: numeric
-  caller: String
-  id: String
-  incentivePaid: numeric
-  positionsProcessed: numeric
-  rebalancesExecuted: numeric
-  transactionHash: String
-}
-
-"""
-columns and relationships of "MoneyMachinePosition"
-"""
-type MoneyMachinePosition {
-  active: Boolean!
-  amountQuote: numeric!
-  amountToken: numeric!
-  closedAt: numeric
-  createdAt: numeric!
-  createdTxHash: String!
-  feesPaidQuote: numeric!
-  feesPaidToken: numeric!
-  id: String!
-  originalTickLower: Int!
-
-  """An object relationship"""
-  owner: MoneyMachineUser
-  owner_id: String!
-
-  """An object relationship"""
-  pool: UniswapV4Pool
-  pool_id: String!
-  proceedsQuote: numeric!
-  proceedsToken: numeric!
-
-  """An object relationship"""
-  quoteToken: Token
-  quoteToken_id: String!
-  rebalanceCount: numeric!
-
-  """An array relationship"""
-  rebalances(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineRebalance_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineRebalance_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineRebalance_bool_exp
-  ): [MoneyMachineRebalance!]!
-  tickLower: Int!
-  tickUpper: Int!
-
-  """An object relationship"""
-  token: Token
-  token_id: String!
-  updatedAt: numeric!
-
-  """An array relationship"""
-  v3PriceSources(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV3PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV3PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV3PriceSource_bool_exp
-  ): [MoneyMachinePositionV3PriceSource!]!
-
-  """An array relationship"""
-  v4PriceSources(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV4PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV4PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV4PriceSource_bool_exp
-  ): [MoneyMachinePositionV4PriceSource!]!
-
-  """An array relationship"""
-  withdrawals(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineWithdrawal_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineWithdrawal_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineWithdrawal_bool_exp
-  ): [MoneyMachineWithdrawal!]!
-  withdrawnQuote: numeric!
-  withdrawnToken: numeric!
-}
-
-"""
-columns and relationships of "MoneyMachinePositionV3PriceSource"
-"""
-type MoneyMachinePositionV3PriceSource {
-  id: String!
-
-  """An object relationship"""
-  pool: UniswapV3Pool
-  pool_id: String!
-
-  """An object relationship"""
-  position: MoneyMachinePosition
-  position_id: String!
-}
-
-"""
-order by aggregate values of table "MoneyMachinePositionV3PriceSource"
-"""
-input MoneyMachinePositionV3PriceSource_aggregate_order_by {
-  count: order_by
-  max: MoneyMachinePositionV3PriceSource_max_order_by
-  min: MoneyMachinePositionV3PriceSource_min_order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachinePositionV3PriceSource". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachinePositionV3PriceSource_bool_exp {
-  _and: [MoneyMachinePositionV3PriceSource_bool_exp!]
-  _not: MoneyMachinePositionV3PriceSource_bool_exp
-  _or: [MoneyMachinePositionV3PriceSource_bool_exp!]
-  id: String_comparison_exp
-  pool: UniswapV3Pool_bool_exp
-  pool_id: String_comparison_exp
-  position: MoneyMachinePosition_bool_exp
-  position_id: String_comparison_exp
-}
-
-"""
-order by max() on columns of table "MoneyMachinePositionV3PriceSource"
-"""
-input MoneyMachinePositionV3PriceSource_max_order_by {
-  id: order_by
-  pool_id: order_by
-  position_id: order_by
-}
-
-"""
-order by min() on columns of table "MoneyMachinePositionV3PriceSource"
-"""
-input MoneyMachinePositionV3PriceSource_min_order_by {
-  id: order_by
-  pool_id: order_by
-  position_id: order_by
-}
-
-"""
-Ordering options when selecting data from "MoneyMachinePositionV3PriceSource".
-"""
-input MoneyMachinePositionV3PriceSource_order_by {
-  id: order_by
-  pool: UniswapV3Pool_order_by
-  pool_id: order_by
-  position: MoneyMachinePosition_order_by
-  position_id: order_by
-}
-
-"""
-select columns of table "MoneyMachinePositionV3PriceSource"
-"""
-enum MoneyMachinePositionV3PriceSource_select_column {
-  """column name"""
-  id
-
-  """column name"""
-  pool_id
-
-  """column name"""
-  position_id
-}
-
-"""
-Streaming cursor of the table "MoneyMachinePositionV3PriceSource"
-"""
-input MoneyMachinePositionV3PriceSource_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachinePositionV3PriceSource_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachinePositionV3PriceSource_stream_cursor_value_input {
-  id: String
-  pool_id: String
-  position_id: String
-}
-
-"""
-columns and relationships of "MoneyMachinePositionV4PriceSource"
-"""
-type MoneyMachinePositionV4PriceSource {
-  id: String!
-
-  """An object relationship"""
-  pool: UniswapV4Pool
-  pool_id: String!
-
-  """An object relationship"""
-  position: MoneyMachinePosition
-  position_id: String!
-}
-
-"""
-order by aggregate values of table "MoneyMachinePositionV4PriceSource"
-"""
-input MoneyMachinePositionV4PriceSource_aggregate_order_by {
-  count: order_by
-  max: MoneyMachinePositionV4PriceSource_max_order_by
-  min: MoneyMachinePositionV4PriceSource_min_order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachinePositionV4PriceSource". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachinePositionV4PriceSource_bool_exp {
-  _and: [MoneyMachinePositionV4PriceSource_bool_exp!]
-  _not: MoneyMachinePositionV4PriceSource_bool_exp
-  _or: [MoneyMachinePositionV4PriceSource_bool_exp!]
-  id: String_comparison_exp
-  pool: UniswapV4Pool_bool_exp
-  pool_id: String_comparison_exp
-  position: MoneyMachinePosition_bool_exp
-  position_id: String_comparison_exp
-}
-
-"""
-order by max() on columns of table "MoneyMachinePositionV4PriceSource"
-"""
-input MoneyMachinePositionV4PriceSource_max_order_by {
-  id: order_by
-  pool_id: order_by
-  position_id: order_by
-}
-
-"""
-order by min() on columns of table "MoneyMachinePositionV4PriceSource"
-"""
-input MoneyMachinePositionV4PriceSource_min_order_by {
-  id: order_by
-  pool_id: order_by
-  position_id: order_by
-}
-
-"""
-Ordering options when selecting data from "MoneyMachinePositionV4PriceSource".
-"""
-input MoneyMachinePositionV4PriceSource_order_by {
-  id: order_by
-  pool: UniswapV4Pool_order_by
-  pool_id: order_by
-  position: MoneyMachinePosition_order_by
-  position_id: order_by
-}
-
-"""
-select columns of table "MoneyMachinePositionV4PriceSource"
-"""
-enum MoneyMachinePositionV4PriceSource_select_column {
-  """column name"""
-  id
-
-  """column name"""
-  pool_id
-
-  """column name"""
-  position_id
-}
-
-"""
-Streaming cursor of the table "MoneyMachinePositionV4PriceSource"
-"""
-input MoneyMachinePositionV4PriceSource_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachinePositionV4PriceSource_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachinePositionV4PriceSource_stream_cursor_value_input {
-  id: String
-  pool_id: String
-  position_id: String
-}
-
-"""
-order by aggregate values of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_aggregate_order_by {
-  avg: MoneyMachinePosition_avg_order_by
-  count: order_by
-  max: MoneyMachinePosition_max_order_by
-  min: MoneyMachinePosition_min_order_by
-  stddev: MoneyMachinePosition_stddev_order_by
-  stddev_pop: MoneyMachinePosition_stddev_pop_order_by
-  stddev_samp: MoneyMachinePosition_stddev_samp_order_by
-  sum: MoneyMachinePosition_sum_order_by
-  var_pop: MoneyMachinePosition_var_pop_order_by
-  var_samp: MoneyMachinePosition_var_samp_order_by
-  variance: MoneyMachinePosition_variance_order_by
-}
-
-"""
-order by avg() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_avg_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachinePosition". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachinePosition_bool_exp {
-  _and: [MoneyMachinePosition_bool_exp!]
-  _not: MoneyMachinePosition_bool_exp
-  _or: [MoneyMachinePosition_bool_exp!]
-  active: Boolean_comparison_exp
-  amountQuote: numeric_comparison_exp
-  amountToken: numeric_comparison_exp
-  closedAt: numeric_comparison_exp
-  createdAt: numeric_comparison_exp
-  createdTxHash: String_comparison_exp
-  feesPaidQuote: numeric_comparison_exp
-  feesPaidToken: numeric_comparison_exp
-  id: String_comparison_exp
-  originalTickLower: Int_comparison_exp
-  owner: MoneyMachineUser_bool_exp
-  owner_id: String_comparison_exp
-  pool: UniswapV4Pool_bool_exp
-  pool_id: String_comparison_exp
-  proceedsQuote: numeric_comparison_exp
-  proceedsToken: numeric_comparison_exp
-  quoteToken: Token_bool_exp
-  quoteToken_id: String_comparison_exp
-  rebalanceCount: numeric_comparison_exp
-  rebalances: MoneyMachineRebalance_bool_exp
-  tickLower: Int_comparison_exp
-  tickUpper: Int_comparison_exp
-  token: Token_bool_exp
-  token_id: String_comparison_exp
-  updatedAt: numeric_comparison_exp
-  v3PriceSources: MoneyMachinePositionV3PriceSource_bool_exp
-  v4PriceSources: MoneyMachinePositionV4PriceSource_bool_exp
-  withdrawals: MoneyMachineWithdrawal_bool_exp
-  withdrawnQuote: numeric_comparison_exp
-  withdrawnToken: numeric_comparison_exp
-}
-
-"""
-order by max() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_max_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  createdTxHash: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  id: order_by
-  originalTickLower: order_by
-  owner_id: order_by
-  pool_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  quoteToken_id: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  token_id: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by min() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_min_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  createdTxHash: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  id: order_by
-  originalTickLower: order_by
-  owner_id: order_by
-  pool_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  quoteToken_id: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  token_id: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""Ordering options when selecting data from "MoneyMachinePosition"."""
-input MoneyMachinePosition_order_by {
-  active: order_by
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  createdTxHash: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  id: order_by
-  originalTickLower: order_by
-  owner: MoneyMachineUser_order_by
-  owner_id: order_by
-  pool: UniswapV4Pool_order_by
-  pool_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  quoteToken: Token_order_by
-  quoteToken_id: order_by
-  rebalanceCount: order_by
-  rebalances_aggregate: MoneyMachineRebalance_aggregate_order_by
-  tickLower: order_by
-  tickUpper: order_by
-  token: Token_order_by
-  token_id: order_by
-  updatedAt: order_by
-  v3PriceSources_aggregate: MoneyMachinePositionV3PriceSource_aggregate_order_by
-  v4PriceSources_aggregate: MoneyMachinePositionV4PriceSource_aggregate_order_by
-  withdrawals_aggregate: MoneyMachineWithdrawal_aggregate_order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-select columns of table "MoneyMachinePosition"
-"""
-enum MoneyMachinePosition_select_column {
-  """column name"""
-  active
-
-  """column name"""
-  amountQuote
-
-  """column name"""
-  amountToken
-
-  """column name"""
-  closedAt
-
-  """column name"""
-  createdAt
-
-  """column name"""
-  createdTxHash
-
-  """column name"""
-  feesPaidQuote
-
-  """column name"""
-  feesPaidToken
-
-  """column name"""
-  id
-
-  """column name"""
-  originalTickLower
-
-  """column name"""
-  owner_id
-
-  """column name"""
-  pool_id
-
-  """column name"""
-  proceedsQuote
-
-  """column name"""
-  proceedsToken
-
-  """column name"""
-  quoteToken_id
-
-  """column name"""
-  rebalanceCount
-
-  """column name"""
-  tickLower
-
-  """column name"""
-  tickUpper
-
-  """column name"""
-  token_id
-
-  """column name"""
-  updatedAt
-
-  """column name"""
-  withdrawnQuote
-
-  """column name"""
-  withdrawnToken
-}
-
-"""
-order by stddev() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_stddev_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by stddev_pop() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_stddev_pop_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by stddev_samp() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_stddev_samp_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-Streaming cursor of the table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachinePosition_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachinePosition_stream_cursor_value_input {
-  active: Boolean
-  amountQuote: numeric
-  amountToken: numeric
-  closedAt: numeric
-  createdAt: numeric
-  createdTxHash: String
-  feesPaidQuote: numeric
-  feesPaidToken: numeric
-  id: String
-  originalTickLower: Int
-  owner_id: String
-  pool_id: String
-  proceedsQuote: numeric
-  proceedsToken: numeric
-  quoteToken_id: String
-  rebalanceCount: numeric
-  tickLower: Int
-  tickUpper: Int
-  token_id: String
-  updatedAt: numeric
-  withdrawnQuote: numeric
-  withdrawnToken: numeric
-}
-
-"""
-order by sum() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_sum_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by var_pop() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_var_pop_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by var_samp() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_var_samp_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-order by variance() on columns of table "MoneyMachinePosition"
-"""
-input MoneyMachinePosition_variance_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  closedAt: order_by
-  createdAt: order_by
-  feesPaidQuote: order_by
-  feesPaidToken: order_by
-  originalTickLower: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  rebalanceCount: order_by
-  tickLower: order_by
-  tickUpper: order_by
-  updatedAt: order_by
-  withdrawnQuote: order_by
-  withdrawnToken: order_by
-}
-
-"""
-columns and relationships of "MoneyMachineRebalance"
-"""
-type MoneyMachineRebalance {
-  blockNumber: numeric!
-  blockTimestamp: numeric!
-  id: String!
-  newTickLower: Int!
-  newTickUpper: Int!
-  oldTickLower: Int!
-  oldTickUpper: Int!
-
-  """An object relationship"""
-  position: MoneyMachinePosition
-  position_id: String!
-  proceedsQuote: numeric!
-  proceedsToken: numeric!
-  transactionHash: String!
-}
-
-"""
-order by aggregate values of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_aggregate_order_by {
-  avg: MoneyMachineRebalance_avg_order_by
-  count: order_by
-  max: MoneyMachineRebalance_max_order_by
-  min: MoneyMachineRebalance_min_order_by
-  stddev: MoneyMachineRebalance_stddev_order_by
-  stddev_pop: MoneyMachineRebalance_stddev_pop_order_by
-  stddev_samp: MoneyMachineRebalance_stddev_samp_order_by
-  sum: MoneyMachineRebalance_sum_order_by
-  var_pop: MoneyMachineRebalance_var_pop_order_by
-  var_samp: MoneyMachineRebalance_var_samp_order_by
-  variance: MoneyMachineRebalance_variance_order_by
-}
-
-"""
-order by avg() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_avg_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachineRebalance". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachineRebalance_bool_exp {
-  _and: [MoneyMachineRebalance_bool_exp!]
-  _not: MoneyMachineRebalance_bool_exp
-  _or: [MoneyMachineRebalance_bool_exp!]
-  blockNumber: numeric_comparison_exp
-  blockTimestamp: numeric_comparison_exp
-  id: String_comparison_exp
-  newTickLower: Int_comparison_exp
-  newTickUpper: Int_comparison_exp
-  oldTickLower: Int_comparison_exp
-  oldTickUpper: Int_comparison_exp
-  position: MoneyMachinePosition_bool_exp
-  position_id: String_comparison_exp
-  proceedsQuote: numeric_comparison_exp
-  proceedsToken: numeric_comparison_exp
-  transactionHash: String_comparison_exp
-}
-
-"""
-order by max() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_max_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  position_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  transactionHash: order_by
-}
-
-"""
-order by min() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_min_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  position_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  transactionHash: order_by
-}
-
-"""Ordering options when selecting data from "MoneyMachineRebalance"."""
-input MoneyMachineRebalance_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  position: MoneyMachinePosition_order_by
-  position_id: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-  transactionHash: order_by
-}
-
-"""
-select columns of table "MoneyMachineRebalance"
-"""
-enum MoneyMachineRebalance_select_column {
-  """column name"""
-  blockNumber
-
-  """column name"""
-  blockTimestamp
-
-  """column name"""
-  id
-
-  """column name"""
-  newTickLower
-
-  """column name"""
-  newTickUpper
-
-  """column name"""
-  oldTickLower
-
-  """column name"""
-  oldTickUpper
-
-  """column name"""
-  position_id
-
-  """column name"""
-  proceedsQuote
-
-  """column name"""
-  proceedsToken
-
-  """column name"""
-  transactionHash
-}
-
-"""
-order by stddev() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_stddev_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-order by stddev_pop() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_stddev_pop_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-order by stddev_samp() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_stddev_samp_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-Streaming cursor of the table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachineRebalance_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachineRebalance_stream_cursor_value_input {
-  blockNumber: numeric
-  blockTimestamp: numeric
-  id: String
-  newTickLower: Int
-  newTickUpper: Int
-  oldTickLower: Int
-  oldTickUpper: Int
-  position_id: String
-  proceedsQuote: numeric
-  proceedsToken: numeric
-  transactionHash: String
-}
-
-"""
-order by sum() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_sum_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-order by var_pop() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_var_pop_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-order by var_samp() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_var_samp_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-order by variance() on columns of table "MoneyMachineRebalance"
-"""
-input MoneyMachineRebalance_variance_order_by {
-  blockNumber: order_by
-  blockTimestamp: order_by
-  newTickLower: order_by
-  newTickUpper: order_by
-  oldTickLower: order_by
-  oldTickUpper: order_by
-  proceedsQuote: order_by
-  proceedsToken: order_by
-}
-
-"""
-columns and relationships of "MoneyMachineUser"
-"""
-type MoneyMachineUser {
-  activePositionCount: numeric!
-  createdAt: numeric!
-  gasBalance: numeric!
-  id: String!
-  positionCount: numeric!
-
-  """An array relationship"""
-  positions(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePosition_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePosition_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePosition_bool_exp
-  ): [MoneyMachinePosition!]!
-  totalGasConsumed: numeric!
-  totalGasDeposited: numeric!
-  totalGasWithdrawn: numeric!
-  updatedAt: numeric!
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachineUser". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachineUser_bool_exp {
-  _and: [MoneyMachineUser_bool_exp!]
-  _not: MoneyMachineUser_bool_exp
-  _or: [MoneyMachineUser_bool_exp!]
-  activePositionCount: numeric_comparison_exp
-  createdAt: numeric_comparison_exp
-  gasBalance: numeric_comparison_exp
-  id: String_comparison_exp
-  positionCount: numeric_comparison_exp
-  positions: MoneyMachinePosition_bool_exp
-  totalGasConsumed: numeric_comparison_exp
-  totalGasDeposited: numeric_comparison_exp
-  totalGasWithdrawn: numeric_comparison_exp
-  updatedAt: numeric_comparison_exp
-}
-
-"""Ordering options when selecting data from "MoneyMachineUser"."""
-input MoneyMachineUser_order_by {
-  activePositionCount: order_by
-  createdAt: order_by
-  gasBalance: order_by
-  id: order_by
-  positionCount: order_by
-  positions_aggregate: MoneyMachinePosition_aggregate_order_by
-  totalGasConsumed: order_by
-  totalGasDeposited: order_by
-  totalGasWithdrawn: order_by
-  updatedAt: order_by
-}
-
-"""
-select columns of table "MoneyMachineUser"
-"""
-enum MoneyMachineUser_select_column {
-  """column name"""
-  activePositionCount
-
-  """column name"""
-  createdAt
-
-  """column name"""
-  gasBalance
-
-  """column name"""
-  id
-
-  """column name"""
-  positionCount
-
-  """column name"""
-  totalGasConsumed
-
-  """column name"""
-  totalGasDeposited
-
-  """column name"""
-  totalGasWithdrawn
-
-  """column name"""
-  updatedAt
-}
-
-"""
-Streaming cursor of the table "MoneyMachineUser"
-"""
-input MoneyMachineUser_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachineUser_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachineUser_stream_cursor_value_input {
-  activePositionCount: numeric
-  createdAt: numeric
-  gasBalance: numeric
-  id: String
-  positionCount: numeric
-  totalGasConsumed: numeric
-  totalGasDeposited: numeric
-  totalGasWithdrawn: numeric
-  updatedAt: numeric
-}
-
-"""
-columns and relationships of "MoneyMachineWithdrawal"
-"""
-type MoneyMachineWithdrawal {
-  amountQuote: numeric!
-  amountToken: numeric!
-  blockNumber: numeric!
-  blockTimestamp: numeric!
-  id: String!
-  isFullWithdrawal: Boolean!
-
-  """An object relationship"""
-  position: MoneyMachinePosition
-  position_id: String!
-  protocolFeeQuote: numeric!
-  transactionHash: String!
-}
-
-"""
-order by aggregate values of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_aggregate_order_by {
-  avg: MoneyMachineWithdrawal_avg_order_by
-  count: order_by
-  max: MoneyMachineWithdrawal_max_order_by
-  min: MoneyMachineWithdrawal_min_order_by
-  stddev: MoneyMachineWithdrawal_stddev_order_by
-  stddev_pop: MoneyMachineWithdrawal_stddev_pop_order_by
-  stddev_samp: MoneyMachineWithdrawal_stddev_samp_order_by
-  sum: MoneyMachineWithdrawal_sum_order_by
-  var_pop: MoneyMachineWithdrawal_var_pop_order_by
-  var_samp: MoneyMachineWithdrawal_var_samp_order_by
-  variance: MoneyMachineWithdrawal_variance_order_by
-}
-
-"""
-order by avg() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_avg_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachineWithdrawal". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachineWithdrawal_bool_exp {
-  _and: [MoneyMachineWithdrawal_bool_exp!]
-  _not: MoneyMachineWithdrawal_bool_exp
-  _or: [MoneyMachineWithdrawal_bool_exp!]
-  amountQuote: numeric_comparison_exp
-  amountToken: numeric_comparison_exp
-  blockNumber: numeric_comparison_exp
-  blockTimestamp: numeric_comparison_exp
-  id: String_comparison_exp
-  isFullWithdrawal: Boolean_comparison_exp
-  position: MoneyMachinePosition_bool_exp
-  position_id: String_comparison_exp
-  protocolFeeQuote: numeric_comparison_exp
-  transactionHash: String_comparison_exp
-}
-
-"""
-order by max() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_max_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  position_id: order_by
-  protocolFeeQuote: order_by
-  transactionHash: order_by
-}
-
-"""
-order by min() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_min_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  position_id: order_by
-  protocolFeeQuote: order_by
-  transactionHash: order_by
-}
-
-"""Ordering options when selecting data from "MoneyMachineWithdrawal"."""
-input MoneyMachineWithdrawal_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  id: order_by
-  isFullWithdrawal: order_by
-  position: MoneyMachinePosition_order_by
-  position_id: order_by
-  protocolFeeQuote: order_by
-  transactionHash: order_by
-}
-
-"""
-select columns of table "MoneyMachineWithdrawal"
-"""
-enum MoneyMachineWithdrawal_select_column {
-  """column name"""
-  amountQuote
-
-  """column name"""
-  amountToken
-
-  """column name"""
-  blockNumber
-
-  """column name"""
-  blockTimestamp
-
-  """column name"""
-  id
-
-  """column name"""
-  isFullWithdrawal
-
-  """column name"""
-  position_id
-
-  """column name"""
-  protocolFeeQuote
-
-  """column name"""
-  transactionHash
-}
-
-"""
-order by stddev() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_stddev_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-order by stddev_pop() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_stddev_pop_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-order by stddev_samp() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_stddev_samp_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-Streaming cursor of the table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachineWithdrawal_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachineWithdrawal_stream_cursor_value_input {
-  amountQuote: numeric
-  amountToken: numeric
-  blockNumber: numeric
-  blockTimestamp: numeric
-  id: String
-  isFullWithdrawal: Boolean
-  position_id: String
-  protocolFeeQuote: numeric
-  transactionHash: String
-}
-
-"""
-order by sum() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_sum_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-order by var_pop() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_var_pop_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-order by var_samp() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_var_samp_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-order by variance() on columns of table "MoneyMachineWithdrawal"
-"""
-input MoneyMachineWithdrawal_variance_order_by {
-  amountQuote: order_by
-  amountToken: order_by
-  blockNumber: order_by
-  blockTimestamp: order_by
-  protocolFeeQuote: order_by
-}
-
-"""
-Boolean expression to filter rows from the table "MoneyMachine". All fields are combined with a logical 'AND'.
-"""
-input MoneyMachine_bool_exp {
-  _and: [MoneyMachine_bool_exp!]
-  _not: MoneyMachine_bool_exp
-  _or: [MoneyMachine_bool_exp!]
-  activePositions: numeric_comparison_exp
-  id: String_comparison_exp
-  lastHeartbeatBlock: numeric_comparison_exp
-  totalHeartbeats: numeric_comparison_exp
-  totalPositions: numeric_comparison_exp
-  totalRebalances: numeric_comparison_exp
-  updatedAt: numeric_comparison_exp
-}
-
-"""Ordering options when selecting data from "MoneyMachine"."""
-input MoneyMachine_order_by {
-  activePositions: order_by
-  id: order_by
-  lastHeartbeatBlock: order_by
-  totalHeartbeats: order_by
-  totalPositions: order_by
-  totalRebalances: order_by
-  updatedAt: order_by
-}
-
-"""
-select columns of table "MoneyMachine"
-"""
-enum MoneyMachine_select_column {
-  """column name"""
-  activePositions
-
-  """column name"""
-  id
-
-  """column name"""
-  lastHeartbeatBlock
-
-  """column name"""
-  totalHeartbeats
-
-  """column name"""
-  totalPositions
-
-  """column name"""
-  totalRebalances
-
-  """column name"""
-  updatedAt
-}
-
-"""
-Streaming cursor of the table "MoneyMachine"
-"""
-input MoneyMachine_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: MoneyMachine_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input MoneyMachine_stream_cursor_value_input {
-  activePositions: numeric
-  id: String
-  lastHeartbeatBlock: numeric
-  totalHeartbeats: numeric
-  totalPositions: numeric
-  totalRebalances: numeric
-  updatedAt: numeric
-}
-
-"""
 Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'.
 """
 input String_comparison_exp {
@@ -4278,7 +2722,7 @@ type Token {
   name: String
   originalAdmin: String
   priceUpdatedAt: numeric
-  priceUsd: String
+  priceUsd: numeric
   priceWeth: numeric
   symbol: String
   totalSupply: numeric
@@ -4308,7 +2752,7 @@ input Token_bool_exp {
   name: String_comparison_exp
   originalAdmin: String_comparison_exp
   priceUpdatedAt: numeric_comparison_exp
-  priceUsd: String_comparison_exp
+  priceUsd: numeric_comparison_exp
   priceWeth: numeric_comparison_exp
   symbol: String_comparison_exp
   totalSupply: numeric_comparison_exp
@@ -4424,159 +2868,12 @@ input Token_stream_cursor_value_input {
   name: String
   originalAdmin: String
   priceUpdatedAt: numeric
-  priceUsd: String
+  priceUsd: numeric
   priceWeth: numeric
   symbol: String
   totalSupply: numeric
   updatedAt: numeric
   v4Pool_id: String
-}
-
-"""
-columns and relationships of "UniswapV3Pool"
-"""
-type UniswapV3Pool {
-  address: String!
-  amount0: numeric!
-  amount1: numeric!
-  chainId: numeric!
-  createdAt: numeric!
-  fee: Int!
-  id: String!
-  liquidity: numeric
-  sqrtPriceX96: numeric
-  tick: Int
-  tickSpacing: Int!
-
-  """An object relationship"""
-  token0: Token
-  token0_id: String!
-
-  """An object relationship"""
-  token1: Token
-  token1_id: String!
-  updatedAt: numeric!
-}
-
-"""
-Boolean expression to filter rows from the table "UniswapV3Pool". All fields are combined with a logical 'AND'.
-"""
-input UniswapV3Pool_bool_exp {
-  _and: [UniswapV3Pool_bool_exp!]
-  _not: UniswapV3Pool_bool_exp
-  _or: [UniswapV3Pool_bool_exp!]
-  address: String_comparison_exp
-  amount0: numeric_comparison_exp
-  amount1: numeric_comparison_exp
-  chainId: numeric_comparison_exp
-  createdAt: numeric_comparison_exp
-  fee: Int_comparison_exp
-  id: String_comparison_exp
-  liquidity: numeric_comparison_exp
-  sqrtPriceX96: numeric_comparison_exp
-  tick: Int_comparison_exp
-  tickSpacing: Int_comparison_exp
-  token0: Token_bool_exp
-  token0_id: String_comparison_exp
-  token1: Token_bool_exp
-  token1_id: String_comparison_exp
-  updatedAt: numeric_comparison_exp
-}
-
-"""Ordering options when selecting data from "UniswapV3Pool"."""
-input UniswapV3Pool_order_by {
-  address: order_by
-  amount0: order_by
-  amount1: order_by
-  chainId: order_by
-  createdAt: order_by
-  fee: order_by
-  id: order_by
-  liquidity: order_by
-  sqrtPriceX96: order_by
-  tick: order_by
-  tickSpacing: order_by
-  token0: Token_order_by
-  token0_id: order_by
-  token1: Token_order_by
-  token1_id: order_by
-  updatedAt: order_by
-}
-
-"""
-select columns of table "UniswapV3Pool"
-"""
-enum UniswapV3Pool_select_column {
-  """column name"""
-  address
-
-  """column name"""
-  amount0
-
-  """column name"""
-  amount1
-
-  """column name"""
-  chainId
-
-  """column name"""
-  createdAt
-
-  """column name"""
-  fee
-
-  """column name"""
-  id
-
-  """column name"""
-  liquidity
-
-  """column name"""
-  sqrtPriceX96
-
-  """column name"""
-  tick
-
-  """column name"""
-  tickSpacing
-
-  """column name"""
-  token0_id
-
-  """column name"""
-  token1_id
-
-  """column name"""
-  updatedAt
-}
-
-"""
-Streaming cursor of the table "UniswapV3Pool"
-"""
-input UniswapV3Pool_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: UniswapV3Pool_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input UniswapV3Pool_stream_cursor_value_input {
-  address: String
-  amount0: numeric
-  amount1: numeric
-  chainId: numeric
-  createdAt: numeric
-  fee: Int
-  id: String
-  liquidity: numeric
-  sqrtPriceX96: numeric
-  tick: Int
-  tickSpacing: Int
-  token0_id: String
-  token1_id: String
-  updatedAt: numeric
 }
 
 """
@@ -4592,24 +2889,6 @@ type UniswapV4Pool {
   id: String!
   liquidity: numeric
   poolId: String!
-
-  """An array relationship"""
-  positions(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePosition_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePosition_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePosition_bool_exp
-  ): [MoneyMachinePosition!]!
   sqrtPriceX96: numeric
   tick: Int
   tickSpacing: Int!
@@ -4640,7 +2919,6 @@ input UniswapV4Pool_bool_exp {
   id: String_comparison_exp
   liquidity: numeric_comparison_exp
   poolId: String_comparison_exp
-  positions: MoneyMachinePosition_bool_exp
   sqrtPriceX96: numeric_comparison_exp
   tick: Int_comparison_exp
   tickSpacing: Int_comparison_exp
@@ -4662,7 +2940,6 @@ input UniswapV4Pool_order_by {
   id: order_by
   liquidity: order_by
   poolId: order_by
-  positions_aggregate: MoneyMachinePosition_aggregate_order_by
   sqrtPriceX96: order_by
   tick: order_by
   tickSpacing: order_by
@@ -5064,6 +3341,31 @@ enum order_by {
 
 type query_root {
   """
+  fetch data from the table: "LevrAirdropClaim"
+  """
+  LevrAirdropClaim(
+    """distinct select on columns"""
+    distinct_on: [LevrAirdropClaim_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [LevrAirdropClaim_order_by!]
+
+    """filter the rows returned"""
+    where: LevrAirdropClaim_bool_exp
+  ): [LevrAirdropClaim!]!
+
+  """
+  fetch data from the table: "LevrAirdropClaim" using primary key columns
+  """
+  LevrAirdropClaim_by_pk(id: String!): LevrAirdropClaim
+
+  """
   fetch data from the table: "LevrContractMapping"
   """
   LevrContractMapping(
@@ -5325,229 +3627,6 @@ type query_root {
   LevrVote_by_pk(id: String!): LevrVote
 
   """
-  fetch data from the table: "MoneyMachine"
-  """
-  MoneyMachine(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachine_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachine_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachine_bool_exp
-  ): [MoneyMachine!]!
-
-  """
-  fetch data from the table: "MoneyMachineConfig"
-  """
-  MoneyMachineConfig(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineConfig_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineConfig_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineConfig_bool_exp
-  ): [MoneyMachineConfig!]!
-
-  """
-  fetch data from the table: "MoneyMachineConfig" using primary key columns
-  """
-  MoneyMachineConfig_by_pk(id: String!): MoneyMachineConfig
-
-  """
-  fetch data from the table: "MoneyMachineHeartbeat"
-  """
-  MoneyMachineHeartbeat(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineHeartbeat_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineHeartbeat_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineHeartbeat_bool_exp
-  ): [MoneyMachineHeartbeat!]!
-
-  """
-  fetch data from the table: "MoneyMachineHeartbeat" using primary key columns
-  """
-  MoneyMachineHeartbeat_by_pk(id: String!): MoneyMachineHeartbeat
-
-  """
-  fetch data from the table: "MoneyMachinePosition"
-  """
-  MoneyMachinePosition(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePosition_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePosition_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePosition_bool_exp
-  ): [MoneyMachinePosition!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV3PriceSource"
-  """
-  MoneyMachinePositionV3PriceSource(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV3PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV3PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV3PriceSource_bool_exp
-  ): [MoneyMachinePositionV3PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns
-  """
-  MoneyMachinePositionV3PriceSource_by_pk(id: String!): MoneyMachinePositionV3PriceSource
-
-  """
-  fetch data from the table: "MoneyMachinePositionV4PriceSource"
-  """
-  MoneyMachinePositionV4PriceSource(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV4PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV4PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV4PriceSource_bool_exp
-  ): [MoneyMachinePositionV4PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns
-  """
-  MoneyMachinePositionV4PriceSource_by_pk(id: String!): MoneyMachinePositionV4PriceSource
-
-  """
-  fetch data from the table: "MoneyMachinePosition" using primary key columns
-  """
-  MoneyMachinePosition_by_pk(id: String!): MoneyMachinePosition
-
-  """
-  fetch data from the table: "MoneyMachineRebalance"
-  """
-  MoneyMachineRebalance(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineRebalance_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineRebalance_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineRebalance_bool_exp
-  ): [MoneyMachineRebalance!]!
-
-  """
-  fetch data from the table: "MoneyMachineRebalance" using primary key columns
-  """
-  MoneyMachineRebalance_by_pk(id: String!): MoneyMachineRebalance
-
-  """
-  fetch data from the table: "MoneyMachineUser"
-  """
-  MoneyMachineUser(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineUser_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineUser_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineUser_bool_exp
-  ): [MoneyMachineUser!]!
-
-  """
-  fetch data from the table: "MoneyMachineUser" using primary key columns
-  """
-  MoneyMachineUser_by_pk(id: String!): MoneyMachineUser
-
-  """
-  fetch data from the table: "MoneyMachineWithdrawal"
-  """
-  MoneyMachineWithdrawal(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineWithdrawal_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineWithdrawal_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineWithdrawal_bool_exp
-  ): [MoneyMachineWithdrawal!]!
-
-  """
-  fetch data from the table: "MoneyMachineWithdrawal" using primary key columns
-  """
-  MoneyMachineWithdrawal_by_pk(id: String!): MoneyMachineWithdrawal
-
-  """fetch data from the table: "MoneyMachine" using primary key columns"""
-  MoneyMachine_by_pk(id: String!): MoneyMachine
-
-  """
   fetch data from the table: "Token"
   """
   Token(
@@ -5569,29 +3648,6 @@ type query_root {
 
   """fetch data from the table: "Token" using primary key columns"""
   Token_by_pk(id: String!): Token
-
-  """
-  fetch data from the table: "UniswapV3Pool"
-  """
-  UniswapV3Pool(
-    """distinct select on columns"""
-    distinct_on: [UniswapV3Pool_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [UniswapV3Pool_order_by!]
-
-    """filter the rows returned"""
-    where: UniswapV3Pool_bool_exp
-  ): [UniswapV3Pool!]!
-
-  """fetch data from the table: "UniswapV3Pool" using primary key columns"""
-  UniswapV3Pool_by_pk(id: String!): UniswapV3Pool
 
   """
   fetch data from the table: "UniswapV4Pool"
@@ -5820,6 +3876,45 @@ input raw_events_stream_cursor_value_input {
 }
 
 type subscription_root {
+  """
+  fetch data from the table: "LevrAirdropClaim"
+  """
+  LevrAirdropClaim(
+    """distinct select on columns"""
+    distinct_on: [LevrAirdropClaim_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [LevrAirdropClaim_order_by!]
+
+    """filter the rows returned"""
+    where: LevrAirdropClaim_bool_exp
+  ): [LevrAirdropClaim!]!
+
+  """
+  fetch data from the table: "LevrAirdropClaim" using primary key columns
+  """
+  LevrAirdropClaim_by_pk(id: String!): LevrAirdropClaim
+
+  """
+  fetch data from the table in a streaming manner: "LevrAirdropClaim"
+  """
+  LevrAirdropClaim_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [LevrAirdropClaim_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: LevrAirdropClaim_bool_exp
+  ): [LevrAirdropClaim!]!
+
   """
   fetch data from the table: "LevrContractMapping"
   """
@@ -6236,355 +4331,6 @@ type subscription_root {
   ): [LevrVote!]!
 
   """
-  fetch data from the table: "MoneyMachine"
-  """
-  MoneyMachine(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachine_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachine_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachine_bool_exp
-  ): [MoneyMachine!]!
-
-  """
-  fetch data from the table: "MoneyMachineConfig"
-  """
-  MoneyMachineConfig(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineConfig_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineConfig_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineConfig_bool_exp
-  ): [MoneyMachineConfig!]!
-
-  """
-  fetch data from the table: "MoneyMachineConfig" using primary key columns
-  """
-  MoneyMachineConfig_by_pk(id: String!): MoneyMachineConfig
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachineConfig"
-  """
-  MoneyMachineConfig_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachineConfig_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachineConfig_bool_exp
-  ): [MoneyMachineConfig!]!
-
-  """
-  fetch data from the table: "MoneyMachineHeartbeat"
-  """
-  MoneyMachineHeartbeat(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineHeartbeat_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineHeartbeat_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineHeartbeat_bool_exp
-  ): [MoneyMachineHeartbeat!]!
-
-  """
-  fetch data from the table: "MoneyMachineHeartbeat" using primary key columns
-  """
-  MoneyMachineHeartbeat_by_pk(id: String!): MoneyMachineHeartbeat
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachineHeartbeat"
-  """
-  MoneyMachineHeartbeat_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachineHeartbeat_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachineHeartbeat_bool_exp
-  ): [MoneyMachineHeartbeat!]!
-
-  """
-  fetch data from the table: "MoneyMachinePosition"
-  """
-  MoneyMachinePosition(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePosition_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePosition_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePosition_bool_exp
-  ): [MoneyMachinePosition!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV3PriceSource"
-  """
-  MoneyMachinePositionV3PriceSource(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV3PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV3PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV3PriceSource_bool_exp
-  ): [MoneyMachinePositionV3PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns
-  """
-  MoneyMachinePositionV3PriceSource_by_pk(id: String!): MoneyMachinePositionV3PriceSource
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachinePositionV3PriceSource"
-  """
-  MoneyMachinePositionV3PriceSource_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachinePositionV3PriceSource_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV3PriceSource_bool_exp
-  ): [MoneyMachinePositionV3PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV4PriceSource"
-  """
-  MoneyMachinePositionV4PriceSource(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachinePositionV4PriceSource_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachinePositionV4PriceSource_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV4PriceSource_bool_exp
-  ): [MoneyMachinePositionV4PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns
-  """
-  MoneyMachinePositionV4PriceSource_by_pk(id: String!): MoneyMachinePositionV4PriceSource
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachinePositionV4PriceSource"
-  """
-  MoneyMachinePositionV4PriceSource_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachinePositionV4PriceSource_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachinePositionV4PriceSource_bool_exp
-  ): [MoneyMachinePositionV4PriceSource!]!
-
-  """
-  fetch data from the table: "MoneyMachinePosition" using primary key columns
-  """
-  MoneyMachinePosition_by_pk(id: String!): MoneyMachinePosition
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachinePosition"
-  """
-  MoneyMachinePosition_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachinePosition_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachinePosition_bool_exp
-  ): [MoneyMachinePosition!]!
-
-  """
-  fetch data from the table: "MoneyMachineRebalance"
-  """
-  MoneyMachineRebalance(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineRebalance_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineRebalance_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineRebalance_bool_exp
-  ): [MoneyMachineRebalance!]!
-
-  """
-  fetch data from the table: "MoneyMachineRebalance" using primary key columns
-  """
-  MoneyMachineRebalance_by_pk(id: String!): MoneyMachineRebalance
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachineRebalance"
-  """
-  MoneyMachineRebalance_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachineRebalance_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachineRebalance_bool_exp
-  ): [MoneyMachineRebalance!]!
-
-  """
-  fetch data from the table: "MoneyMachineUser"
-  """
-  MoneyMachineUser(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineUser_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineUser_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineUser_bool_exp
-  ): [MoneyMachineUser!]!
-
-  """
-  fetch data from the table: "MoneyMachineUser" using primary key columns
-  """
-  MoneyMachineUser_by_pk(id: String!): MoneyMachineUser
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachineUser"
-  """
-  MoneyMachineUser_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachineUser_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachineUser_bool_exp
-  ): [MoneyMachineUser!]!
-
-  """
-  fetch data from the table: "MoneyMachineWithdrawal"
-  """
-  MoneyMachineWithdrawal(
-    """distinct select on columns"""
-    distinct_on: [MoneyMachineWithdrawal_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [MoneyMachineWithdrawal_order_by!]
-
-    """filter the rows returned"""
-    where: MoneyMachineWithdrawal_bool_exp
-  ): [MoneyMachineWithdrawal!]!
-
-  """
-  fetch data from the table: "MoneyMachineWithdrawal" using primary key columns
-  """
-  MoneyMachineWithdrawal_by_pk(id: String!): MoneyMachineWithdrawal
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachineWithdrawal"
-  """
-  MoneyMachineWithdrawal_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachineWithdrawal_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachineWithdrawal_bool_exp
-  ): [MoneyMachineWithdrawal!]!
-
-  """fetch data from the table: "MoneyMachine" using primary key columns"""
-  MoneyMachine_by_pk(id: String!): MoneyMachine
-
-  """
-  fetch data from the table in a streaming manner: "MoneyMachine"
-  """
-  MoneyMachine_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [MoneyMachine_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: MoneyMachine_bool_exp
-  ): [MoneyMachine!]!
-
-  """
   fetch data from the table: "Token"
   """
   Token(
@@ -6620,43 +4366,6 @@ type subscription_root {
     """filter the rows returned"""
     where: Token_bool_exp
   ): [Token!]!
-
-  """
-  fetch data from the table: "UniswapV3Pool"
-  """
-  UniswapV3Pool(
-    """distinct select on columns"""
-    distinct_on: [UniswapV3Pool_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [UniswapV3Pool_order_by!]
-
-    """filter the rows returned"""
-    where: UniswapV3Pool_bool_exp
-  ): [UniswapV3Pool!]!
-
-  """fetch data from the table: "UniswapV3Pool" using primary key columns"""
-  UniswapV3Pool_by_pk(id: String!): UniswapV3Pool
-
-  """
-  fetch data from the table in a streaming manner: "UniswapV3Pool"
-  """
-  UniswapV3Pool_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [UniswapV3Pool_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: UniswapV3Pool_bool_exp
-  ): [UniswapV3Pool!]!
 
   """
   fetch data from the table: "UniswapV4Pool"

@@ -9,5 +9,5 @@ export type { FieldsSelection } from './typeSelection'
 export { GenqlError } from './error'
 export { createFetcher } from './fetcher'
 export const everything = {
-  __scalar: true,
+    __scalar: true,
 }

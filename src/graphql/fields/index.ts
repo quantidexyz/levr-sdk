@@ -1,3 +1,4 @@
+export * from './airdrop'
 export * from './factory'
 export * from './metrics'
 export * from './project'

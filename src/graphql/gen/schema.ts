@@ -13,6 +13,32 @@ export type Scalars = {
 }
 
 
+/** columns and relationships of "LevrAirdropClaim" */
+export interface LevrAirdropClaim {
+    amountStillLocked: Scalars['numeric']
+    blockNumber: Scalars['numeric']
+    blockTimestamp: Scalars['numeric']
+    chainId: Scalars['numeric']
+    createdAt: Scalars['numeric']
+    id: Scalars['String']
+    /** An object relationship */
+    project: (LevrProject | null)
+    project_id: (Scalars['String'] | null)
+    /** An object relationship */
+    token: (Token | null)
+    token_id: Scalars['String']
+    totalAmountClaimed: Scalars['numeric']
+    transactionHash: Scalars['String']
+    updatedAt: Scalars['numeric']
+    user: Scalars['String']
+    __typename: 'LevrAirdropClaim'
+}
+
+
+/** select columns of table "LevrAirdropClaim" */
+export type LevrAirdropClaim_select_column = 'amountStillLocked' | 'blockNumber' | 'blockTimestamp' | 'chainId' | 'createdAt' | 'id' | 'project_id' | 'token_id' | 'totalAmountClaimed' | 'transactionHash' | 'updatedAt' | 'user'
+
+
 /** columns and relationships of "LevrContractMapping" */
 export interface LevrContractMapping {
     id: Scalars['String']
@@ -76,18 +102,16 @@ export interface LevrMetrics {
     createdAt: Scalars['numeric']
     id: Scalars['String']
     projectCount: Scalars['numeric']
-    totalStaked: Scalars['numeric']
-    totalStakedUsd: (Scalars['String'] | null)
+    totalStakedUsd: (Scalars['numeric'] | null)
     totalStakers: Scalars['numeric']
-    tvl: Scalars['numeric']
-    tvlUsd: (Scalars['String'] | null)
+    tvlUsd: (Scalars['numeric'] | null)
     updatedAt: Scalars['numeric']
     __typename: 'LevrMetrics'
 }
 
 
 /** select columns of table "LevrMetrics" */
-export type LevrMetrics_select_column = 'createdAt' | 'id' | 'projectCount' | 'totalStaked' | 'totalStakedUsd' | 'totalStakers' | 'tvl' | 'tvlUsd' | 'updatedAt'
+export type LevrMetrics_select_column = 'createdAt' | 'id' | 'projectCount' | 'totalStakedUsd' | 'totalStakers' | 'tvlUsd' | 'updatedAt'
 
 
 /** columns and relationships of "LevrProject" */
@@ -122,19 +146,19 @@ export interface LevrProject {
     /** An array relationship */
     stakers: LevrStaker[]
     stakingContractBalance: Scalars['numeric']
-    stakingContractBalanceUsd: (Scalars['String'] | null)
+    stakingContractBalanceUsd: (Scalars['numeric'] | null)
     staking_id: Scalars['String']
     streamWindowSeconds: Scalars['numeric']
     totalProposals: Scalars['numeric']
     totalStaked: Scalars['numeric']
-    totalStakedUsd: (Scalars['String'] | null)
+    totalStakedUsd: (Scalars['numeric'] | null)
     /** An array relationship */
     transfers: LevrTreasuryTransfer[]
     treasuryBalance: Scalars['numeric']
-    treasuryBalanceUsd: (Scalars['String'] | null)
+    treasuryBalanceUsd: (Scalars['numeric'] | null)
     treasury_id: Scalars['String']
     tvl: Scalars['numeric']
-    tvlUsd: (Scalars['String'] | null)
+    tvlUsd: (Scalars['numeric'] | null)
     updatedAt: Scalars['numeric']
     verified: Scalars['Boolean']
     votingWindowSeconds: Scalars['numeric']
@@ -292,209 +316,6 @@ export interface LevrVote {
 export type LevrVote_select_column = 'blockTimestamp' | 'id' | 'proposal_id' | 'support' | 'transactionHash' | 'voter' | 'votes'
 
 
-/** columns and relationships of "MoneyMachine" */
-export interface MoneyMachine {
-    activePositions: Scalars['numeric']
-    id: Scalars['String']
-    lastHeartbeatBlock: Scalars['numeric']
-    totalHeartbeats: Scalars['numeric']
-    totalPositions: Scalars['numeric']
-    totalRebalances: Scalars['numeric']
-    updatedAt: Scalars['numeric']
-    __typename: 'MoneyMachine'
-}
-
-
-/** columns and relationships of "MoneyMachineConfig" */
-export interface MoneyMachineConfig {
-    callerIncentive: Scalars['numeric']
-    feeRecipient: (Scalars['String'] | null)
-    formula: (Scalars['String'] | null)
-    heartbeatInterval: Scalars['numeric']
-    hook: (Scalars['String'] | null)
-    id: Scalars['String']
-    poolManager: (Scalars['String'] | null)
-    protocolFeeBps: Scalars['numeric']
-    rebalanceGas: Scalars['numeric']
-    tickAggregator: (Scalars['String'] | null)
-    updatedAt: Scalars['numeric']
-    __typename: 'MoneyMachineConfig'
-}
-
-
-/** select columns of table "MoneyMachineConfig" */
-export type MoneyMachineConfig_select_column = 'callerIncentive' | 'feeRecipient' | 'formula' | 'heartbeatInterval' | 'hook' | 'id' | 'poolManager' | 'protocolFeeBps' | 'rebalanceGas' | 'tickAggregator' | 'updatedAt'
-
-
-/** columns and relationships of "MoneyMachineHeartbeat" */
-export interface MoneyMachineHeartbeat {
-    blockNumber: Scalars['numeric']
-    blockTimestamp: Scalars['numeric']
-    caller: Scalars['String']
-    id: Scalars['String']
-    incentivePaid: Scalars['numeric']
-    positionsProcessed: Scalars['numeric']
-    rebalancesExecuted: Scalars['numeric']
-    transactionHash: Scalars['String']
-    __typename: 'MoneyMachineHeartbeat'
-}
-
-
-/** select columns of table "MoneyMachineHeartbeat" */
-export type MoneyMachineHeartbeat_select_column = 'blockNumber' | 'blockTimestamp' | 'caller' | 'id' | 'incentivePaid' | 'positionsProcessed' | 'rebalancesExecuted' | 'transactionHash'
-
-
-/** columns and relationships of "MoneyMachinePosition" */
-export interface MoneyMachinePosition {
-    active: Scalars['Boolean']
-    amountQuote: Scalars['numeric']
-    amountToken: Scalars['numeric']
-    closedAt: (Scalars['numeric'] | null)
-    createdAt: Scalars['numeric']
-    createdTxHash: Scalars['String']
-    feesPaidQuote: Scalars['numeric']
-    feesPaidToken: Scalars['numeric']
-    id: Scalars['String']
-    originalTickLower: Scalars['Int']
-    /** An object relationship */
-    owner: (MoneyMachineUser | null)
-    owner_id: Scalars['String']
-    /** An object relationship */
-    pool: (UniswapV4Pool | null)
-    pool_id: Scalars['String']
-    proceedsQuote: Scalars['numeric']
-    proceedsToken: Scalars['numeric']
-    /** An object relationship */
-    quoteToken: (Token | null)
-    quoteToken_id: Scalars['String']
-    rebalanceCount: Scalars['numeric']
-    /** An array relationship */
-    rebalances: MoneyMachineRebalance[]
-    tickLower: Scalars['Int']
-    tickUpper: Scalars['Int']
-    /** An object relationship */
-    token: (Token | null)
-    token_id: Scalars['String']
-    updatedAt: Scalars['numeric']
-    /** An array relationship */
-    v3PriceSources: MoneyMachinePositionV3PriceSource[]
-    /** An array relationship */
-    v4PriceSources: MoneyMachinePositionV4PriceSource[]
-    /** An array relationship */
-    withdrawals: MoneyMachineWithdrawal[]
-    withdrawnQuote: Scalars['numeric']
-    withdrawnToken: Scalars['numeric']
-    __typename: 'MoneyMachinePosition'
-}
-
-
-/** columns and relationships of "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSource {
-    id: Scalars['String']
-    /** An object relationship */
-    pool: (UniswapV3Pool | null)
-    pool_id: Scalars['String']
-    /** An object relationship */
-    position: (MoneyMachinePosition | null)
-    position_id: Scalars['String']
-    __typename: 'MoneyMachinePositionV3PriceSource'
-}
-
-
-/** select columns of table "MoneyMachinePositionV3PriceSource" */
-export type MoneyMachinePositionV3PriceSource_select_column = 'id' | 'pool_id' | 'position_id'
-
-
-/** columns and relationships of "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSource {
-    id: Scalars['String']
-    /** An object relationship */
-    pool: (UniswapV4Pool | null)
-    pool_id: Scalars['String']
-    /** An object relationship */
-    position: (MoneyMachinePosition | null)
-    position_id: Scalars['String']
-    __typename: 'MoneyMachinePositionV4PriceSource'
-}
-
-
-/** select columns of table "MoneyMachinePositionV4PriceSource" */
-export type MoneyMachinePositionV4PriceSource_select_column = 'id' | 'pool_id' | 'position_id'
-
-
-/** select columns of table "MoneyMachinePosition" */
-export type MoneyMachinePosition_select_column = 'active' | 'amountQuote' | 'amountToken' | 'closedAt' | 'createdAt' | 'createdTxHash' | 'feesPaidQuote' | 'feesPaidToken' | 'id' | 'originalTickLower' | 'owner_id' | 'pool_id' | 'proceedsQuote' | 'proceedsToken' | 'quoteToken_id' | 'rebalanceCount' | 'tickLower' | 'tickUpper' | 'token_id' | 'updatedAt' | 'withdrawnQuote' | 'withdrawnToken'
-
-
-/** columns and relationships of "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance {
-    blockNumber: Scalars['numeric']
-    blockTimestamp: Scalars['numeric']
-    id: Scalars['String']
-    newTickLower: Scalars['Int']
-    newTickUpper: Scalars['Int']
-    oldTickLower: Scalars['Int']
-    oldTickUpper: Scalars['Int']
-    /** An object relationship */
-    position: (MoneyMachinePosition | null)
-    position_id: Scalars['String']
-    proceedsQuote: Scalars['numeric']
-    proceedsToken: Scalars['numeric']
-    transactionHash: Scalars['String']
-    __typename: 'MoneyMachineRebalance'
-}
-
-
-/** select columns of table "MoneyMachineRebalance" */
-export type MoneyMachineRebalance_select_column = 'blockNumber' | 'blockTimestamp' | 'id' | 'newTickLower' | 'newTickUpper' | 'oldTickLower' | 'oldTickUpper' | 'position_id' | 'proceedsQuote' | 'proceedsToken' | 'transactionHash'
-
-
-/** columns and relationships of "MoneyMachineUser" */
-export interface MoneyMachineUser {
-    activePositionCount: Scalars['numeric']
-    createdAt: Scalars['numeric']
-    gasBalance: Scalars['numeric']
-    id: Scalars['String']
-    positionCount: Scalars['numeric']
-    /** An array relationship */
-    positions: MoneyMachinePosition[]
-    totalGasConsumed: Scalars['numeric']
-    totalGasDeposited: Scalars['numeric']
-    totalGasWithdrawn: Scalars['numeric']
-    updatedAt: Scalars['numeric']
-    __typename: 'MoneyMachineUser'
-}
-
-
-/** select columns of table "MoneyMachineUser" */
-export type MoneyMachineUser_select_column = 'activePositionCount' | 'createdAt' | 'gasBalance' | 'id' | 'positionCount' | 'totalGasConsumed' | 'totalGasDeposited' | 'totalGasWithdrawn' | 'updatedAt'
-
-
-/** columns and relationships of "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal {
-    amountQuote: Scalars['numeric']
-    amountToken: Scalars['numeric']
-    blockNumber: Scalars['numeric']
-    blockTimestamp: Scalars['numeric']
-    id: Scalars['String']
-    isFullWithdrawal: Scalars['Boolean']
-    /** An object relationship */
-    position: (MoneyMachinePosition | null)
-    position_id: Scalars['String']
-    protocolFeeQuote: Scalars['numeric']
-    transactionHash: Scalars['String']
-    __typename: 'MoneyMachineWithdrawal'
-}
-
-
-/** select columns of table "MoneyMachineWithdrawal" */
-export type MoneyMachineWithdrawal_select_column = 'amountQuote' | 'amountToken' | 'blockNumber' | 'blockTimestamp' | 'id' | 'isFullWithdrawal' | 'position_id' | 'protocolFeeQuote' | 'transactionHash'
-
-
-/** select columns of table "MoneyMachine" */
-export type MoneyMachine_select_column = 'activePositions' | 'id' | 'lastHeartbeatBlock' | 'totalHeartbeats' | 'totalPositions' | 'totalRebalances' | 'updatedAt'
-
-
 /** columns and relationships of "Token" */
 export interface Token {
     address: Scalars['String']
@@ -509,7 +330,7 @@ export interface Token {
     name: (Scalars['String'] | null)
     originalAdmin: (Scalars['String'] | null)
     priceUpdatedAt: (Scalars['numeric'] | null)
-    priceUsd: (Scalars['String'] | null)
+    priceUsd: (Scalars['numeric'] | null)
     priceWeth: (Scalars['numeric'] | null)
     symbol: (Scalars['String'] | null)
     totalSupply: (Scalars['numeric'] | null)
@@ -525,34 +346,6 @@ export interface Token {
 export type Token_select_column = 'address' | 'admin' | 'chainId' | 'context' | 'createdAt' | 'decimals' | 'id' | 'imageUrl' | 'metadata' | 'name' | 'originalAdmin' | 'priceUpdatedAt' | 'priceUsd' | 'priceWeth' | 'symbol' | 'totalSupply' | 'updatedAt' | 'v4Pool_id'
 
 
-/** columns and relationships of "UniswapV3Pool" */
-export interface UniswapV3Pool {
-    address: Scalars['String']
-    amount0: Scalars['numeric']
-    amount1: Scalars['numeric']
-    chainId: Scalars['numeric']
-    createdAt: Scalars['numeric']
-    fee: Scalars['Int']
-    id: Scalars['String']
-    liquidity: (Scalars['numeric'] | null)
-    sqrtPriceX96: (Scalars['numeric'] | null)
-    tick: (Scalars['Int'] | null)
-    tickSpacing: Scalars['Int']
-    /** An object relationship */
-    token0: (Token | null)
-    token0_id: Scalars['String']
-    /** An object relationship */
-    token1: (Token | null)
-    token1_id: Scalars['String']
-    updatedAt: Scalars['numeric']
-    __typename: 'UniswapV3Pool'
-}
-
-
-/** select columns of table "UniswapV3Pool" */
-export type UniswapV3Pool_select_column = 'address' | 'amount0' | 'amount1' | 'chainId' | 'createdAt' | 'fee' | 'id' | 'liquidity' | 'sqrtPriceX96' | 'tick' | 'tickSpacing' | 'token0_id' | 'token1_id' | 'updatedAt'
-
-
 /** columns and relationships of "UniswapV4Pool" */
 export interface UniswapV4Pool {
     amount0: Scalars['numeric']
@@ -564,8 +357,6 @@ export interface UniswapV4Pool {
     id: Scalars['String']
     liquidity: (Scalars['numeric'] | null)
     poolId: Scalars['String']
-    /** An array relationship */
-    positions: MoneyMachinePosition[]
     sqrtPriceX96: (Scalars['numeric'] | null)
     tick: (Scalars['Int'] | null)
     tickSpacing: Scalars['Int']
@@ -633,6 +424,10 @@ export type cursor_ordering = 'ASC' | 'DESC'
 export type order_by = 'asc' | 'asc_nulls_first' | 'asc_nulls_last' | 'desc' | 'desc_nulls_first' | 'desc_nulls_last'
 
 export interface query_root {
+    /** fetch data from the table: "LevrAirdropClaim" */
+    LevrAirdropClaim: LevrAirdropClaim[]
+    /** fetch data from the table: "LevrAirdropClaim" using primary key columns */
+    LevrAirdropClaim_by_pk: (LevrAirdropClaim | null)
     /** fetch data from the table: "LevrContractMapping" */
     LevrContractMapping: LevrContractMapping[]
     /** fetch data from the table: "LevrContractMapping" using primary key columns */
@@ -677,50 +472,10 @@ export interface query_root {
     LevrVote: LevrVote[]
     /** fetch data from the table: "LevrVote" using primary key columns */
     LevrVote_by_pk: (LevrVote | null)
-    /** fetch data from the table: "MoneyMachine" */
-    MoneyMachine: MoneyMachine[]
-    /** fetch data from the table: "MoneyMachineConfig" */
-    MoneyMachineConfig: MoneyMachineConfig[]
-    /** fetch data from the table: "MoneyMachineConfig" using primary key columns */
-    MoneyMachineConfig_by_pk: (MoneyMachineConfig | null)
-    /** fetch data from the table: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat: MoneyMachineHeartbeat[]
-    /** fetch data from the table: "MoneyMachineHeartbeat" using primary key columns */
-    MoneyMachineHeartbeat_by_pk: (MoneyMachineHeartbeat | null)
-    /** fetch data from the table: "MoneyMachinePosition" */
-    MoneyMachinePosition: MoneyMachinePosition[]
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource: MoneyMachinePositionV3PriceSource[]
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns */
-    MoneyMachinePositionV3PriceSource_by_pk: (MoneyMachinePositionV3PriceSource | null)
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource: MoneyMachinePositionV4PriceSource[]
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns */
-    MoneyMachinePositionV4PriceSource_by_pk: (MoneyMachinePositionV4PriceSource | null)
-    /** fetch data from the table: "MoneyMachinePosition" using primary key columns */
-    MoneyMachinePosition_by_pk: (MoneyMachinePosition | null)
-    /** fetch data from the table: "MoneyMachineRebalance" */
-    MoneyMachineRebalance: MoneyMachineRebalance[]
-    /** fetch data from the table: "MoneyMachineRebalance" using primary key columns */
-    MoneyMachineRebalance_by_pk: (MoneyMachineRebalance | null)
-    /** fetch data from the table: "MoneyMachineUser" */
-    MoneyMachineUser: MoneyMachineUser[]
-    /** fetch data from the table: "MoneyMachineUser" using primary key columns */
-    MoneyMachineUser_by_pk: (MoneyMachineUser | null)
-    /** fetch data from the table: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal: MoneyMachineWithdrawal[]
-    /** fetch data from the table: "MoneyMachineWithdrawal" using primary key columns */
-    MoneyMachineWithdrawal_by_pk: (MoneyMachineWithdrawal | null)
-    /** fetch data from the table: "MoneyMachine" using primary key columns */
-    MoneyMachine_by_pk: (MoneyMachine | null)
     /** fetch data from the table: "Token" */
     Token: Token[]
     /** fetch data from the table: "Token" using primary key columns */
     Token_by_pk: (Token | null)
-    /** fetch data from the table: "UniswapV3Pool" */
-    UniswapV3Pool: UniswapV3Pool[]
-    /** fetch data from the table: "UniswapV3Pool" using primary key columns */
-    UniswapV3Pool_by_pk: (UniswapV3Pool | null)
     /** fetch data from the table: "UniswapV4Pool" */
     UniswapV4Pool: UniswapV4Pool[]
     /** fetch data from the table: "UniswapV4Pool" using primary key columns */
@@ -760,6 +515,12 @@ export interface raw_events {
 export type raw_events_select_column = 'block_fields' | 'block_hash' | 'block_number' | 'block_timestamp' | 'chain_id' | 'contract_name' | 'event_id' | 'event_name' | 'log_index' | 'params' | 'serial' | 'src_address' | 'transaction_fields'
 
 export interface subscription_root {
+    /** fetch data from the table: "LevrAirdropClaim" */
+    LevrAirdropClaim: LevrAirdropClaim[]
+    /** fetch data from the table: "LevrAirdropClaim" using primary key columns */
+    LevrAirdropClaim_by_pk: (LevrAirdropClaim | null)
+    /** fetch data from the table in a streaming manner: "LevrAirdropClaim" */
+    LevrAirdropClaim_stream: LevrAirdropClaim[]
     /** fetch data from the table: "LevrContractMapping" */
     LevrContractMapping: LevrContractMapping[]
     /** fetch data from the table: "LevrContractMapping" using primary key columns */
@@ -826,72 +587,12 @@ export interface subscription_root {
     LevrVote_by_pk: (LevrVote | null)
     /** fetch data from the table in a streaming manner: "LevrVote" */
     LevrVote_stream: LevrVote[]
-    /** fetch data from the table: "MoneyMachine" */
-    MoneyMachine: MoneyMachine[]
-    /** fetch data from the table: "MoneyMachineConfig" */
-    MoneyMachineConfig: MoneyMachineConfig[]
-    /** fetch data from the table: "MoneyMachineConfig" using primary key columns */
-    MoneyMachineConfig_by_pk: (MoneyMachineConfig | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachineConfig" */
-    MoneyMachineConfig_stream: MoneyMachineConfig[]
-    /** fetch data from the table: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat: MoneyMachineHeartbeat[]
-    /** fetch data from the table: "MoneyMachineHeartbeat" using primary key columns */
-    MoneyMachineHeartbeat_by_pk: (MoneyMachineHeartbeat | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat_stream: MoneyMachineHeartbeat[]
-    /** fetch data from the table: "MoneyMachinePosition" */
-    MoneyMachinePosition: MoneyMachinePosition[]
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource: MoneyMachinePositionV3PriceSource[]
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns */
-    MoneyMachinePositionV3PriceSource_by_pk: (MoneyMachinePositionV3PriceSource | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource_stream: MoneyMachinePositionV3PriceSource[]
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource: MoneyMachinePositionV4PriceSource[]
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns */
-    MoneyMachinePositionV4PriceSource_by_pk: (MoneyMachinePositionV4PriceSource | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource_stream: MoneyMachinePositionV4PriceSource[]
-    /** fetch data from the table: "MoneyMachinePosition" using primary key columns */
-    MoneyMachinePosition_by_pk: (MoneyMachinePosition | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachinePosition" */
-    MoneyMachinePosition_stream: MoneyMachinePosition[]
-    /** fetch data from the table: "MoneyMachineRebalance" */
-    MoneyMachineRebalance: MoneyMachineRebalance[]
-    /** fetch data from the table: "MoneyMachineRebalance" using primary key columns */
-    MoneyMachineRebalance_by_pk: (MoneyMachineRebalance | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachineRebalance" */
-    MoneyMachineRebalance_stream: MoneyMachineRebalance[]
-    /** fetch data from the table: "MoneyMachineUser" */
-    MoneyMachineUser: MoneyMachineUser[]
-    /** fetch data from the table: "MoneyMachineUser" using primary key columns */
-    MoneyMachineUser_by_pk: (MoneyMachineUser | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachineUser" */
-    MoneyMachineUser_stream: MoneyMachineUser[]
-    /** fetch data from the table: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal: MoneyMachineWithdrawal[]
-    /** fetch data from the table: "MoneyMachineWithdrawal" using primary key columns */
-    MoneyMachineWithdrawal_by_pk: (MoneyMachineWithdrawal | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal_stream: MoneyMachineWithdrawal[]
-    /** fetch data from the table: "MoneyMachine" using primary key columns */
-    MoneyMachine_by_pk: (MoneyMachine | null)
-    /** fetch data from the table in a streaming manner: "MoneyMachine" */
-    MoneyMachine_stream: MoneyMachine[]
     /** fetch data from the table: "Token" */
     Token: Token[]
     /** fetch data from the table: "Token" using primary key columns */
     Token_by_pk: (Token | null)
     /** fetch data from the table in a streaming manner: "Token" */
     Token_stream: Token[]
-    /** fetch data from the table: "UniswapV3Pool" */
-    UniswapV3Pool: UniswapV3Pool[]
-    /** fetch data from the table: "UniswapV3Pool" using primary key columns */
-    UniswapV3Pool_by_pk: (UniswapV3Pool | null)
-    /** fetch data from the table in a streaming manner: "UniswapV3Pool" */
-    UniswapV3Pool_stream: UniswapV3Pool[]
     /** fetch data from the table: "UniswapV4Pool" */
     UniswapV4Pool: UniswapV4Pool[]
     /** fetch data from the table: "UniswapV4Pool" using primary key columns */
@@ -925,6 +626,49 @@ export interface Boolean_comparison_exp {_eq?: (Scalars['Boolean'] | null),_gt?:
 
 /** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
 export interface Int_comparison_exp {_eq?: (Scalars['Int'] | null),_gt?: (Scalars['Int'] | null),_gte?: (Scalars['Int'] | null),_in?: (Scalars['Int'][] | null),_is_null?: (Scalars['Boolean'] | null),_lt?: (Scalars['Int'] | null),_lte?: (Scalars['Int'] | null),_neq?: (Scalars['Int'] | null),_nin?: (Scalars['Int'][] | null)}
+
+
+/** columns and relationships of "LevrAirdropClaim" */
+export interface LevrAirdropClaimGenqlSelection{
+    amountStillLocked?: boolean | number
+    blockNumber?: boolean | number
+    blockTimestamp?: boolean | number
+    chainId?: boolean | number
+    createdAt?: boolean | number
+    id?: boolean | number
+    /** An object relationship */
+    project?: LevrProjectGenqlSelection
+    project_id?: boolean | number
+    /** An object relationship */
+    token?: TokenGenqlSelection
+    token_id?: boolean | number
+    totalAmountClaimed?: boolean | number
+    transactionHash?: boolean | number
+    updatedAt?: boolean | number
+    user?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+
+/** Boolean expression to filter rows from the table "LevrAirdropClaim". All fields are combined with a logical 'AND'. */
+export interface LevrAirdropClaim_bool_exp {_and?: (LevrAirdropClaim_bool_exp[] | null),_not?: (LevrAirdropClaim_bool_exp | null),_or?: (LevrAirdropClaim_bool_exp[] | null),amountStillLocked?: (numeric_comparison_exp | null),blockNumber?: (numeric_comparison_exp | null),blockTimestamp?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),project?: (LevrProject_bool_exp | null),project_id?: (String_comparison_exp | null),token?: (Token_bool_exp | null),token_id?: (String_comparison_exp | null),totalAmountClaimed?: (numeric_comparison_exp | null),transactionHash?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),user?: (String_comparison_exp | null)}
+
+
+/** Ordering options when selecting data from "LevrAirdropClaim". */
+export interface LevrAirdropClaim_order_by {amountStillLocked?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),chainId?: (order_by | null),createdAt?: (order_by | null),id?: (order_by | null),project?: (LevrProject_order_by | null),project_id?: (order_by | null),token?: (Token_order_by | null),token_id?: (order_by | null),totalAmountClaimed?: (order_by | null),transactionHash?: (order_by | null),updatedAt?: (order_by | null),user?: (order_by | null)}
+
+
+/** Streaming cursor of the table "LevrAirdropClaim" */
+export interface LevrAirdropClaim_stream_cursor_input {
+/** Stream column input with initial value */
+initial_value: LevrAirdropClaim_stream_cursor_value_input,
+/** cursor ordering */
+ordering?: (cursor_ordering | null)}
+
+
+/** Initial value of the column from where the streaming should start */
+export interface LevrAirdropClaim_stream_cursor_value_input {amountStillLocked?: (Scalars['numeric'] | null),blockNumber?: (Scalars['numeric'] | null),blockTimestamp?: (Scalars['numeric'] | null),chainId?: (Scalars['numeric'] | null),createdAt?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),project_id?: (Scalars['String'] | null),token_id?: (Scalars['String'] | null),totalAmountClaimed?: (Scalars['numeric'] | null),transactionHash?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null),user?: (Scalars['String'] | null)}
 
 
 /** columns and relationships of "LevrContractMapping" */
@@ -1085,10 +829,8 @@ export interface LevrMetricsGenqlSelection{
     createdAt?: boolean | number
     id?: boolean | number
     projectCount?: boolean | number
-    totalStaked?: boolean | number
     totalStakedUsd?: boolean | number
     totalStakers?: boolean | number
-    tvl?: boolean | number
     tvlUsd?: boolean | number
     updatedAt?: boolean | number
     __typename?: boolean | number
@@ -1097,11 +839,11 @@ export interface LevrMetricsGenqlSelection{
 
 
 /** Boolean expression to filter rows from the table "LevrMetrics". All fields are combined with a logical 'AND'. */
-export interface LevrMetrics_bool_exp {_and?: (LevrMetrics_bool_exp[] | null),_not?: (LevrMetrics_bool_exp | null),_or?: (LevrMetrics_bool_exp[] | null),createdAt?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),projectCount?: (numeric_comparison_exp | null),totalStaked?: (numeric_comparison_exp | null),totalStakedUsd?: (String_comparison_exp | null),totalStakers?: (numeric_comparison_exp | null),tvl?: (numeric_comparison_exp | null),tvlUsd?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
+export interface LevrMetrics_bool_exp {_and?: (LevrMetrics_bool_exp[] | null),_not?: (LevrMetrics_bool_exp | null),_or?: (LevrMetrics_bool_exp[] | null),createdAt?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),projectCount?: (numeric_comparison_exp | null),totalStakedUsd?: (numeric_comparison_exp | null),totalStakers?: (numeric_comparison_exp | null),tvlUsd?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
 
 
 /** Ordering options when selecting data from "LevrMetrics". */
-export interface LevrMetrics_order_by {createdAt?: (order_by | null),id?: (order_by | null),projectCount?: (order_by | null),totalStaked?: (order_by | null),totalStakedUsd?: (order_by | null),totalStakers?: (order_by | null),tvl?: (order_by | null),tvlUsd?: (order_by | null),updatedAt?: (order_by | null)}
+export interface LevrMetrics_order_by {createdAt?: (order_by | null),id?: (order_by | null),projectCount?: (order_by | null),totalStakedUsd?: (order_by | null),totalStakers?: (order_by | null),tvlUsd?: (order_by | null),updatedAt?: (order_by | null)}
 
 
 /** Streaming cursor of the table "LevrMetrics" */
@@ -1113,7 +855,7 @@ ordering?: (cursor_ordering | null)}
 
 
 /** Initial value of the column from where the streaming should start */
-export interface LevrMetrics_stream_cursor_value_input {createdAt?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),projectCount?: (Scalars['numeric'] | null),totalStaked?: (Scalars['numeric'] | null),totalStakedUsd?: (Scalars['String'] | null),totalStakers?: (Scalars['numeric'] | null),tvl?: (Scalars['numeric'] | null),tvlUsd?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null)}
+export interface LevrMetrics_stream_cursor_value_input {createdAt?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),projectCount?: (Scalars['numeric'] | null),totalStakedUsd?: (Scalars['numeric'] | null),totalStakers?: (Scalars['numeric'] | null),tvlUsd?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null)}
 
 
 /** columns and relationships of "LevrProject" */
@@ -1230,7 +972,7 @@ export interface LevrProjectGenqlSelection{
 
 
 /** Boolean expression to filter rows from the table "LevrProject". All fields are combined with a logical 'AND'. */
-export interface LevrProject_bool_exp {_and?: (LevrProject_bool_exp[] | null),_not?: (LevrProject_bool_exp | null),_or?: (LevrProject_bool_exp[] | null),activeBoostProposals?: (numeric_comparison_exp | null),activeTransferProposals?: (numeric_comparison_exp | null),approvalBps?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),clankerToken?: (Token_bool_exp | null),clankerToken_id?: (String_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),currentCycleId?: (numeric_comparison_exp | null),cycles?: (LevrGovernanceCycle_bool_exp | null),governor_id?: (String_comparison_exp | null),id?: (String_comparison_exp | null),maxActiveProposals?: (numeric_comparison_exp | null),maxProposalAmountBps?: (numeric_comparison_exp | null),minSTokenBpsToSubmit?: (numeric_comparison_exp | null),minimumQuorumBps?: (numeric_comparison_exp | null),proposalWindowSeconds?: (numeric_comparison_exp | null),proposals?: (LevrProposal_bool_exp | null),quorumBps?: (numeric_comparison_exp | null),rewardStreams?: (LevrRewardStream_bool_exp | null),stakeActions?: (LevrStakeAction_bool_exp | null),stakedToken_id?: (String_comparison_exp | null),stakerCount?: (numeric_comparison_exp | null),stakers?: (LevrStaker_bool_exp | null),stakingContractBalance?: (numeric_comparison_exp | null),stakingContractBalanceUsd?: (String_comparison_exp | null),staking_id?: (String_comparison_exp | null),streamWindowSeconds?: (numeric_comparison_exp | null),totalProposals?: (numeric_comparison_exp | null),totalStaked?: (numeric_comparison_exp | null),totalStakedUsd?: (String_comparison_exp | null),transfers?: (LevrTreasuryTransfer_bool_exp | null),treasuryBalance?: (numeric_comparison_exp | null),treasuryBalanceUsd?: (String_comparison_exp | null),treasury_id?: (String_comparison_exp | null),tvl?: (numeric_comparison_exp | null),tvlUsd?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),verified?: (Boolean_comparison_exp | null),votingWindowSeconds?: (numeric_comparison_exp | null)}
+export interface LevrProject_bool_exp {_and?: (LevrProject_bool_exp[] | null),_not?: (LevrProject_bool_exp | null),_or?: (LevrProject_bool_exp[] | null),activeBoostProposals?: (numeric_comparison_exp | null),activeTransferProposals?: (numeric_comparison_exp | null),approvalBps?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),clankerToken?: (Token_bool_exp | null),clankerToken_id?: (String_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),currentCycleId?: (numeric_comparison_exp | null),cycles?: (LevrGovernanceCycle_bool_exp | null),governor_id?: (String_comparison_exp | null),id?: (String_comparison_exp | null),maxActiveProposals?: (numeric_comparison_exp | null),maxProposalAmountBps?: (numeric_comparison_exp | null),minSTokenBpsToSubmit?: (numeric_comparison_exp | null),minimumQuorumBps?: (numeric_comparison_exp | null),proposalWindowSeconds?: (numeric_comparison_exp | null),proposals?: (LevrProposal_bool_exp | null),quorumBps?: (numeric_comparison_exp | null),rewardStreams?: (LevrRewardStream_bool_exp | null),stakeActions?: (LevrStakeAction_bool_exp | null),stakedToken_id?: (String_comparison_exp | null),stakerCount?: (numeric_comparison_exp | null),stakers?: (LevrStaker_bool_exp | null),stakingContractBalance?: (numeric_comparison_exp | null),stakingContractBalanceUsd?: (numeric_comparison_exp | null),staking_id?: (String_comparison_exp | null),streamWindowSeconds?: (numeric_comparison_exp | null),totalProposals?: (numeric_comparison_exp | null),totalStaked?: (numeric_comparison_exp | null),totalStakedUsd?: (numeric_comparison_exp | null),transfers?: (LevrTreasuryTransfer_bool_exp | null),treasuryBalance?: (numeric_comparison_exp | null),treasuryBalanceUsd?: (numeric_comparison_exp | null),treasury_id?: (String_comparison_exp | null),tvl?: (numeric_comparison_exp | null),tvlUsd?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),verified?: (Boolean_comparison_exp | null),votingWindowSeconds?: (numeric_comparison_exp | null)}
 
 
 /** Ordering options when selecting data from "LevrProject". */
@@ -1246,7 +988,7 @@ ordering?: (cursor_ordering | null)}
 
 
 /** Initial value of the column from where the streaming should start */
-export interface LevrProject_stream_cursor_value_input {activeBoostProposals?: (Scalars['numeric'] | null),activeTransferProposals?: (Scalars['numeric'] | null),approvalBps?: (Scalars['numeric'] | null),chainId?: (Scalars['numeric'] | null),clankerToken_id?: (Scalars['String'] | null),createdAt?: (Scalars['numeric'] | null),currentCycleId?: (Scalars['numeric'] | null),governor_id?: (Scalars['String'] | null),id?: (Scalars['String'] | null),maxActiveProposals?: (Scalars['numeric'] | null),maxProposalAmountBps?: (Scalars['numeric'] | null),minSTokenBpsToSubmit?: (Scalars['numeric'] | null),minimumQuorumBps?: (Scalars['numeric'] | null),proposalWindowSeconds?: (Scalars['numeric'] | null),quorumBps?: (Scalars['numeric'] | null),stakedToken_id?: (Scalars['String'] | null),stakerCount?: (Scalars['numeric'] | null),stakingContractBalance?: (Scalars['numeric'] | null),stakingContractBalanceUsd?: (Scalars['String'] | null),staking_id?: (Scalars['String'] | null),streamWindowSeconds?: (Scalars['numeric'] | null),totalProposals?: (Scalars['numeric'] | null),totalStaked?: (Scalars['numeric'] | null),totalStakedUsd?: (Scalars['String'] | null),treasuryBalance?: (Scalars['numeric'] | null),treasuryBalanceUsd?: (Scalars['String'] | null),treasury_id?: (Scalars['String'] | null),tvl?: (Scalars['numeric'] | null),tvlUsd?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null),verified?: (Scalars['Boolean'] | null),votingWindowSeconds?: (Scalars['numeric'] | null)}
+export interface LevrProject_stream_cursor_value_input {activeBoostProposals?: (Scalars['numeric'] | null),activeTransferProposals?: (Scalars['numeric'] | null),approvalBps?: (Scalars['numeric'] | null),chainId?: (Scalars['numeric'] | null),clankerToken_id?: (Scalars['String'] | null),createdAt?: (Scalars['numeric'] | null),currentCycleId?: (Scalars['numeric'] | null),governor_id?: (Scalars['String'] | null),id?: (Scalars['String'] | null),maxActiveProposals?: (Scalars['numeric'] | null),maxProposalAmountBps?: (Scalars['numeric'] | null),minSTokenBpsToSubmit?: (Scalars['numeric'] | null),minimumQuorumBps?: (Scalars['numeric'] | null),proposalWindowSeconds?: (Scalars['numeric'] | null),quorumBps?: (Scalars['numeric'] | null),stakedToken_id?: (Scalars['String'] | null),stakerCount?: (Scalars['numeric'] | null),stakingContractBalance?: (Scalars['numeric'] | null),stakingContractBalanceUsd?: (Scalars['numeric'] | null),staking_id?: (Scalars['String'] | null),streamWindowSeconds?: (Scalars['numeric'] | null),totalProposals?: (Scalars['numeric'] | null),totalStaked?: (Scalars['numeric'] | null),totalStakedUsd?: (Scalars['numeric'] | null),treasuryBalance?: (Scalars['numeric'] | null),treasuryBalanceUsd?: (Scalars['numeric'] | null),treasury_id?: (Scalars['String'] | null),tvl?: (Scalars['numeric'] | null),tvlUsd?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null),verified?: (Scalars['Boolean'] | null),votingWindowSeconds?: (Scalars['numeric'] | null)}
 
 
 /** columns and relationships of "LevrProposal" */
@@ -1781,568 +1523,6 @@ export interface LevrVote_var_samp_order_by {blockTimestamp?: (order_by | null),
 export interface LevrVote_variance_order_by {blockTimestamp?: (order_by | null),votes?: (order_by | null)}
 
 
-/** columns and relationships of "MoneyMachine" */
-export interface MoneyMachineGenqlSelection{
-    activePositions?: boolean | number
-    id?: boolean | number
-    lastHeartbeatBlock?: boolean | number
-    totalHeartbeats?: boolean | number
-    totalPositions?: boolean | number
-    totalRebalances?: boolean | number
-    updatedAt?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** columns and relationships of "MoneyMachineConfig" */
-export interface MoneyMachineConfigGenqlSelection{
-    callerIncentive?: boolean | number
-    feeRecipient?: boolean | number
-    formula?: boolean | number
-    heartbeatInterval?: boolean | number
-    hook?: boolean | number
-    id?: boolean | number
-    poolManager?: boolean | number
-    protocolFeeBps?: boolean | number
-    rebalanceGas?: boolean | number
-    tickAggregator?: boolean | number
-    updatedAt?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachineConfig". All fields are combined with a logical 'AND'. */
-export interface MoneyMachineConfig_bool_exp {_and?: (MoneyMachineConfig_bool_exp[] | null),_not?: (MoneyMachineConfig_bool_exp | null),_or?: (MoneyMachineConfig_bool_exp[] | null),callerIncentive?: (numeric_comparison_exp | null),feeRecipient?: (String_comparison_exp | null),formula?: (String_comparison_exp | null),heartbeatInterval?: (numeric_comparison_exp | null),hook?: (String_comparison_exp | null),id?: (String_comparison_exp | null),poolManager?: (String_comparison_exp | null),protocolFeeBps?: (numeric_comparison_exp | null),rebalanceGas?: (numeric_comparison_exp | null),tickAggregator?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachineConfig". */
-export interface MoneyMachineConfig_order_by {callerIncentive?: (order_by | null),feeRecipient?: (order_by | null),formula?: (order_by | null),heartbeatInterval?: (order_by | null),hook?: (order_by | null),id?: (order_by | null),poolManager?: (order_by | null),protocolFeeBps?: (order_by | null),rebalanceGas?: (order_by | null),tickAggregator?: (order_by | null),updatedAt?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachineConfig" */
-export interface MoneyMachineConfig_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachineConfig_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachineConfig_stream_cursor_value_input {callerIncentive?: (Scalars['numeric'] | null),feeRecipient?: (Scalars['String'] | null),formula?: (Scalars['String'] | null),heartbeatInterval?: (Scalars['numeric'] | null),hook?: (Scalars['String'] | null),id?: (Scalars['String'] | null),poolManager?: (Scalars['String'] | null),protocolFeeBps?: (Scalars['numeric'] | null),rebalanceGas?: (Scalars['numeric'] | null),tickAggregator?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null)}
-
-
-/** columns and relationships of "MoneyMachineHeartbeat" */
-export interface MoneyMachineHeartbeatGenqlSelection{
-    blockNumber?: boolean | number
-    blockTimestamp?: boolean | number
-    caller?: boolean | number
-    id?: boolean | number
-    incentivePaid?: boolean | number
-    positionsProcessed?: boolean | number
-    rebalancesExecuted?: boolean | number
-    transactionHash?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachineHeartbeat". All fields are combined with a logical 'AND'. */
-export interface MoneyMachineHeartbeat_bool_exp {_and?: (MoneyMachineHeartbeat_bool_exp[] | null),_not?: (MoneyMachineHeartbeat_bool_exp | null),_or?: (MoneyMachineHeartbeat_bool_exp[] | null),blockNumber?: (numeric_comparison_exp | null),blockTimestamp?: (numeric_comparison_exp | null),caller?: (String_comparison_exp | null),id?: (String_comparison_exp | null),incentivePaid?: (numeric_comparison_exp | null),positionsProcessed?: (numeric_comparison_exp | null),rebalancesExecuted?: (numeric_comparison_exp | null),transactionHash?: (String_comparison_exp | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachineHeartbeat". */
-export interface MoneyMachineHeartbeat_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),caller?: (order_by | null),id?: (order_by | null),incentivePaid?: (order_by | null),positionsProcessed?: (order_by | null),rebalancesExecuted?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachineHeartbeat" */
-export interface MoneyMachineHeartbeat_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachineHeartbeat_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachineHeartbeat_stream_cursor_value_input {blockNumber?: (Scalars['numeric'] | null),blockTimestamp?: (Scalars['numeric'] | null),caller?: (Scalars['String'] | null),id?: (Scalars['String'] | null),incentivePaid?: (Scalars['numeric'] | null),positionsProcessed?: (Scalars['numeric'] | null),rebalancesExecuted?: (Scalars['numeric'] | null),transactionHash?: (Scalars['String'] | null)}
-
-
-/** columns and relationships of "MoneyMachinePosition" */
-export interface MoneyMachinePositionGenqlSelection{
-    active?: boolean | number
-    amountQuote?: boolean | number
-    amountToken?: boolean | number
-    closedAt?: boolean | number
-    createdAt?: boolean | number
-    createdTxHash?: boolean | number
-    feesPaidQuote?: boolean | number
-    feesPaidToken?: boolean | number
-    id?: boolean | number
-    originalTickLower?: boolean | number
-    /** An object relationship */
-    owner?: MoneyMachineUserGenqlSelection
-    owner_id?: boolean | number
-    /** An object relationship */
-    pool?: UniswapV4PoolGenqlSelection
-    pool_id?: boolean | number
-    proceedsQuote?: boolean | number
-    proceedsToken?: boolean | number
-    /** An object relationship */
-    quoteToken?: TokenGenqlSelection
-    quoteToken_id?: boolean | number
-    rebalanceCount?: boolean | number
-    /** An array relationship */
-    rebalances?: (MoneyMachineRebalanceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineRebalance_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineRebalance_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineRebalance_bool_exp | null)} })
-    tickLower?: boolean | number
-    tickUpper?: boolean | number
-    /** An object relationship */
-    token?: TokenGenqlSelection
-    token_id?: boolean | number
-    updatedAt?: boolean | number
-    /** An array relationship */
-    v3PriceSources?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV3PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV3PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV3PriceSource_bool_exp | null)} })
-    /** An array relationship */
-    v4PriceSources?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV4PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV4PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV4PriceSource_bool_exp | null)} })
-    /** An array relationship */
-    withdrawals?: (MoneyMachineWithdrawalGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineWithdrawal_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineWithdrawal_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineWithdrawal_bool_exp | null)} })
-    withdrawnQuote?: boolean | number
-    withdrawnToken?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** columns and relationships of "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSourceGenqlSelection{
-    id?: boolean | number
-    /** An object relationship */
-    pool?: UniswapV3PoolGenqlSelection
-    pool_id?: boolean | number
-    /** An object relationship */
-    position?: MoneyMachinePositionGenqlSelection
-    position_id?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** order by aggregate values of table "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSource_aggregate_order_by {count?: (order_by | null),max?: (MoneyMachinePositionV3PriceSource_max_order_by | null),min?: (MoneyMachinePositionV3PriceSource_min_order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachinePositionV3PriceSource". All fields are combined with a logical 'AND'. */
-export interface MoneyMachinePositionV3PriceSource_bool_exp {_and?: (MoneyMachinePositionV3PriceSource_bool_exp[] | null),_not?: (MoneyMachinePositionV3PriceSource_bool_exp | null),_or?: (MoneyMachinePositionV3PriceSource_bool_exp[] | null),id?: (String_comparison_exp | null),pool?: (UniswapV3Pool_bool_exp | null),pool_id?: (String_comparison_exp | null),position?: (MoneyMachinePosition_bool_exp | null),position_id?: (String_comparison_exp | null)}
-
-
-/** order by max() on columns of table "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSource_max_order_by {id?: (order_by | null),pool_id?: (order_by | null),position_id?: (order_by | null)}
-
-
-/** order by min() on columns of table "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSource_min_order_by {id?: (order_by | null),pool_id?: (order_by | null),position_id?: (order_by | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachinePositionV3PriceSource". */
-export interface MoneyMachinePositionV3PriceSource_order_by {id?: (order_by | null),pool?: (UniswapV3Pool_order_by | null),pool_id?: (order_by | null),position?: (MoneyMachinePosition_order_by | null),position_id?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachinePositionV3PriceSource" */
-export interface MoneyMachinePositionV3PriceSource_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachinePositionV3PriceSource_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachinePositionV3PriceSource_stream_cursor_value_input {id?: (Scalars['String'] | null),pool_id?: (Scalars['String'] | null),position_id?: (Scalars['String'] | null)}
-
-
-/** columns and relationships of "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSourceGenqlSelection{
-    id?: boolean | number
-    /** An object relationship */
-    pool?: UniswapV4PoolGenqlSelection
-    pool_id?: boolean | number
-    /** An object relationship */
-    position?: MoneyMachinePositionGenqlSelection
-    position_id?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** order by aggregate values of table "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSource_aggregate_order_by {count?: (order_by | null),max?: (MoneyMachinePositionV4PriceSource_max_order_by | null),min?: (MoneyMachinePositionV4PriceSource_min_order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachinePositionV4PriceSource". All fields are combined with a logical 'AND'. */
-export interface MoneyMachinePositionV4PriceSource_bool_exp {_and?: (MoneyMachinePositionV4PriceSource_bool_exp[] | null),_not?: (MoneyMachinePositionV4PriceSource_bool_exp | null),_or?: (MoneyMachinePositionV4PriceSource_bool_exp[] | null),id?: (String_comparison_exp | null),pool?: (UniswapV4Pool_bool_exp | null),pool_id?: (String_comparison_exp | null),position?: (MoneyMachinePosition_bool_exp | null),position_id?: (String_comparison_exp | null)}
-
-
-/** order by max() on columns of table "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSource_max_order_by {id?: (order_by | null),pool_id?: (order_by | null),position_id?: (order_by | null)}
-
-
-/** order by min() on columns of table "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSource_min_order_by {id?: (order_by | null),pool_id?: (order_by | null),position_id?: (order_by | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachinePositionV4PriceSource". */
-export interface MoneyMachinePositionV4PriceSource_order_by {id?: (order_by | null),pool?: (UniswapV4Pool_order_by | null),pool_id?: (order_by | null),position?: (MoneyMachinePosition_order_by | null),position_id?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachinePositionV4PriceSource" */
-export interface MoneyMachinePositionV4PriceSource_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachinePositionV4PriceSource_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachinePositionV4PriceSource_stream_cursor_value_input {id?: (Scalars['String'] | null),pool_id?: (Scalars['String'] | null),position_id?: (Scalars['String'] | null)}
-
-
-/** order by aggregate values of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_aggregate_order_by {avg?: (MoneyMachinePosition_avg_order_by | null),count?: (order_by | null),max?: (MoneyMachinePosition_max_order_by | null),min?: (MoneyMachinePosition_min_order_by | null),stddev?: (MoneyMachinePosition_stddev_order_by | null),stddev_pop?: (MoneyMachinePosition_stddev_pop_order_by | null),stddev_samp?: (MoneyMachinePosition_stddev_samp_order_by | null),sum?: (MoneyMachinePosition_sum_order_by | null),var_pop?: (MoneyMachinePosition_var_pop_order_by | null),var_samp?: (MoneyMachinePosition_var_samp_order_by | null),variance?: (MoneyMachinePosition_variance_order_by | null)}
-
-
-/** order by avg() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_avg_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachinePosition". All fields are combined with a logical 'AND'. */
-export interface MoneyMachinePosition_bool_exp {_and?: (MoneyMachinePosition_bool_exp[] | null),_not?: (MoneyMachinePosition_bool_exp | null),_or?: (MoneyMachinePosition_bool_exp[] | null),active?: (Boolean_comparison_exp | null),amountQuote?: (numeric_comparison_exp | null),amountToken?: (numeric_comparison_exp | null),closedAt?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),createdTxHash?: (String_comparison_exp | null),feesPaidQuote?: (numeric_comparison_exp | null),feesPaidToken?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),originalTickLower?: (Int_comparison_exp | null),owner?: (MoneyMachineUser_bool_exp | null),owner_id?: (String_comparison_exp | null),pool?: (UniswapV4Pool_bool_exp | null),pool_id?: (String_comparison_exp | null),proceedsQuote?: (numeric_comparison_exp | null),proceedsToken?: (numeric_comparison_exp | null),quoteToken?: (Token_bool_exp | null),quoteToken_id?: (String_comparison_exp | null),rebalanceCount?: (numeric_comparison_exp | null),rebalances?: (MoneyMachineRebalance_bool_exp | null),tickLower?: (Int_comparison_exp | null),tickUpper?: (Int_comparison_exp | null),token?: (Token_bool_exp | null),token_id?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),v3PriceSources?: (MoneyMachinePositionV3PriceSource_bool_exp | null),v4PriceSources?: (MoneyMachinePositionV4PriceSource_bool_exp | null),withdrawals?: (MoneyMachineWithdrawal_bool_exp | null),withdrawnQuote?: (numeric_comparison_exp | null),withdrawnToken?: (numeric_comparison_exp | null)}
-
-
-/** order by max() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_max_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),createdTxHash?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),id?: (order_by | null),originalTickLower?: (order_by | null),owner_id?: (order_by | null),pool_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),quoteToken_id?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),token_id?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by min() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_min_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),createdTxHash?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),id?: (order_by | null),originalTickLower?: (order_by | null),owner_id?: (order_by | null),pool_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),quoteToken_id?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),token_id?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachinePosition". */
-export interface MoneyMachinePosition_order_by {active?: (order_by | null),amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),createdTxHash?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),id?: (order_by | null),originalTickLower?: (order_by | null),owner?: (MoneyMachineUser_order_by | null),owner_id?: (order_by | null),pool?: (UniswapV4Pool_order_by | null),pool_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),quoteToken?: (Token_order_by | null),quoteToken_id?: (order_by | null),rebalanceCount?: (order_by | null),rebalances_aggregate?: (MoneyMachineRebalance_aggregate_order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),token?: (Token_order_by | null),token_id?: (order_by | null),updatedAt?: (order_by | null),v3PriceSources_aggregate?: (MoneyMachinePositionV3PriceSource_aggregate_order_by | null),v4PriceSources_aggregate?: (MoneyMachinePositionV4PriceSource_aggregate_order_by | null),withdrawals_aggregate?: (MoneyMachineWithdrawal_aggregate_order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by stddev() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_stddev_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by stddev_pop() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_stddev_pop_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by stddev_samp() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_stddev_samp_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachinePosition_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachinePosition_stream_cursor_value_input {active?: (Scalars['Boolean'] | null),amountQuote?: (Scalars['numeric'] | null),amountToken?: (Scalars['numeric'] | null),closedAt?: (Scalars['numeric'] | null),createdAt?: (Scalars['numeric'] | null),createdTxHash?: (Scalars['String'] | null),feesPaidQuote?: (Scalars['numeric'] | null),feesPaidToken?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),originalTickLower?: (Scalars['Int'] | null),owner_id?: (Scalars['String'] | null),pool_id?: (Scalars['String'] | null),proceedsQuote?: (Scalars['numeric'] | null),proceedsToken?: (Scalars['numeric'] | null),quoteToken_id?: (Scalars['String'] | null),rebalanceCount?: (Scalars['numeric'] | null),tickLower?: (Scalars['Int'] | null),tickUpper?: (Scalars['Int'] | null),token_id?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null),withdrawnQuote?: (Scalars['numeric'] | null),withdrawnToken?: (Scalars['numeric'] | null)}
-
-
-/** order by sum() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_sum_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by var_pop() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_var_pop_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by var_samp() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_var_samp_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** order by variance() on columns of table "MoneyMachinePosition" */
-export interface MoneyMachinePosition_variance_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),closedAt?: (order_by | null),createdAt?: (order_by | null),feesPaidQuote?: (order_by | null),feesPaidToken?: (order_by | null),originalTickLower?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),rebalanceCount?: (order_by | null),tickLower?: (order_by | null),tickUpper?: (order_by | null),updatedAt?: (order_by | null),withdrawnQuote?: (order_by | null),withdrawnToken?: (order_by | null)}
-
-
-/** columns and relationships of "MoneyMachineRebalance" */
-export interface MoneyMachineRebalanceGenqlSelection{
-    blockNumber?: boolean | number
-    blockTimestamp?: boolean | number
-    id?: boolean | number
-    newTickLower?: boolean | number
-    newTickUpper?: boolean | number
-    oldTickLower?: boolean | number
-    oldTickUpper?: boolean | number
-    /** An object relationship */
-    position?: MoneyMachinePositionGenqlSelection
-    position_id?: boolean | number
-    proceedsQuote?: boolean | number
-    proceedsToken?: boolean | number
-    transactionHash?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** order by aggregate values of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_aggregate_order_by {avg?: (MoneyMachineRebalance_avg_order_by | null),count?: (order_by | null),max?: (MoneyMachineRebalance_max_order_by | null),min?: (MoneyMachineRebalance_min_order_by | null),stddev?: (MoneyMachineRebalance_stddev_order_by | null),stddev_pop?: (MoneyMachineRebalance_stddev_pop_order_by | null),stddev_samp?: (MoneyMachineRebalance_stddev_samp_order_by | null),sum?: (MoneyMachineRebalance_sum_order_by | null),var_pop?: (MoneyMachineRebalance_var_pop_order_by | null),var_samp?: (MoneyMachineRebalance_var_samp_order_by | null),variance?: (MoneyMachineRebalance_variance_order_by | null)}
-
-
-/** order by avg() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_avg_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachineRebalance". All fields are combined with a logical 'AND'. */
-export interface MoneyMachineRebalance_bool_exp {_and?: (MoneyMachineRebalance_bool_exp[] | null),_not?: (MoneyMachineRebalance_bool_exp | null),_or?: (MoneyMachineRebalance_bool_exp[] | null),blockNumber?: (numeric_comparison_exp | null),blockTimestamp?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),newTickLower?: (Int_comparison_exp | null),newTickUpper?: (Int_comparison_exp | null),oldTickLower?: (Int_comparison_exp | null),oldTickUpper?: (Int_comparison_exp | null),position?: (MoneyMachinePosition_bool_exp | null),position_id?: (String_comparison_exp | null),proceedsQuote?: (numeric_comparison_exp | null),proceedsToken?: (numeric_comparison_exp | null),transactionHash?: (String_comparison_exp | null)}
-
-
-/** order by max() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_max_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),position_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** order by min() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_min_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),position_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachineRebalance". */
-export interface MoneyMachineRebalance_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),position?: (MoneyMachinePosition_order_by | null),position_id?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** order by stddev() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_stddev_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** order by stddev_pop() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_stddev_pop_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** order by stddev_samp() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_stddev_samp_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachineRebalance_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachineRebalance_stream_cursor_value_input {blockNumber?: (Scalars['numeric'] | null),blockTimestamp?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),newTickLower?: (Scalars['Int'] | null),newTickUpper?: (Scalars['Int'] | null),oldTickLower?: (Scalars['Int'] | null),oldTickUpper?: (Scalars['Int'] | null),position_id?: (Scalars['String'] | null),proceedsQuote?: (Scalars['numeric'] | null),proceedsToken?: (Scalars['numeric'] | null),transactionHash?: (Scalars['String'] | null)}
-
-
-/** order by sum() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_sum_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** order by var_pop() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_var_pop_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** order by var_samp() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_var_samp_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** order by variance() on columns of table "MoneyMachineRebalance" */
-export interface MoneyMachineRebalance_variance_order_by {blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),newTickLower?: (order_by | null),newTickUpper?: (order_by | null),oldTickLower?: (order_by | null),oldTickUpper?: (order_by | null),proceedsQuote?: (order_by | null),proceedsToken?: (order_by | null)}
-
-
-/** columns and relationships of "MoneyMachineUser" */
-export interface MoneyMachineUserGenqlSelection{
-    activePositionCount?: boolean | number
-    createdAt?: boolean | number
-    gasBalance?: boolean | number
-    id?: boolean | number
-    positionCount?: boolean | number
-    /** An array relationship */
-    positions?: (MoneyMachinePositionGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePosition_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePosition_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePosition_bool_exp | null)} })
-    totalGasConsumed?: boolean | number
-    totalGasDeposited?: boolean | number
-    totalGasWithdrawn?: boolean | number
-    updatedAt?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachineUser". All fields are combined with a logical 'AND'. */
-export interface MoneyMachineUser_bool_exp {_and?: (MoneyMachineUser_bool_exp[] | null),_not?: (MoneyMachineUser_bool_exp | null),_or?: (MoneyMachineUser_bool_exp[] | null),activePositionCount?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),gasBalance?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),positionCount?: (numeric_comparison_exp | null),positions?: (MoneyMachinePosition_bool_exp | null),totalGasConsumed?: (numeric_comparison_exp | null),totalGasDeposited?: (numeric_comparison_exp | null),totalGasWithdrawn?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachineUser". */
-export interface MoneyMachineUser_order_by {activePositionCount?: (order_by | null),createdAt?: (order_by | null),gasBalance?: (order_by | null),id?: (order_by | null),positionCount?: (order_by | null),positions_aggregate?: (MoneyMachinePosition_aggregate_order_by | null),totalGasConsumed?: (order_by | null),totalGasDeposited?: (order_by | null),totalGasWithdrawn?: (order_by | null),updatedAt?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachineUser" */
-export interface MoneyMachineUser_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachineUser_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachineUser_stream_cursor_value_input {activePositionCount?: (Scalars['numeric'] | null),createdAt?: (Scalars['numeric'] | null),gasBalance?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),positionCount?: (Scalars['numeric'] | null),totalGasConsumed?: (Scalars['numeric'] | null),totalGasDeposited?: (Scalars['numeric'] | null),totalGasWithdrawn?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null)}
-
-
-/** columns and relationships of "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawalGenqlSelection{
-    amountQuote?: boolean | number
-    amountToken?: boolean | number
-    blockNumber?: boolean | number
-    blockTimestamp?: boolean | number
-    id?: boolean | number
-    isFullWithdrawal?: boolean | number
-    /** An object relationship */
-    position?: MoneyMachinePositionGenqlSelection
-    position_id?: boolean | number
-    protocolFeeQuote?: boolean | number
-    transactionHash?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** order by aggregate values of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_aggregate_order_by {avg?: (MoneyMachineWithdrawal_avg_order_by | null),count?: (order_by | null),max?: (MoneyMachineWithdrawal_max_order_by | null),min?: (MoneyMachineWithdrawal_min_order_by | null),stddev?: (MoneyMachineWithdrawal_stddev_order_by | null),stddev_pop?: (MoneyMachineWithdrawal_stddev_pop_order_by | null),stddev_samp?: (MoneyMachineWithdrawal_stddev_samp_order_by | null),sum?: (MoneyMachineWithdrawal_sum_order_by | null),var_pop?: (MoneyMachineWithdrawal_var_pop_order_by | null),var_samp?: (MoneyMachineWithdrawal_var_samp_order_by | null),variance?: (MoneyMachineWithdrawal_variance_order_by | null)}
-
-
-/** order by avg() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_avg_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachineWithdrawal". All fields are combined with a logical 'AND'. */
-export interface MoneyMachineWithdrawal_bool_exp {_and?: (MoneyMachineWithdrawal_bool_exp[] | null),_not?: (MoneyMachineWithdrawal_bool_exp | null),_or?: (MoneyMachineWithdrawal_bool_exp[] | null),amountQuote?: (numeric_comparison_exp | null),amountToken?: (numeric_comparison_exp | null),blockNumber?: (numeric_comparison_exp | null),blockTimestamp?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),isFullWithdrawal?: (Boolean_comparison_exp | null),position?: (MoneyMachinePosition_bool_exp | null),position_id?: (String_comparison_exp | null),protocolFeeQuote?: (numeric_comparison_exp | null),transactionHash?: (String_comparison_exp | null)}
-
-
-/** order by max() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_max_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),position_id?: (order_by | null),protocolFeeQuote?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** order by min() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_min_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),position_id?: (order_by | null),protocolFeeQuote?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachineWithdrawal". */
-export interface MoneyMachineWithdrawal_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),id?: (order_by | null),isFullWithdrawal?: (order_by | null),position?: (MoneyMachinePosition_order_by | null),position_id?: (order_by | null),protocolFeeQuote?: (order_by | null),transactionHash?: (order_by | null)}
-
-
-/** order by stddev() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_stddev_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** order by stddev_pop() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_stddev_pop_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** order by stddev_samp() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_stddev_samp_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachineWithdrawal_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachineWithdrawal_stream_cursor_value_input {amountQuote?: (Scalars['numeric'] | null),amountToken?: (Scalars['numeric'] | null),blockNumber?: (Scalars['numeric'] | null),blockTimestamp?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),isFullWithdrawal?: (Scalars['Boolean'] | null),position_id?: (Scalars['String'] | null),protocolFeeQuote?: (Scalars['numeric'] | null),transactionHash?: (Scalars['String'] | null)}
-
-
-/** order by sum() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_sum_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** order by var_pop() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_var_pop_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** order by var_samp() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_var_samp_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** order by variance() on columns of table "MoneyMachineWithdrawal" */
-export interface MoneyMachineWithdrawal_variance_order_by {amountQuote?: (order_by | null),amountToken?: (order_by | null),blockNumber?: (order_by | null),blockTimestamp?: (order_by | null),protocolFeeQuote?: (order_by | null)}
-
-
-/** Boolean expression to filter rows from the table "MoneyMachine". All fields are combined with a logical 'AND'. */
-export interface MoneyMachine_bool_exp {_and?: (MoneyMachine_bool_exp[] | null),_not?: (MoneyMachine_bool_exp | null),_or?: (MoneyMachine_bool_exp[] | null),activePositions?: (numeric_comparison_exp | null),id?: (String_comparison_exp | null),lastHeartbeatBlock?: (numeric_comparison_exp | null),totalHeartbeats?: (numeric_comparison_exp | null),totalPositions?: (numeric_comparison_exp | null),totalRebalances?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
-
-
-/** Ordering options when selecting data from "MoneyMachine". */
-export interface MoneyMachine_order_by {activePositions?: (order_by | null),id?: (order_by | null),lastHeartbeatBlock?: (order_by | null),totalHeartbeats?: (order_by | null),totalPositions?: (order_by | null),totalRebalances?: (order_by | null),updatedAt?: (order_by | null)}
-
-
-/** Streaming cursor of the table "MoneyMachine" */
-export interface MoneyMachine_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: MoneyMachine_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface MoneyMachine_stream_cursor_value_input {activePositions?: (Scalars['numeric'] | null),id?: (Scalars['String'] | null),lastHeartbeatBlock?: (Scalars['numeric'] | null),totalHeartbeats?: (Scalars['numeric'] | null),totalPositions?: (Scalars['numeric'] | null),totalRebalances?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null)}
-
-
 /** Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'. */
 export interface String_comparison_exp {_eq?: (Scalars['String'] | null),_gt?: (Scalars['String'] | null),_gte?: (Scalars['String'] | null),
 /** does the column match the given case-insensitive pattern */
@@ -2395,7 +1575,7 @@ export interface TokenGenqlSelection{
 
 
 /** Boolean expression to filter rows from the table "Token". All fields are combined with a logical 'AND'. */
-export interface Token_bool_exp {_and?: (Token_bool_exp[] | null),_not?: (Token_bool_exp | null),_or?: (Token_bool_exp[] | null),address?: (String_comparison_exp | null),admin?: (String_comparison_exp | null),chainId?: (numeric_comparison_exp | null),context?: (String_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),decimals?: (Int_comparison_exp | null),id?: (String_comparison_exp | null),imageUrl?: (String_comparison_exp | null),metadata?: (String_comparison_exp | null),name?: (String_comparison_exp | null),originalAdmin?: (String_comparison_exp | null),priceUpdatedAt?: (numeric_comparison_exp | null),priceUsd?: (String_comparison_exp | null),priceWeth?: (numeric_comparison_exp | null),symbol?: (String_comparison_exp | null),totalSupply?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),v4Pool?: (UniswapV4Pool_bool_exp | null),v4Pool_id?: (String_comparison_exp | null)}
+export interface Token_bool_exp {_and?: (Token_bool_exp[] | null),_not?: (Token_bool_exp | null),_or?: (Token_bool_exp[] | null),address?: (String_comparison_exp | null),admin?: (String_comparison_exp | null),chainId?: (numeric_comparison_exp | null),context?: (String_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),decimals?: (Int_comparison_exp | null),id?: (String_comparison_exp | null),imageUrl?: (String_comparison_exp | null),metadata?: (String_comparison_exp | null),name?: (String_comparison_exp | null),originalAdmin?: (String_comparison_exp | null),priceUpdatedAt?: (numeric_comparison_exp | null),priceUsd?: (numeric_comparison_exp | null),priceWeth?: (numeric_comparison_exp | null),symbol?: (String_comparison_exp | null),totalSupply?: (numeric_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null),v4Pool?: (UniswapV4Pool_bool_exp | null),v4Pool_id?: (String_comparison_exp | null)}
 
 
 /** Ordering options when selecting data from "Token". */
@@ -2411,52 +1591,7 @@ ordering?: (cursor_ordering | null)}
 
 
 /** Initial value of the column from where the streaming should start */
-export interface Token_stream_cursor_value_input {address?: (Scalars['String'] | null),admin?: (Scalars['String'] | null),chainId?: (Scalars['numeric'] | null),context?: (Scalars['String'] | null),createdAt?: (Scalars['numeric'] | null),decimals?: (Scalars['Int'] | null),id?: (Scalars['String'] | null),imageUrl?: (Scalars['String'] | null),metadata?: (Scalars['String'] | null),name?: (Scalars['String'] | null),originalAdmin?: (Scalars['String'] | null),priceUpdatedAt?: (Scalars['numeric'] | null),priceUsd?: (Scalars['String'] | null),priceWeth?: (Scalars['numeric'] | null),symbol?: (Scalars['String'] | null),totalSupply?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null),v4Pool_id?: (Scalars['String'] | null)}
-
-
-/** columns and relationships of "UniswapV3Pool" */
-export interface UniswapV3PoolGenqlSelection{
-    address?: boolean | number
-    amount0?: boolean | number
-    amount1?: boolean | number
-    chainId?: boolean | number
-    createdAt?: boolean | number
-    fee?: boolean | number
-    id?: boolean | number
-    liquidity?: boolean | number
-    sqrtPriceX96?: boolean | number
-    tick?: boolean | number
-    tickSpacing?: boolean | number
-    /** An object relationship */
-    token0?: TokenGenqlSelection
-    token0_id?: boolean | number
-    /** An object relationship */
-    token1?: TokenGenqlSelection
-    token1_id?: boolean | number
-    updatedAt?: boolean | number
-    __typename?: boolean | number
-    __scalar?: boolean | number
-}
-
-
-/** Boolean expression to filter rows from the table "UniswapV3Pool". All fields are combined with a logical 'AND'. */
-export interface UniswapV3Pool_bool_exp {_and?: (UniswapV3Pool_bool_exp[] | null),_not?: (UniswapV3Pool_bool_exp | null),_or?: (UniswapV3Pool_bool_exp[] | null),address?: (String_comparison_exp | null),amount0?: (numeric_comparison_exp | null),amount1?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),fee?: (Int_comparison_exp | null),id?: (String_comparison_exp | null),liquidity?: (numeric_comparison_exp | null),sqrtPriceX96?: (numeric_comparison_exp | null),tick?: (Int_comparison_exp | null),tickSpacing?: (Int_comparison_exp | null),token0?: (Token_bool_exp | null),token0_id?: (String_comparison_exp | null),token1?: (Token_bool_exp | null),token1_id?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
-
-
-/** Ordering options when selecting data from "UniswapV3Pool". */
-export interface UniswapV3Pool_order_by {address?: (order_by | null),amount0?: (order_by | null),amount1?: (order_by | null),chainId?: (order_by | null),createdAt?: (order_by | null),fee?: (order_by | null),id?: (order_by | null),liquidity?: (order_by | null),sqrtPriceX96?: (order_by | null),tick?: (order_by | null),tickSpacing?: (order_by | null),token0?: (Token_order_by | null),token0_id?: (order_by | null),token1?: (Token_order_by | null),token1_id?: (order_by | null),updatedAt?: (order_by | null)}
-
-
-/** Streaming cursor of the table "UniswapV3Pool" */
-export interface UniswapV3Pool_stream_cursor_input {
-/** Stream column input with initial value */
-initial_value: UniswapV3Pool_stream_cursor_value_input,
-/** cursor ordering */
-ordering?: (cursor_ordering | null)}
-
-
-/** Initial value of the column from where the streaming should start */
-export interface UniswapV3Pool_stream_cursor_value_input {address?: (Scalars['String'] | null),amount0?: (Scalars['numeric'] | null),amount1?: (Scalars['numeric'] | null),chainId?: (Scalars['numeric'] | null),createdAt?: (Scalars['numeric'] | null),fee?: (Scalars['Int'] | null),id?: (Scalars['String'] | null),liquidity?: (Scalars['numeric'] | null),sqrtPriceX96?: (Scalars['numeric'] | null),tick?: (Scalars['Int'] | null),tickSpacing?: (Scalars['Int'] | null),token0_id?: (Scalars['String'] | null),token1_id?: (Scalars['String'] | null),updatedAt?: (Scalars['numeric'] | null)}
+export interface Token_stream_cursor_value_input {address?: (Scalars['String'] | null),admin?: (Scalars['String'] | null),chainId?: (Scalars['numeric'] | null),context?: (Scalars['String'] | null),createdAt?: (Scalars['numeric'] | null),decimals?: (Scalars['Int'] | null),id?: (Scalars['String'] | null),imageUrl?: (Scalars['String'] | null),metadata?: (Scalars['String'] | null),name?: (Scalars['String'] | null),originalAdmin?: (Scalars['String'] | null),priceUpdatedAt?: (Scalars['numeric'] | null),priceUsd?: (Scalars['numeric'] | null),priceWeth?: (Scalars['numeric'] | null),symbol?: (Scalars['String'] | null),totalSupply?: (Scalars['numeric'] | null),updatedAt?: (Scalars['numeric'] | null),v4Pool_id?: (Scalars['String'] | null)}
 
 
 /** columns and relationships of "UniswapV4Pool" */
@@ -2470,18 +1605,6 @@ export interface UniswapV4PoolGenqlSelection{
     id?: boolean | number
     liquidity?: boolean | number
     poolId?: boolean | number
-    /** An array relationship */
-    positions?: (MoneyMachinePositionGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePosition_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePosition_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePosition_bool_exp | null)} })
     sqrtPriceX96?: boolean | number
     tick?: boolean | number
     tickSpacing?: boolean | number
@@ -2498,11 +1621,11 @@ export interface UniswapV4PoolGenqlSelection{
 
 
 /** Boolean expression to filter rows from the table "UniswapV4Pool". All fields are combined with a logical 'AND'. */
-export interface UniswapV4Pool_bool_exp {_and?: (UniswapV4Pool_bool_exp[] | null),_not?: (UniswapV4Pool_bool_exp | null),_or?: (UniswapV4Pool_bool_exp[] | null),amount0?: (numeric_comparison_exp | null),amount1?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),fee?: (Int_comparison_exp | null),hooks?: (String_comparison_exp | null),id?: (String_comparison_exp | null),liquidity?: (numeric_comparison_exp | null),poolId?: (String_comparison_exp | null),positions?: (MoneyMachinePosition_bool_exp | null),sqrtPriceX96?: (numeric_comparison_exp | null),tick?: (Int_comparison_exp | null),tickSpacing?: (Int_comparison_exp | null),token0?: (Token_bool_exp | null),token0_id?: (String_comparison_exp | null),token1?: (Token_bool_exp | null),token1_id?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
+export interface UniswapV4Pool_bool_exp {_and?: (UniswapV4Pool_bool_exp[] | null),_not?: (UniswapV4Pool_bool_exp | null),_or?: (UniswapV4Pool_bool_exp[] | null),amount0?: (numeric_comparison_exp | null),amount1?: (numeric_comparison_exp | null),chainId?: (numeric_comparison_exp | null),createdAt?: (numeric_comparison_exp | null),fee?: (Int_comparison_exp | null),hooks?: (String_comparison_exp | null),id?: (String_comparison_exp | null),liquidity?: (numeric_comparison_exp | null),poolId?: (String_comparison_exp | null),sqrtPriceX96?: (numeric_comparison_exp | null),tick?: (Int_comparison_exp | null),tickSpacing?: (Int_comparison_exp | null),token0?: (Token_bool_exp | null),token0_id?: (String_comparison_exp | null),token1?: (Token_bool_exp | null),token1_id?: (String_comparison_exp | null),updatedAt?: (numeric_comparison_exp | null)}
 
 
 /** Ordering options when selecting data from "UniswapV4Pool". */
-export interface UniswapV4Pool_order_by {amount0?: (order_by | null),amount1?: (order_by | null),chainId?: (order_by | null),createdAt?: (order_by | null),fee?: (order_by | null),hooks?: (order_by | null),id?: (order_by | null),liquidity?: (order_by | null),poolId?: (order_by | null),positions_aggregate?: (MoneyMachinePosition_aggregate_order_by | null),sqrtPriceX96?: (order_by | null),tick?: (order_by | null),tickSpacing?: (order_by | null),token0?: (Token_order_by | null),token0_id?: (order_by | null),token1?: (Token_order_by | null),token1_id?: (order_by | null),updatedAt?: (order_by | null)}
+export interface UniswapV4Pool_order_by {amount0?: (order_by | null),amount1?: (order_by | null),chainId?: (order_by | null),createdAt?: (order_by | null),fee?: (order_by | null),hooks?: (order_by | null),id?: (order_by | null),liquidity?: (order_by | null),poolId?: (order_by | null),sqrtPriceX96?: (order_by | null),tick?: (order_by | null),tickSpacing?: (order_by | null),token0?: (Token_order_by | null),token0_id?: (order_by | null),token1?: (Token_order_by | null),token1_id?: (order_by | null),updatedAt?: (order_by | null)}
 
 
 /** Streaming cursor of the table "UniswapV4Pool" */
@@ -2612,6 +1735,20 @@ _has_keys_any?: (Scalars['String'][] | null),_in?: (Scalars['jsonb'][] | null),_
 export interface numeric_comparison_exp {_eq?: (Scalars['numeric'] | null),_gt?: (Scalars['numeric'] | null),_gte?: (Scalars['numeric'] | null),_in?: (Scalars['numeric'][] | null),_is_null?: (Scalars['Boolean'] | null),_lt?: (Scalars['numeric'] | null),_lte?: (Scalars['numeric'] | null),_neq?: (Scalars['numeric'] | null),_nin?: (Scalars['numeric'][] | null)}
 
 export interface query_rootGenqlSelection{
+    /** fetch data from the table: "LevrAirdropClaim" */
+    LevrAirdropClaim?: (LevrAirdropClaimGenqlSelection & { __args?: {
+    /** distinct select on columns */
+    distinct_on?: (LevrAirdropClaim_select_column[] | null), 
+    /** limit the number of rows returned */
+    limit?: (Scalars['Int'] | null), 
+    /** skip the first n rows. Use only with order_by */
+    offset?: (Scalars['Int'] | null), 
+    /** sort the rows by one or more columns */
+    order_by?: (LevrAirdropClaim_order_by[] | null), 
+    /** filter the rows returned */
+    where?: (LevrAirdropClaim_bool_exp | null)} })
+    /** fetch data from the table: "LevrAirdropClaim" using primary key columns */
+    LevrAirdropClaim_by_pk?: (LevrAirdropClaimGenqlSelection & { __args: {id: Scalars['String']} })
     /** fetch data from the table: "LevrContractMapping" */
     LevrContractMapping?: (LevrContractMappingGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -2766,132 +1903,6 @@ export interface query_rootGenqlSelection{
     where?: (LevrVote_bool_exp | null)} })
     /** fetch data from the table: "LevrVote" using primary key columns */
     LevrVote_by_pk?: (LevrVoteGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachine" */
-    MoneyMachine?: (MoneyMachineGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachine_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachine_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachine_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineConfig" */
-    MoneyMachineConfig?: (MoneyMachineConfigGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineConfig_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineConfig_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineConfig_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineConfig" using primary key columns */
-    MoneyMachineConfig_by_pk?: (MoneyMachineConfigGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat?: (MoneyMachineHeartbeatGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineHeartbeat_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineHeartbeat_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineHeartbeat_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineHeartbeat" using primary key columns */
-    MoneyMachineHeartbeat_by_pk?: (MoneyMachineHeartbeatGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachinePosition" */
-    MoneyMachinePosition?: (MoneyMachinePositionGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePosition_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePosition_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePosition_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV3PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV3PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV3PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns */
-    MoneyMachinePositionV3PriceSource_by_pk?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV4PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV4PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV4PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns */
-    MoneyMachinePositionV4PriceSource_by_pk?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachinePosition" using primary key columns */
-    MoneyMachinePosition_by_pk?: (MoneyMachinePositionGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachineRebalance" */
-    MoneyMachineRebalance?: (MoneyMachineRebalanceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineRebalance_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineRebalance_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineRebalance_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineRebalance" using primary key columns */
-    MoneyMachineRebalance_by_pk?: (MoneyMachineRebalanceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachineUser" */
-    MoneyMachineUser?: (MoneyMachineUserGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineUser_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineUser_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineUser_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineUser" using primary key columns */
-    MoneyMachineUser_by_pk?: (MoneyMachineUserGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal?: (MoneyMachineWithdrawalGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineWithdrawal_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineWithdrawal_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineWithdrawal_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineWithdrawal" using primary key columns */
-    MoneyMachineWithdrawal_by_pk?: (MoneyMachineWithdrawalGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "MoneyMachine" using primary key columns */
-    MoneyMachine_by_pk?: (MoneyMachineGenqlSelection & { __args: {id: Scalars['String']} })
     /** fetch data from the table: "Token" */
     Token?: (TokenGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -2906,20 +1917,6 @@ export interface query_rootGenqlSelection{
     where?: (Token_bool_exp | null)} })
     /** fetch data from the table: "Token" using primary key columns */
     Token_by_pk?: (TokenGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table: "UniswapV3Pool" */
-    UniswapV3Pool?: (UniswapV3PoolGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (UniswapV3Pool_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (UniswapV3Pool_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (UniswapV3Pool_bool_exp | null)} })
-    /** fetch data from the table: "UniswapV3Pool" using primary key columns */
-    UniswapV3Pool_by_pk?: (UniswapV3PoolGenqlSelection & { __args: {id: Scalars['String']} })
     /** fetch data from the table: "UniswapV4Pool" */
     UniswapV4Pool?: (UniswapV4PoolGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -3023,6 +2020,28 @@ ordering?: (cursor_ordering | null)}
 export interface raw_events_stream_cursor_value_input {block_fields?: (Scalars['jsonb'] | null),block_hash?: (Scalars['String'] | null),block_number?: (Scalars['Int'] | null),block_timestamp?: (Scalars['Int'] | null),chain_id?: (Scalars['Int'] | null),contract_name?: (Scalars['String'] | null),event_id?: (Scalars['numeric'] | null),event_name?: (Scalars['String'] | null),log_index?: (Scalars['Int'] | null),params?: (Scalars['jsonb'] | null),serial?: (Scalars['Int'] | null),src_address?: (Scalars['String'] | null),transaction_fields?: (Scalars['jsonb'] | null)}
 
 export interface subscription_rootGenqlSelection{
+    /** fetch data from the table: "LevrAirdropClaim" */
+    LevrAirdropClaim?: (LevrAirdropClaimGenqlSelection & { __args?: {
+    /** distinct select on columns */
+    distinct_on?: (LevrAirdropClaim_select_column[] | null), 
+    /** limit the number of rows returned */
+    limit?: (Scalars['Int'] | null), 
+    /** skip the first n rows. Use only with order_by */
+    offset?: (Scalars['Int'] | null), 
+    /** sort the rows by one or more columns */
+    order_by?: (LevrAirdropClaim_order_by[] | null), 
+    /** filter the rows returned */
+    where?: (LevrAirdropClaim_bool_exp | null)} })
+    /** fetch data from the table: "LevrAirdropClaim" using primary key columns */
+    LevrAirdropClaim_by_pk?: (LevrAirdropClaimGenqlSelection & { __args: {id: Scalars['String']} })
+    /** fetch data from the table in a streaming manner: "LevrAirdropClaim" */
+    LevrAirdropClaim_stream?: (LevrAirdropClaimGenqlSelection & { __args: {
+    /** maximum number of rows returned in a single batch */
+    batch_size: Scalars['Int'], 
+    /** cursor to stream the results returned by the query */
+    cursor: (LevrAirdropClaim_stream_cursor_input | null)[], 
+    /** filter the rows returned */
+    where?: (LevrAirdropClaim_bool_exp | null)} })
     /** fetch data from the table: "LevrContractMapping" */
     LevrContractMapping?: (LevrContractMappingGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -3265,204 +2284,6 @@ export interface subscription_rootGenqlSelection{
     cursor: (LevrVote_stream_cursor_input | null)[], 
     /** filter the rows returned */
     where?: (LevrVote_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachine" */
-    MoneyMachine?: (MoneyMachineGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachine_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachine_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachine_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineConfig" */
-    MoneyMachineConfig?: (MoneyMachineConfigGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineConfig_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineConfig_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineConfig_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineConfig" using primary key columns */
-    MoneyMachineConfig_by_pk?: (MoneyMachineConfigGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachineConfig" */
-    MoneyMachineConfig_stream?: (MoneyMachineConfigGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachineConfig_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachineConfig_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat?: (MoneyMachineHeartbeatGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineHeartbeat_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineHeartbeat_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineHeartbeat_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineHeartbeat" using primary key columns */
-    MoneyMachineHeartbeat_by_pk?: (MoneyMachineHeartbeatGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachineHeartbeat" */
-    MoneyMachineHeartbeat_stream?: (MoneyMachineHeartbeatGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachineHeartbeat_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachineHeartbeat_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePosition" */
-    MoneyMachinePosition?: (MoneyMachinePositionGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePosition_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePosition_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePosition_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV3PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV3PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV3PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV3PriceSource" using primary key columns */
-    MoneyMachinePositionV3PriceSource_by_pk?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachinePositionV3PriceSource" */
-    MoneyMachinePositionV3PriceSource_stream?: (MoneyMachinePositionV3PriceSourceGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachinePositionV3PriceSource_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV3PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachinePositionV4PriceSource_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachinePositionV4PriceSource_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV4PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePositionV4PriceSource" using primary key columns */
-    MoneyMachinePositionV4PriceSource_by_pk?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachinePositionV4PriceSource" */
-    MoneyMachinePositionV4PriceSource_stream?: (MoneyMachinePositionV4PriceSourceGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachinePositionV4PriceSource_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachinePositionV4PriceSource_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachinePosition" using primary key columns */
-    MoneyMachinePosition_by_pk?: (MoneyMachinePositionGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachinePosition" */
-    MoneyMachinePosition_stream?: (MoneyMachinePositionGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachinePosition_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachinePosition_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineRebalance" */
-    MoneyMachineRebalance?: (MoneyMachineRebalanceGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineRebalance_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineRebalance_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineRebalance_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineRebalance" using primary key columns */
-    MoneyMachineRebalance_by_pk?: (MoneyMachineRebalanceGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachineRebalance" */
-    MoneyMachineRebalance_stream?: (MoneyMachineRebalanceGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachineRebalance_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachineRebalance_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineUser" */
-    MoneyMachineUser?: (MoneyMachineUserGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineUser_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineUser_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineUser_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineUser" using primary key columns */
-    MoneyMachineUser_by_pk?: (MoneyMachineUserGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachineUser" */
-    MoneyMachineUser_stream?: (MoneyMachineUserGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachineUser_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachineUser_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal?: (MoneyMachineWithdrawalGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (MoneyMachineWithdrawal_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (MoneyMachineWithdrawal_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (MoneyMachineWithdrawal_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachineWithdrawal" using primary key columns */
-    MoneyMachineWithdrawal_by_pk?: (MoneyMachineWithdrawalGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachineWithdrawal" */
-    MoneyMachineWithdrawal_stream?: (MoneyMachineWithdrawalGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachineWithdrawal_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachineWithdrawal_bool_exp | null)} })
-    /** fetch data from the table: "MoneyMachine" using primary key columns */
-    MoneyMachine_by_pk?: (MoneyMachineGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "MoneyMachine" */
-    MoneyMachine_stream?: (MoneyMachineGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (MoneyMachine_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (MoneyMachine_bool_exp | null)} })
     /** fetch data from the table: "Token" */
     Token?: (TokenGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -3485,28 +2306,6 @@ export interface subscription_rootGenqlSelection{
     cursor: (Token_stream_cursor_input | null)[], 
     /** filter the rows returned */
     where?: (Token_bool_exp | null)} })
-    /** fetch data from the table: "UniswapV3Pool" */
-    UniswapV3Pool?: (UniswapV3PoolGenqlSelection & { __args?: {
-    /** distinct select on columns */
-    distinct_on?: (UniswapV3Pool_select_column[] | null), 
-    /** limit the number of rows returned */
-    limit?: (Scalars['Int'] | null), 
-    /** skip the first n rows. Use only with order_by */
-    offset?: (Scalars['Int'] | null), 
-    /** sort the rows by one or more columns */
-    order_by?: (UniswapV3Pool_order_by[] | null), 
-    /** filter the rows returned */
-    where?: (UniswapV3Pool_bool_exp | null)} })
-    /** fetch data from the table: "UniswapV3Pool" using primary key columns */
-    UniswapV3Pool_by_pk?: (UniswapV3PoolGenqlSelection & { __args: {id: Scalars['String']} })
-    /** fetch data from the table in a streaming manner: "UniswapV3Pool" */
-    UniswapV3Pool_stream?: (UniswapV3PoolGenqlSelection & { __args: {
-    /** maximum number of rows returned in a single batch */
-    batch_size: Scalars['Int'], 
-    /** cursor to stream the results returned by the query */
-    cursor: (UniswapV3Pool_stream_cursor_input | null)[], 
-    /** filter the rows returned */
-    where?: (UniswapV3Pool_bool_exp | null)} })
     /** fetch data from the table: "UniswapV4Pool" */
     UniswapV4Pool?: (UniswapV4PoolGenqlSelection & { __args?: {
     /** distinct select on columns */
@@ -3603,6 +2402,14 @@ export type QueryGenqlSelection = query_rootGenqlSelection
 export type SubscriptionGenqlSelection = subscription_rootGenqlSelection
 
 
+    const LevrAirdropClaim_possibleTypes: string[] = ['LevrAirdropClaim']
+    export const isLevrAirdropClaim = (obj?: { __typename?: any } | null): obj is LevrAirdropClaim => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isLevrAirdropClaim"')
+      return LevrAirdropClaim_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
     const LevrContractMapping_possibleTypes: string[] = ['LevrContractMapping']
     export const isLevrContractMapping = (obj?: { __typename?: any } | null): obj is LevrContractMapping => {
       if (!obj?.__typename) throw new Error('__typename is missing in "isLevrContractMapping"')
@@ -3691,90 +2498,10 @@ export type SubscriptionGenqlSelection = subscription_rootGenqlSelection
     
 
 
-    const MoneyMachine_possibleTypes: string[] = ['MoneyMachine']
-    export const isMoneyMachine = (obj?: { __typename?: any } | null): obj is MoneyMachine => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachine"')
-      return MoneyMachine_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachineConfig_possibleTypes: string[] = ['MoneyMachineConfig']
-    export const isMoneyMachineConfig = (obj?: { __typename?: any } | null): obj is MoneyMachineConfig => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachineConfig"')
-      return MoneyMachineConfig_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachineHeartbeat_possibleTypes: string[] = ['MoneyMachineHeartbeat']
-    export const isMoneyMachineHeartbeat = (obj?: { __typename?: any } | null): obj is MoneyMachineHeartbeat => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachineHeartbeat"')
-      return MoneyMachineHeartbeat_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachinePosition_possibleTypes: string[] = ['MoneyMachinePosition']
-    export const isMoneyMachinePosition = (obj?: { __typename?: any } | null): obj is MoneyMachinePosition => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachinePosition"')
-      return MoneyMachinePosition_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachinePositionV3PriceSource_possibleTypes: string[] = ['MoneyMachinePositionV3PriceSource']
-    export const isMoneyMachinePositionV3PriceSource = (obj?: { __typename?: any } | null): obj is MoneyMachinePositionV3PriceSource => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachinePositionV3PriceSource"')
-      return MoneyMachinePositionV3PriceSource_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachinePositionV4PriceSource_possibleTypes: string[] = ['MoneyMachinePositionV4PriceSource']
-    export const isMoneyMachinePositionV4PriceSource = (obj?: { __typename?: any } | null): obj is MoneyMachinePositionV4PriceSource => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachinePositionV4PriceSource"')
-      return MoneyMachinePositionV4PriceSource_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachineRebalance_possibleTypes: string[] = ['MoneyMachineRebalance']
-    export const isMoneyMachineRebalance = (obj?: { __typename?: any } | null): obj is MoneyMachineRebalance => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachineRebalance"')
-      return MoneyMachineRebalance_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachineUser_possibleTypes: string[] = ['MoneyMachineUser']
-    export const isMoneyMachineUser = (obj?: { __typename?: any } | null): obj is MoneyMachineUser => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachineUser"')
-      return MoneyMachineUser_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const MoneyMachineWithdrawal_possibleTypes: string[] = ['MoneyMachineWithdrawal']
-    export const isMoneyMachineWithdrawal = (obj?: { __typename?: any } | null): obj is MoneyMachineWithdrawal => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isMoneyMachineWithdrawal"')
-      return MoneyMachineWithdrawal_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
     const Token_possibleTypes: string[] = ['Token']
     export const isToken = (obj?: { __typename?: any } | null): obj is Token => {
       if (!obj?.__typename) throw new Error('__typename is missing in "isToken"')
       return Token_possibleTypes.includes(obj.__typename)
-    }
-    
-
-
-    const UniswapV3Pool_possibleTypes: string[] = ['UniswapV3Pool']
-    export const isUniswapV3Pool = (obj?: { __typename?: any } | null): obj is UniswapV3Pool => {
-      if (!obj?.__typename) throw new Error('__typename is missing in "isUniswapV3Pool"')
-      return UniswapV3Pool_possibleTypes.includes(obj.__typename)
     }
     
 
@@ -3826,6 +2553,21 @@ export type SubscriptionGenqlSelection = subscription_rootGenqlSelection
     }
     
 
+export const enumLevrAirdropClaimSelectColumn = {
+   amountStillLocked: 'amountStillLocked' as const,
+   blockNumber: 'blockNumber' as const,
+   blockTimestamp: 'blockTimestamp' as const,
+   chainId: 'chainId' as const,
+   createdAt: 'createdAt' as const,
+   id: 'id' as const,
+   project_id: 'project_id' as const,
+   token_id: 'token_id' as const,
+   totalAmountClaimed: 'totalAmountClaimed' as const,
+   transactionHash: 'transactionHash' as const,
+   updatedAt: 'updatedAt' as const,
+   user: 'user' as const
+}
+
 export const enumLevrContractMappingSelectColumn = {
    id: 'id' as const,
    project_id: 'project_id' as const
@@ -3863,10 +2605,8 @@ export const enumLevrMetricsSelectColumn = {
    createdAt: 'createdAt' as const,
    id: 'id' as const,
    projectCount: 'projectCount' as const,
-   totalStaked: 'totalStaked' as const,
    totalStakedUsd: 'totalStakedUsd' as const,
    totalStakers: 'totalStakers' as const,
-   tvl: 'tvl' as const,
    tvlUsd: 'tvlUsd' as const,
    updatedAt: 'updatedAt' as const
 }
@@ -3986,116 +2726,6 @@ export const enumLevrVoteSelectColumn = {
    votes: 'votes' as const
 }
 
-export const enumMoneyMachineConfigSelectColumn = {
-   callerIncentive: 'callerIncentive' as const,
-   feeRecipient: 'feeRecipient' as const,
-   formula: 'formula' as const,
-   heartbeatInterval: 'heartbeatInterval' as const,
-   hook: 'hook' as const,
-   id: 'id' as const,
-   poolManager: 'poolManager' as const,
-   protocolFeeBps: 'protocolFeeBps' as const,
-   rebalanceGas: 'rebalanceGas' as const,
-   tickAggregator: 'tickAggregator' as const,
-   updatedAt: 'updatedAt' as const
-}
-
-export const enumMoneyMachineHeartbeatSelectColumn = {
-   blockNumber: 'blockNumber' as const,
-   blockTimestamp: 'blockTimestamp' as const,
-   caller: 'caller' as const,
-   id: 'id' as const,
-   incentivePaid: 'incentivePaid' as const,
-   positionsProcessed: 'positionsProcessed' as const,
-   rebalancesExecuted: 'rebalancesExecuted' as const,
-   transactionHash: 'transactionHash' as const
-}
-
-export const enumMoneyMachinePositionV3PriceSourceSelectColumn = {
-   id: 'id' as const,
-   pool_id: 'pool_id' as const,
-   position_id: 'position_id' as const
-}
-
-export const enumMoneyMachinePositionV4PriceSourceSelectColumn = {
-   id: 'id' as const,
-   pool_id: 'pool_id' as const,
-   position_id: 'position_id' as const
-}
-
-export const enumMoneyMachinePositionSelectColumn = {
-   active: 'active' as const,
-   amountQuote: 'amountQuote' as const,
-   amountToken: 'amountToken' as const,
-   closedAt: 'closedAt' as const,
-   createdAt: 'createdAt' as const,
-   createdTxHash: 'createdTxHash' as const,
-   feesPaidQuote: 'feesPaidQuote' as const,
-   feesPaidToken: 'feesPaidToken' as const,
-   id: 'id' as const,
-   originalTickLower: 'originalTickLower' as const,
-   owner_id: 'owner_id' as const,
-   pool_id: 'pool_id' as const,
-   proceedsQuote: 'proceedsQuote' as const,
-   proceedsToken: 'proceedsToken' as const,
-   quoteToken_id: 'quoteToken_id' as const,
-   rebalanceCount: 'rebalanceCount' as const,
-   tickLower: 'tickLower' as const,
-   tickUpper: 'tickUpper' as const,
-   token_id: 'token_id' as const,
-   updatedAt: 'updatedAt' as const,
-   withdrawnQuote: 'withdrawnQuote' as const,
-   withdrawnToken: 'withdrawnToken' as const
-}
-
-export const enumMoneyMachineRebalanceSelectColumn = {
-   blockNumber: 'blockNumber' as const,
-   blockTimestamp: 'blockTimestamp' as const,
-   id: 'id' as const,
-   newTickLower: 'newTickLower' as const,
-   newTickUpper: 'newTickUpper' as const,
-   oldTickLower: 'oldTickLower' as const,
-   oldTickUpper: 'oldTickUpper' as const,
-   position_id: 'position_id' as const,
-   proceedsQuote: 'proceedsQuote' as const,
-   proceedsToken: 'proceedsToken' as const,
-   transactionHash: 'transactionHash' as const
-}
-
-export const enumMoneyMachineUserSelectColumn = {
-   activePositionCount: 'activePositionCount' as const,
-   createdAt: 'createdAt' as const,
-   gasBalance: 'gasBalance' as const,
-   id: 'id' as const,
-   positionCount: 'positionCount' as const,
-   totalGasConsumed: 'totalGasConsumed' as const,
-   totalGasDeposited: 'totalGasDeposited' as const,
-   totalGasWithdrawn: 'totalGasWithdrawn' as const,
-   updatedAt: 'updatedAt' as const
-}
-
-export const enumMoneyMachineWithdrawalSelectColumn = {
-   amountQuote: 'amountQuote' as const,
-   amountToken: 'amountToken' as const,
-   blockNumber: 'blockNumber' as const,
-   blockTimestamp: 'blockTimestamp' as const,
-   id: 'id' as const,
-   isFullWithdrawal: 'isFullWithdrawal' as const,
-   position_id: 'position_id' as const,
-   protocolFeeQuote: 'protocolFeeQuote' as const,
-   transactionHash: 'transactionHash' as const
-}
-
-export const enumMoneyMachineSelectColumn = {
-   activePositions: 'activePositions' as const,
-   id: 'id' as const,
-   lastHeartbeatBlock: 'lastHeartbeatBlock' as const,
-   totalHeartbeats: 'totalHeartbeats' as const,
-   totalPositions: 'totalPositions' as const,
-   totalRebalances: 'totalRebalances' as const,
-   updatedAt: 'updatedAt' as const
-}
-
 export const enumTokenSelectColumn = {
    address: 'address' as const,
    admin: 'admin' as const,
@@ -4115,23 +2745,6 @@ export const enumTokenSelectColumn = {
    totalSupply: 'totalSupply' as const,
    updatedAt: 'updatedAt' as const,
    v4Pool_id: 'v4Pool_id' as const
-}
-
-export const enumUniswapV3PoolSelectColumn = {
-   address: 'address' as const,
-   amount0: 'amount0' as const,
-   amount1: 'amount1' as const,
-   chainId: 'chainId' as const,
-   createdAt: 'createdAt' as const,
-   fee: 'fee' as const,
-   id: 'id' as const,
-   liquidity: 'liquidity' as const,
-   sqrtPriceX96: 'sqrtPriceX96' as const,
-   tick: 'tick' as const,
-   tickSpacing: 'tickSpacing' as const,
-   token0_id: 'token0_id' as const,
-   token1_id: 'token1_id' as const,
-   updatedAt: 'updatedAt' as const
 }
 
 export const enumUniswapV4PoolSelectColumn = {
