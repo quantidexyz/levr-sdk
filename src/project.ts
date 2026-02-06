@@ -89,10 +89,14 @@ export type StakingStats = {
     staking: {
       available: BalanceResult
       pending: BalanceResult
+      streaming: BalanceResult
+      claimable: BalanceResult
     }
     pairedToken: {
       available: BalanceResult
       pending: BalanceResult
+      streaming: BalanceResult
+      claimable: BalanceResult
     } | null
   }
   rewardRates: {
@@ -554,6 +558,7 @@ function parseStakingStats(
   const streamInfoRaw = results[4].result as [bigint, bigint, bigint]
   const tokenStreamStartRaw = streamInfoRaw[0]
   const tokenStreamEndRaw = streamInfoRaw[1]
+  const tokenStreamTotalRaw = streamInfoRaw[2]
 
   // Check if pairedToken data is present
   const hasPairedTokenData = results.length > 5
@@ -569,11 +574,13 @@ function parseStakingStats(
   let isPairedTokenStreamActive = false
   let pairedTokenStreamStartRaw = 0n
   let pairedTokenStreamEndRaw = 0n
+  let pairedTokenStreamTotalRaw = 0n
 
   if (hasPairedTokenData && results[7]) {
     const pairedTokenStreamInfoRaw = results[7].result as [bigint, bigint, bigint]
     pairedTokenStreamStartRaw = pairedTokenStreamInfoRaw[0]
     pairedTokenStreamEndRaw = pairedTokenStreamInfoRaw[1]
+    pairedTokenStreamTotalRaw = pairedTokenStreamInfoRaw[2]
 
     isPairedTokenStreamActive =
       pairedTokenStreamStartRaw <= blockTimestamp && blockTimestamp <= pairedTokenStreamEndRaw
@@ -678,6 +685,8 @@ function parseStakingStats(
           tokenUsdPrice
         ),
         pending: formatBalanceWithUsd(tokenPendingTotal, tokenDecimals, tokenUsdPrice),
+        streaming: formatBalanceWithUsd(tokenStreamTotalRaw, tokenDecimals, tokenUsdPrice),
+        claimable: formatBalanceWithUsd(0n, tokenDecimals, tokenUsdPrice), // Computed in getProject
       },
       pairedToken:
         outstandingRewardsPairedAvailable !== null
@@ -692,6 +701,12 @@ function parseStakingStats(
                 pairedTokenDecimals,
                 pairedTokenUsdPrice
               ),
+              streaming: formatBalanceWithUsd(
+                pairedTokenStreamTotalRaw,
+                pairedTokenDecimals,
+                pairedTokenUsdPrice
+              ),
+              claimable: formatBalanceWithUsd(0n, pairedTokenDecimals, pairedTokenUsdPrice), // Computed in getProject
             }
           : null,
     },
@@ -1085,6 +1100,36 @@ export async function getProject({
     pricing,
     feeSplitterPendingFees
   )
+
+  // Compute claimable (availablePool) from treasury + staking data
+  // availablePool = contractBalance - escrowBalance - streamTotal - unaccountedRewards
+  {
+    const contractBalanceRaw = treasuryStats.stakingContractBalance.raw
+    const escrowBalanceRaw = treasuryStats.escrowBalance.raw
+    const streamingRaw = stakingStats.outstandingRewards.staking.streaming.raw
+    const unaccountedRaw = stakingStats.outstandingRewards.staking.available.raw
+    const claimableRaw = contractBalanceRaw - escrowBalanceRaw - streamingRaw - unaccountedRaw
+    const claimableSafe = claimableRaw > 0n ? claimableRaw : 0n
+    stakingStats.outstandingRewards.staking.claimable = formatBalanceWithUsd(
+      claimableSafe,
+      staticProject.token.decimals,
+      tokenUsdPrice
+    )
+  }
+
+  // Compute claimable for paired token if present
+  if (stakingStats.outstandingRewards.pairedToken && treasuryStats.stakingContractPairedBalance) {
+    const contractPairedBalanceRaw = treasuryStats.stakingContractPairedBalance.raw
+    const streamingPairedRaw = stakingStats.outstandingRewards.pairedToken.streaming.raw
+    const unaccountedPairedRaw = stakingStats.outstandingRewards.pairedToken.available.raw
+    const claimablePairedRaw = contractPairedBalanceRaw - streamingPairedRaw - unaccountedPairedRaw
+    const claimablePairedSafe = claimablePairedRaw > 0n ? claimablePairedRaw : 0n
+    stakingStats.outstandingRewards.pairedToken.claimable = formatBalanceWithUsd(
+      claimablePairedSafe,
+      pairedTokenInfo?.decimals ?? 18,
+      pairedTokenUsdPrice
+    )
+  }
 
   // Use indexed governance data (no RPC calls needed)
   const governanceStats: GovernanceStats = indexedProject
