@@ -1,4 +1,5 @@
-import { omit } from 'lodash'
+import pkg from 'lodash'
+const { omit } = pkg
 import type { TransactionReceipt } from 'viem'
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 

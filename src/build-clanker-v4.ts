@@ -1,7 +1,8 @@
 import type { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import type { ClankerTokenV4 } from 'clanker-sdk'
 import { createMerkleTree, FEE_CONFIGS, getTickFromMarketCap, POOL_POSITIONS } from 'clanker-sdk'
-import { omit } from 'lodash'
+import pkg from 'lodash'
+const { omit } = pkg
 
 import {
   getInitialLiquidity,
