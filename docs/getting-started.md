@@ -130,7 +130,7 @@ function StakeComponent() {
 ## Server Usage
 
 ```typescript
-import { getProject, Stake } from 'levr-sdk'
+import { getStaticProject, getProject, Stake } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -146,11 +146,21 @@ const walletClient = createWalletClient({
   account: privateKeyToAccount('0x...'),
 })
 
-// Get project data
-const projectData = await getProject({
+// 1. Get static project data (cache this)
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
   userAddress: '0x...', // Optional: for areYouAnAdmin in fee receivers
+})
+
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
+
+// 2. Get dynamic project data
+const projectData = await getProject({
+  publicClient,
+  staticProject,
 })
 
 // Stake tokens

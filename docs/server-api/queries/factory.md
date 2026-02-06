@@ -6,18 +6,11 @@ Fetch Levr factory configuration including governance and staking parameters.
 
 ```typescript
 import { getFactoryConfig } from 'levr-sdk'
-import { createPublicClient, http } from 'viem'
-import { baseSepolia } from 'viem/chains'
 
-const publicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http(),
-})
-
-const config = await getFactoryConfig(publicClient, baseSepolia.id)
+const config = await getFactoryConfig(8453) // Base mainnet chain ID
 
 if (!config) {
-  console.log('Factory not deployed on this chain')
+  console.log('Factory not found on this chain')
   return
 }
 
@@ -26,13 +19,17 @@ console.log('Protocol Treasury:', config.protocolTreasury)
 console.log('Proposal Window:', config.proposalWindowSeconds / 3600, 'hours')
 console.log('Voting Window:', config.votingWindowSeconds / 3600, 'hours')
 console.log('Quorum:', config.quorumBps / 100, '%')
+console.log('Minimum Quorum:', config.minimumQuorumBps / 100, '%')
 console.log('Approval Threshold:', config.approvalBps / 100, '%')
 ```
 
 ## Parameters
 
-- `publicClient` (required): Viem public client
 - `chainId` (required): Chain ID to get factory for
+
+::: tip
+`getFactoryConfig()` no longer requires a `publicClient` parameter. It fetches data from the GraphQL indexer instead of multicall.
+:::
 
 ## Returns
 
@@ -48,6 +45,7 @@ console.log('Approval Threshold:', config.approvalBps / 100, '%')
   approvalBps: number              // Approval threshold in basis points
   minSTokenBpsToSubmit: number     // Min staked tokens to submit (bps)
   maxProposalAmountBps: number     // Max proposal amount (bps of treasury)
+  minimumQuorumBps: number         // Minimum quorum threshold in basis points
 } | null
 ```
 
@@ -55,35 +53,25 @@ Returns `null` if factory not found on the chain.
 
 ## Implementation Details
 
-The function uses a single multicall to efficiently fetch all factory parameters:
+The function fetches factory configuration from the GraphQL indexer:
 
 ```typescript
-await publicClient.multicall({
-  contracts: [
-    { functionName: 'protocolFeeBps' },
-    { functionName: 'protocolTreasury' },
-    { functionName: 'streamWindowSeconds' },
-    { functionName: 'proposalWindowSeconds' },
-    { functionName: 'votingWindowSeconds' },
-    { functionName: 'maxActiveProposals' },
-    { functionName: 'quorumBps' },
-    { functionName: 'approvalBps' },
-    { functionName: 'minSTokenBpsToSubmit' },
-    { functionName: 'maxProposalAmountBps' },
-  ],
-})
+const config = await getFactoryConfig(chainId)
 ```
+
+This is more efficient than the previous multicall-based approach and doesn't require a `publicClient`.
 
 ## Example: Check Governance Rules
 
 ```typescript
-const config = await getFactoryConfig(publicClient, chainId)
+const config = await getFactoryConfig(chainId)
 
 if (config) {
   console.log('Governance Rules:')
   console.log(`- Proposals open for ${config.proposalWindowSeconds / 3600}h`)
   console.log(`- Voting lasts ${config.votingWindowSeconds / 3600}h`)
   console.log(`- Need ${config.quorumBps / 100}% quorum`)
+  console.log(`- Minimum quorum: ${config.minimumQuorumBps / 100}%`)
   console.log(`- Need ${config.approvalBps / 100}% approval`)
   console.log(`- Max ${config.maxActiveProposals} proposals per cycle`)
   console.log(`- Proposals limited to ${config.maxProposalAmountBps / 100}% of treasury`)
@@ -97,6 +85,7 @@ if (config) {
 - All percentages in basis points (divide by 100 for percentage)
 - Configuration applies to all projects using this factory
 - Used to validate proposals and governance operations
+- Data sourced from GraphQL indexer (no RPC calls needed)
 
 ## Related
 

@@ -112,7 +112,7 @@ if (project?.feeSplitter?.isConfigured) {
 // Check pending fees (if splitter is active)
 if (project?.feeSplitter?.pendingFees) {
   console.log('Token Pending:', project.feeSplitter.pendingFees.token)
-  console.log('WETH Pending:', project.feeSplitter.pendingFees.weth)
+  console.log('Paired Token Pending:', project.feeSplitter.pendingFees.pairedToken)
 }
 ```
 

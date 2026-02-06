@@ -58,8 +58,8 @@ function StakingInterface() {
       <p>Your Balance: {user?.balances.token.formatted}</p>
       <p>Staked: {user?.staking.stakedBalance.formatted}</p>
       <p>Token APR: {project?.stakingStats?.apr.token.percentage}%</p>
-      {project?.stakingStats?.apr.weth && (
-        <p>WETH APR: {project.stakingStats.apr.weth.percentage}%</p>
+      {project?.stakingStats?.apr.pairedToken && (
+        <p>Paired Token APR: {project.stakingStats.apr.pairedToken.percentage}%</p>
       )}
 
       <h3>Rewards</h3>
@@ -117,17 +117,17 @@ const { data: project } = useProject()
 
 // User-specific data
 user?.balances.token // Token balance
-user?.balances.weth // WETH balance
+user?.balances.pairedToken // Paired token balance (e.g., WETH, USDC)
 user?.staking.stakedBalance // User's staked amount
 user?.staking.allowance // User's spending allowance
 user?.staking.claimableRewards.staking // User's claimable token rewards
-user?.staking.claimableRewards.weth // User's claimable WETH rewards
+user?.staking.claimableRewards.pairedToken // User's claimable paired token rewards
 user?.votingPower // User's voting power
 
 // Pool-level stats (from project)
 project?.stakingStats?.totalStaked // Total tokens staked by all users
 project?.stakingStats?.apr.token // Token APR
-project?.stakingStats?.apr.weth // WETH APR
+project?.stakingStats?.apr.pairedToken // Paired token APR
 project?.stakingStats?.outstandingRewards.staking.available // Available pool rewards
 project?.stakingStats?.outstandingRewards.staking.pending // Pending pool rewards
 project?.stakingStats?.rewardRates.token // Token reward rate per second

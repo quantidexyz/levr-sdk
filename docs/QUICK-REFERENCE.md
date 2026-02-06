@@ -13,14 +13,14 @@ const { data: user } = useUser()
 // Balances
 user?.balances.token.formatted // Token balance
 user?.balances.token.usd // Token balance in USD
-user?.balances.weth.formatted // WETH balance
-user?.balances.eth.formatted // Native ETH balance
+user?.balances.pairedToken.formatted // Paired token balance (e.g., WETH, USDC)
+user?.balances.nativeEth?.formatted // Native ETH balance (only when pairedToken.isNative)
 
 // Staking (user-specific)
 user?.staking.stakedBalance.formatted // Your staked amount
 user?.staking.allowance.formatted // Your spending allowance
 user?.staking.claimableRewards.staking.formatted // Your claimable token rewards
-user?.staking.claimableRewards.weth?.formatted // Your claimable WETH rewards
+user?.staking.claimableRewards.pairedToken?.formatted // Your claimable paired token rewards
 
 // Voting
 user?.votingPower // Your voting power in Token Days (string)
@@ -56,19 +56,29 @@ project?.forwarder
 project?.pool?.poolKey
 project?.pool?.feeDisplay
 project?.pool?.numPositions
+project?.pool?.pairedToken // { address, symbol, decimals, isNative }
 
 // Treasury stats
 project?.treasuryStats?.balance.formatted
 project?.treasuryStats?.totalAllocated.formatted
 project?.treasuryStats?.utilization // percentage
+project?.treasuryStats?.stakingContractBalance.formatted
+project?.treasuryStats?.escrowBalance.formatted
+project?.treasuryStats?.stakingContractPairedBalance?.formatted
 
 // Staking stats (pool-level)
 project?.stakingStats?.totalStaked.formatted // Total by all users
 project?.stakingStats?.apr.token.percentage // Token APR %
-project?.stakingStats?.apr.weth?.percentage // WETH APR %
+project?.stakingStats?.apr.pairedToken?.percentage // Paired token APR %
 project?.stakingStats?.outstandingRewards.staking.available.formatted
 project?.stakingStats?.outstandingRewards.staking.pending.formatted
+project?.stakingStats?.outstandingRewards.staking.streaming.formatted
+project?.stakingStats?.outstandingRewards.staking.claimable.formatted
 project?.stakingStats?.rewardRates.token.formatted
+project?.stakingStats?.streamParams.windowSeconds
+project?.stakingStats?.streamParams.streamStart
+project?.stakingStats?.streamParams.streamEnd
+project?.stakingStats?.streamParams.isActive
 
 // Governance stats
 project?.governanceStats?.currentCycleId
@@ -80,7 +90,7 @@ project?.feeReceivers?.[0].admin
 project?.feeReceivers?.[0].recipient
 project?.feeReceivers?.[0].percentage
 project?.feeReceivers?.[0].areYouAnAdmin
-project?.feeReceivers?.[0].feePreference // 0 = Both, 1 = WETH only, 2 = Token only
+project?.feeReceivers?.[0].feePreference // 0 = Both, 1 = Paired only, 2 = Token only
 
 // Fee splitter
 project?.feeSplitter?.isConfigured
@@ -88,25 +98,14 @@ project?.feeSplitter?.isActive
 project?.feeSplitter?.splits // Array of { receiver, bps }
 project?.feeSplitter?.totalBps
 project?.feeSplitter?.pendingFees?.token
-project?.feeSplitter?.pendingFees?.weth
+project?.feeSplitter?.pendingFees?.pairedToken
 
 // Pricing (dynamic data)
 project?.pricing?.tokenUsd
-project?.pricing?.wethUsd
-```
+project?.pricing?.pairedTokenUsd
 
-### Pool Data (real-time state)
-
-```typescript
-import { usePool } from 'levr-sdk/client'
-const { data: pool } = usePool()
-
-pool?.sqrtPriceX96 // Current price
-pool?.tick // Current tick
-pool?.liquidity.formatted // Current liquidity
-pool?.protocolFee // Protocol fee
-pool?.lpFee // LP fee
-pool?.feeDisplay // Fee display string
+// Block timestamp
+project?.blockTimestamp
 ```
 
 ### Airdrop Data (from context)
@@ -129,6 +128,19 @@ airdrop?.recipients[0].error
 // Deployment info
 airdrop?.deploymentTimestamp
 airdrop?.lockupDurationHours
+```
+
+### Global Metrics
+
+```typescript
+import { useMetrics } from 'levr-sdk/client'
+
+const { data: metrics } = useMetrics()
+
+metrics?.projectCount
+metrics?.totalStakers
+metrics?.totalStakedUsd // Formatted USD string or null
+metrics?.tvlUsd // Formatted USD string or null
 ```
 
 ### Vault Data
@@ -166,6 +178,7 @@ factory?.maxActiveProposals
 factory?.minSTokenBpsToSubmit
 factory?.maxProposalAmountBps
 factory?.streamWindowSeconds
+factory?.minimumQuorumBps
 ```
 
 ### Proposals Data
@@ -230,7 +243,7 @@ import { useSwap } from 'levr-sdk/client'
 
 const { swap, quote, buildSwapConfig } = useSwap({
   quoteParams: {
-    zeroForOne: true, // token -> WETH
+    zeroForOne: true, // token -> paired token
     amountIn: '100',
     amountInDecimals: 18,
     amountOutDecimals: 18,
@@ -280,6 +293,7 @@ const {
   vote,
   executeProposal,
   claimAirdrop,
+  claimAirdropBatch,
   buildProposeTransferConfig,
   buildProposeBoostConfig,
 } = useGovernance()
@@ -301,8 +315,28 @@ await vote.mutateAsync({
 // Execute
 await executeProposal.mutateAsync({ proposalId: 123n })
 
-// Claim airdrop
-await claimAirdrop.mutateAsync()
+// Claim airdrop (single)
+await claimAirdrop.mutateAsync(recipient)
+
+// Claim airdrop (batch)
+await claimAirdropBatch.mutateAsync(availableRecipients)
+```
+
+### Token Admin
+
+```typescript
+import { useTokenAdmin } from 'levr-sdk/client'
+
+const { updateMetadata, updateImage, updateAdmin } = useTokenAdmin()
+
+// Update metadata
+await updateMetadata.mutateAsync({ clankerToken: '0x...', metadata: '...' })
+
+// Update image
+await updateImage.mutateAsync({ clankerToken: '0x...', imageUrl: 'https://...' })
+
+// Transfer admin
+await updateAdmin.mutateAsync({ clankerToken: '0x...', newAdmin: '0x...' })
 ```
 
 ## Refetch After Actions
@@ -339,7 +373,7 @@ await refetch.afterAirdrop() // Refetches: project
 ## Server-Side Quick Start
 
 ```typescript
-import { getProject, getUser, Stake, Governance } from 'levr-sdk'
+import { getStaticProject, getProject, getUser, Stake, Governance } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -354,24 +388,34 @@ const walletClient = createWalletClient({
   account: privateKeyToAccount('0x...'),
 })
 
-// 1. Get project data
-const project = await getProject({
+// 1. Get static project data (cache this)
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
 })
 
-// 2. Get user data
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
+
+// 2. Get dynamic project data
+const project = await getProject({
+  publicClient,
+  staticProject,
+})
+
+// 3. Get user data
 const user = await getUser({
   publicClient,
   userAddress: '0x...',
   project,
 })
 
-// 3. Use classes
+// 4. Use classes
 const stake = new Stake({ wallet: walletClient, publicClient, project })
 const governance = new Governance({ wallet: walletClient, publicClient, project })
 
-// 4. Execute actions
+// 5. Execute actions
 await stake.approve(1000)
 await stake.stake(1000)
 await governance.vote(123n, true) // Note: proposalId is an ID, not an amount
@@ -468,7 +512,6 @@ function ProjectPage({ clankerToken }) {
 import type {
   Project,
   User,
-  PoolData,
   ProposalsResult,
   EnrichedProposalDetails,
   BalanceResult,
@@ -479,6 +522,7 @@ import type {
   FactoryConfig,
   VaultStatusData,
   VaultStatus,
+  PairedTokenInfo,
 } from 'levr-sdk'
 ```
 

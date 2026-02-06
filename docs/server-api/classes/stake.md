@@ -9,12 +9,21 @@ Staking and unstaking operations incur a variable protocol fee (set by Levr team
 ## Constructor
 
 ```typescript
-import { Stake, getProject } from 'levr-sdk'
+import { Stake, getStaticProject, getProject } from 'levr-sdk'
 
 // First get project data
-const projectData = await getProject({
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
+})
+
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
+
+const projectData = await getProject({
+  publicClient,
+  staticProject,
 })
 
 // Then create stake instance
@@ -89,7 +98,7 @@ console.log('New voting power:', newVotingPower.toString())
 Claim pending rewards.
 
 ```typescript
-// Claim all rewards (token + WETH)
+// Claim all rewards (token + paired token)
 const receipt = await stake.claimRewards()
 
 // Or claim specific tokens
@@ -104,12 +113,12 @@ console.log('Claimed rewards:', receipt.transactionHash)
 **Parameters:**
 
 - `params` (optional): Claim configuration
-  - `tokens` (optional): Array of token addresses to claim (defaults to [token, WETH])
+  - `tokens` (optional): Array of token addresses to claim (defaults to [token, pairedToken])
   - `to` (optional): Recipient address (defaults to sender)
 
 **Returns:** `TransactionReceipt`
 
-### `accrueRewards(tokenAddress)`
+### `accrueRewards(tokenAddress?)`
 
 Manually accrue rewards for a specific token. Required before rewards can be claimed.
 
@@ -118,32 +127,52 @@ const receipt = await stake.accrueRewards('0x...')
 console.log('Accrued rewards:', receipt.transactionHash)
 ```
 
-### `accrueAllRewards(tokenAddresses)`
+### `accrueAllRewards(params?)`
 
-Manually accrue rewards for multiple tokens in a single transaction using forwarder multicall.
+Accrue rewards for multiple tokens in a single transaction using forwarder multicall. Handles the complete flow: LP locker fee collection, fee locker claim, optional fee splitter distribution, and staking accrual.
 
 ```typescript
-import { WETH } from 'levr-sdk'
-
-const chainId = publicClient.chain?.id
-const wethAddress = WETH(chainId)?.address
-
-const tokenAddresses = [projectData.token.address]
-if (wethAddress) {
-  tokenAddresses.push(wethAddress)
-}
-
-const receipt = await stake.accrueAllRewards(tokenAddresses)
+// Accrue all reward tokens (auto-detected)
+const receipt = await stake.accrueAllRewards()
 console.log('Accrued all rewards:', receipt.transactionHash)
+
+// Or specify tokens and fee splitter usage
+const receipt = await stake.accrueAllRewards({
+  tokens: [projectData.token.address, pairedTokenAddress],
+  useFeeSplitter: true, // Auto-detected if not provided
+})
 ```
 
 **Parameters:**
 
-- `tokenAddresses` (required): Array of token addresses to accrue rewards for
+- `params` (optional): Accrual configuration
+  - `tokens` (optional): Array of token addresses to accrue rewards for (defaults to [underlyingToken, pairedToken])
+  - `useFeeSplitter` (optional): Whether to route through fee splitter (auto-detected from project data if not provided)
 
 **Returns:** `TransactionReceipt`
 
 **Note:** Requires `trustedForwarder` in project data for multicall support.
+
+### `distributeFromFeeSplitter(params?)`
+
+Distribute fees from the fee splitter to all configured receivers (including staking). Call this before `accrueRewards()` when fee splitter is configured.
+
+```typescript
+const receipt = await stake.distributeFromFeeSplitter()
+console.log('Distributed from fee splitter:', receipt.transactionHash)
+
+// Or specify specific tokens
+const receipt = await stake.distributeFromFeeSplitter({
+  tokens: [projectData.token.address],
+})
+```
+
+**Parameters:**
+
+- `params` (optional): Distribution configuration
+  - `tokens` (optional): Array of token addresses to distribute (defaults to [underlyingToken, pairedToken])
+
+**Returns:** `TransactionReceipt`
 
 ### `votingPowerOnUnstake(amount, userAddress?)`
 

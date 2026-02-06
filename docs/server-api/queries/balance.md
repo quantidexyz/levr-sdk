@@ -17,15 +17,15 @@ const balances = await balance({
   address: '0x...', // User address
   tokens: [
     { address: '0x...', decimals: 18, key: 'token' },
-    { address: '0x...', decimals: 18, key: 'weth' },
-    { address: zeroAddress, decimals: 18, key: 'eth' }, // Native ETH
+    { address: '0x...', decimals: 18, key: 'pairedToken' },
+    { address: zeroAddress, decimals: 18, key: 'nativeEth' }, // Native ETH
   ],
-  pricing: { wethUsd: '2500', tokenUsd: '0.05' }, // Optional
+  pricing: { tokenUsd: '0.05', pairedTokenUsd: '2500' }, // Optional
 })
 
 console.log('Token:', balances.token?.formatted)
-console.log('WETH:', balances.weth?.formatted)
-console.log('ETH:', balances.eth?.formatted)
+console.log('Paired Token:', balances.pairedToken?.formatted)
+console.log('Native ETH:', balances.nativeEth?.formatted)
 
 if (balances.token?.usd) {
   console.log('Token USD:', balances.token.usd)

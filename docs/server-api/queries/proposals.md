@@ -5,18 +5,28 @@ Get all governance proposals for a cycle with enriched data and vote receipts.
 ## Usage
 
 ```typescript
-import { proposals, getProject } from 'levr-sdk'
+import { proposals, getStaticProject, getProject } from 'levr-sdk'
 
 // First get project data
-const projectData = await getProject({
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
+})
+
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
+
+const projectData = await getProject({
+  publicClient,
+  staticProject,
 })
 
 // Then get proposals
 const result = await proposals({
   publicClient,
   governorAddress: projectData.governor,
+  projectId: projectData.token.address, // Required
   cycleId: projectData.governanceStats?.currentCycleId, // Optional: defaults to current
   tokenDecimals: projectData.token.decimals,
   pricing: projectData.pricing,
@@ -44,6 +54,7 @@ for (const proposal of result.proposals) {
 
 - `publicClient` (required): Viem public client
 - `governorAddress` (required): Governor contract address
+- `projectId` (required): Project ID (token address string)
 - `cycleId` (optional): Cycle ID to fetch proposals for (defaults to current cycle)
 - `tokenDecimals` (optional): Token decimals for formatting (default: 18)
 - `pricing` (optional): Pricing data for USD values
@@ -85,7 +96,7 @@ for (const proposal of result.proposals) {
 
 ## Notes
 
-- Uses `getProposalsForCycle()` for efficient querying (no event scanning)
-- Fetches all proposal data in a single multicall
+- Uses GraphQL indexer for efficient querying (no event scanning)
+- `meetsQuorum`, `meetsApproval`, and `state` are indexed and updated on each vote
 - Vote receipts included when `userAddress` provided (no extra RPC calls)
 - Returns enriched data with quorum/approval checks and state

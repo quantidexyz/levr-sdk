@@ -15,6 +15,7 @@ function GovernanceInterface() {
     vote,
     executeProposal,
     claimAirdrop,
+    claimAirdropBatch,
 
     // Helpers
     buildProposeTransferConfig,

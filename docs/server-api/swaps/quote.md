@@ -108,7 +108,7 @@ const result = await quote.v4.read({
   poolKey,
   zeroForOne: true,
   amountIn: parseEther('100'),
-  pricing: { wethUsd: '2500', tokenUsd: '1.5' },
+  pricing: { pairedTokenUsd: '2500', tokenUsd: '1.5' },
   tokenAddress: '0x123...',
   currency0Decimals: 18,
   currency1Decimals: 18,

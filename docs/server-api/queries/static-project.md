@@ -34,6 +34,7 @@ if (!staticProject.isRegistered) {
 console.log('Token:', staticProject.token.name)
 console.log('Treasury:', staticProject.treasury)
 console.log('Pool Fee:', staticProject.pool?.feeDisplay)
+console.log('Paired Token:', staticProject.pool?.pairedToken.symbol)
 console.log('Fee Receivers:', staticProject.feeReceivers?.length)
 ```
 
@@ -78,6 +79,7 @@ Returns `StaticProject | null`. `null` is only returned when the token address i
     poolKey: PoolKey
     feeDisplay: string
     numPositions: bigint
+    pairedToken: PairedTokenInfo
   }
 
   // Fee Receivers
@@ -86,7 +88,28 @@ Returns `StaticProject | null`. `null` is only returned when the token address i
     admin: `0x${string}`
     recipient: `0x${string}`
     percentage: number
+    feePreference?: FeePreference
   }>
+
+  // Fee Splitter (static configuration)
+  feeSplitter?: {
+    address: `0x${string}`
+    isConfigured: boolean
+    isActive: boolean
+    splits: Array<{ receiver: `0x${string}`, bps: number }>
+    totalBps: number
+  }
+}
+```
+
+### PairedTokenInfo
+
+```typescript
+{
+  address: `0x${string}`
+  symbol: string
+  decimals: number
+  isNative: boolean // true if WETH/WBNB (enables native ETH UX)
 }
 ```
 
@@ -94,11 +117,11 @@ Returns `StaticProject | null`. `null` is only returned when the token address i
 
 Static data does **not** include:
 
-- ❌ `treasuryStats` (balance, utilization)
-- ❌ `stakingStats` (total staked, APR, rewards)
-- ❌ `governanceStats` (cycle ID, active proposals)
-- ❌ `pricing` (USD prices)
-- ❌ `airdrop` (airdrop status)
+- :x: `treasuryStats` (balance, utilization)
+- :x: `stakingStats` (total staked, APR, rewards)
+- :x: `governanceStats` (cycle ID, active proposals)
+- :x: `pricing` (USD prices)
+- :x: `airdrop` (airdrop status)
 
 For these dynamic values, use `getProject()` with a `staticProject` parameter.
 
@@ -119,7 +142,6 @@ if (!staticProject?.isRegistered) {
 const project = await getProject({
   publicClient,
   staticProject,
-  oraclePublicClient, // Optional: for USD pricing
 })
 
 console.log('Static - Token:', staticProject.token.name)
@@ -139,4 +161,4 @@ Static data is separated to:
 ## Related
 
 - [getProject()](./project.md) - Get full project data (static + dynamic)
-- [getProjects()](./projects.md) - Get multiple projects
+- [useProjects](../../client-hooks/query/use-projects.md) - React hook for project listing

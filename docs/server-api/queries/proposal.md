@@ -5,40 +5,50 @@ Get a single proposal by ID (alternative to proposals() for individual lookups).
 ## Usage
 
 ```typescript
-import { proposal, getProject } from 'levr-sdk'
+import { proposal, getStaticProject, getProject } from 'levr-sdk'
+
+const staticProject = await getStaticProject({
+  publicClient,
+  clankerToken: '0x...',
+})
+
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
 
 const projectData = await getProject({
   publicClient,
-  clankerToken: '0x...',
+  staticProject,
 })
 
 const proposalData = await proposal(
   publicClient,
   projectData.governor,
+  projectData.token.address, // projectId
   123n, // proposalId
   projectData.token.decimals,
-  projectData.pricing, // Optional: for USD values
-  '0x...' // Optional: userAddress for vote receipt
+  projectData.pricing // Optional: for USD values
 )
+
+if (!proposalData) {
+  console.log('Proposal not found')
+  return
+}
 
 console.log('Proposal:', proposalData.description)
 console.log('Yes votes:', proposalData.yesVotes.formatted)
 console.log('No votes:', proposalData.noVotes.formatted)
 console.log('Meets quorum:', proposalData.meetsQuorum)
-
-if (proposalData.voteReceipt?.hasVoted) {
-  console.log('User voted:', proposalData.voteReceipt.support ? 'Yes' : 'No')
-}
 ```
 
 ## Parameters
 
 - `publicClient` (required): Viem public client
 - `governorAddress` (required): Governor contract address
+- `projectId` (required): Project ID (token address string)
 - `proposalId` (required): Proposal ID (bigint)
-- `tokenDecimals` (required): Token decimals for formatting
+- `tokenDecimals` (optional): Token decimals for formatting (default: 18)
 - `pricing` (optional): Pricing data for USD values
-- `userAddress` (optional): User address to include vote receipt
 
 ## Returns
 
@@ -61,17 +71,14 @@ if (proposalData.voteReceipt?.hasVoted) {
   meetsQuorum: boolean
   meetsApproval: boolean
   state: number
-  voteReceipt?: {
-    hasVoted: boolean
-    support: boolean
-    votes: bigint
-  }
-}
+} | null
 ```
+
+Returns `null` if the proposal is not found.
 
 ## Notes
 
 - For most use cases, use `proposals()` instead (more efficient for lists)
-- Fetches proposal data in a single multicall
-- Includes vote receipt if userAddress provided
+- Fetches proposal data from GraphQL indexer
+- `meetsQuorum`, `meetsApproval`, and `state` are indexed values
 - Returns enriched data with quorum/approval checks

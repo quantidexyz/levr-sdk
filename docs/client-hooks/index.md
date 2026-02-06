@@ -9,9 +9,9 @@ Complete reference for all React hooks provided by Levr SDK.
 Read-only data access hooks:
 
 - [useProject](./query/use-project.md) - Project data (static + dynamic: token, contracts, pool, treasury, staking stats, governance stats, pricing)
-- [useProjects](./query/use-projects.md) - List of all registered projects
+- [useProjects](./query/use-projects.md) - List of all registered projects (real-time via GraphQL)
 - [useUser](./query/use-user.md) - User data (balances, staking, voting power)
-- [usePool](./query/use-pool.md) - Pool state (liquidity, price, fees)
+- [useMetrics](./query/use-metrics.md) - Global protocol metrics (project count, TVL, stakers)
 - [useProposals](./query/use-proposals.md) - Governance proposals with vote receipts
 - [useProposal](./query/use-proposal.md) - Single proposal by ID
 - [useAirdropStatus](./query/use-airdrop-status.md) - Multi-recipient airdrop status (from context)
@@ -25,6 +25,7 @@ Hooks with both queries and mutations:
 - [useStake](./mutation/use-stake.md) - Staking operations (approve, stake, unstake, claim, accrue)
 - [useSwap](./mutation/use-swap.md) - Swap operations with quotes
 - [useGovernance](./mutation/use-governance.md) - Governance operations (propose, vote, execute, airdrop)
+- [useTokenAdmin](./mutation/use-token-admin.md) - Token admin operations (update metadata, image, admin)
 - [useFeeReceivers](./mutation/use-fee-receivers.md) - Fee receiver management
 - [useConfigureSplits](./mutation/use-configure-splits.md) - Configure fee splitting among multiple recipients
 - [useVaultClaim](./mutation/use-vault-claim.md) - Claim vaulted tokens

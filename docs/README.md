@@ -21,7 +21,7 @@ Complete reference for all React hooks:
 - [useProject](./client-hooks/query/use-project.md) - Project data (dynamic + static)
 - [useProjects](./client-hooks/query/use-projects.md) - List of projects
 - [useUser](./client-hooks/query/use-user.md) - User data
-- [usePool](./client-hooks/query/use-pool.md) - Pool state
+- [useMetrics](./client-hooks/query/use-metrics.md) - Global protocol metrics
 - [useProposals](./client-hooks/query/use-proposals.md) - Proposals list
 - [useProposal](./client-hooks/query/use-proposal.md) - Single proposal
 - [useAirdropStatus](./client-hooks/query/use-airdrop-status.md) - Multi-recipient airdrop status
@@ -33,6 +33,7 @@ Complete reference for all React hooks:
 - [useStake](./client-hooks/mutation/use-stake.md) - Staking operations
 - [useSwap](./client-hooks/mutation/use-swap.md) - Swap operations
 - [useGovernance](./client-hooks/mutation/use-governance.md) - Governance operations
+- [useTokenAdmin](./client-hooks/mutation/use-token-admin.md) - Token admin operations
 - [useFeeReceivers](./client-hooks/mutation/use-fee-receivers.md) - Fee receiver management
 - [useConfigureSplits](./client-hooks/mutation/use-configure-splits.md) - Fee splitting configuration
 - [useVaultClaim](./client-hooks/mutation/use-vault-claim.md) - Claim vaulted tokens
@@ -55,7 +56,7 @@ Server-side functions and classes:
 
 - [getProject()](./server-api/queries/project.md) - Get project data (dynamic + static)
 - [getStaticProject()](./server-api/queries/static-project.md) - Get static project data only
-- [getProjects()](./server-api/queries/projects.md) - Get multiple projects
+- [getProjects()](./server-api/queries/projects.md) - _(Removed - use `useProjects` hook)_
 - [getUser()](./server-api/queries/user.md) - Get user data
 - [proposals()](./server-api/queries/proposals.md) - Get proposals
 - [proposal()](./server-api/queries/proposal.md) - Get single proposal
@@ -173,8 +174,8 @@ function ProjectPage({ clankerToken }) {
 
 ## 📖 Documentation Status
 
-**Last Updated:** October 14, 2025  
-**Version:** Reflects current zero-duplicate architecture  
+**Last Updated:** February 6, 2026
+**Version:** Reflects current zero-duplicate architecture with paired token generalization
 **Status:** ✅ Production Ready
 
 All documentation has been updated to match the current codebase implementation.

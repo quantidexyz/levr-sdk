@@ -147,7 +147,7 @@ Use in API routes:
 
 ```typescript
 // app/api/stats/route.ts
-import { getProject, Stake } from 'levr-sdk'
+import { getStaticProject, getProject, Stake } from 'levr-sdk'
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -160,14 +160,19 @@ export async function GET(request: Request) {
     transport: http(),
   })
 
-  const projectData = await getProject({
+  const staticProject = await getStaticProject({
     publicClient,
     clankerToken: token,
   })
 
-  if (!projectData) {
-    return Response.json({ error: 'Project not found' }, { status: 404 })
+  if (!staticProject?.isRegistered) {
+    return Response.json({ error: 'Project not registered' }, { status: 404 })
   }
+
+  const projectData = await getProject({
+    publicClient,
+    staticProject,
+  })
 
   return Response.json({
     name: projectData.token.name,
@@ -211,7 +216,7 @@ test('displays project', async () => {
 
 ## USD Pricing
 
-Enable USD values by providing `oraclePublicClient` to LevrProvider:
+USD pricing is auto-fetched by the SDK:
 
 ```typescript
 import { useProject, useUser } from 'levr-sdk/client'
@@ -221,14 +226,14 @@ function PricingDisplay() {
   const { data: user } = useUser()
 
   if (!project?.pricing) {
-    return <div>Pricing not available. Add oraclePublicClient to LevrProvider.</div>
+    return <div>Pricing not available yet.</div>
   }
 
   return (
     <div>
       <h3>Pricing</h3>
       <p>Token Price: ${project.pricing.tokenUsd}</p>
-      <p>WETH Price: ${project.pricing.wethUsd}</p>
+      <p>Paired Token Price: ${project.pricing.pairedTokenUsd}</p>
 
       <h3>Your Holdings</h3>
       <p>Token Balance: {user?.balances.token.formatted}</p>
@@ -258,6 +263,6 @@ function PricingDisplay() {
 3. **Trust automatic refetches** - Don't manually refetch after mutations
 4. **Use smart refetch methods** - `afterStake()`, `afterTrade()`, `afterClaim()`, etc.
 5. **Handle loading states** - Check `isLoading` before rendering data
-6. **Provide USD pricing** - Pass `oraclePublicClient` for better UX
+6. **USD pricing** - Auto-fetched by the SDK
 7. **Memoize calculations** - Use `useMemo` for expensive operations
 8. **Test with providers** - Always wrap tests with required providers

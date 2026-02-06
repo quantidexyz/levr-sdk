@@ -76,8 +76,8 @@ The `feePreference` field indicates which tokens the fee receiver accepts:
 
 ```typescript
 enum FeePreference {
-  Both = 0, // Receives both clanker token and WETH
-  Paired = 1, // Receives WETH only
+  Both = 0, // Receives both clanker token and paired token
+  Paired = 1, // Receives paired token only (e.g., WETH, USDC)
   Clanker = 2, // Receives clanker token only
 }
 ```
@@ -90,10 +90,10 @@ const { data } = useFeeReceivers()
 data?.forEach((receiver) => {
   switch (receiver.feePreference) {
     case 0: // Both
-      console.log('Receives:', 'Token + WETH')
+      console.log('Receives:', 'Token + Paired Token')
       break
     case 1: // Paired
-      console.log('Receives:', 'WETH only')
+      console.log('Receives:', 'Paired token only')
       break
     case 2: // Clanker
       console.log('Receives:', 'Token only')

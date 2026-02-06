@@ -10,7 +10,7 @@ import { useState } from 'react'
 
 function SwapInterface() {
   const [amountIn, setAmountIn] = useState('100')
-  const [zeroForOne, setZeroForOne] = useState(true) // true = token -> WETH
+  const [zeroForOne, setZeroForOne] = useState(true) // true = token -> paired token
 
   const {
     // Mutations
@@ -55,8 +55,8 @@ function SwapInterface() {
       <h2>Swap</h2>
 
       <select onChange={(e) => setZeroForOne(e.target.value === 'sell')}>
-        <option value="sell">Token → WETH</option>
-        <option value="buy">WETH → Token</option>
+        <option value="sell">Token → Paired Token</option>
+        <option value="buy">Paired Token → Token</option>
       </select>
 
       <input
@@ -87,7 +87,7 @@ function SwapInterface() {
 ## Options
 
 - `quoteParams`: Parameters for quote calculation
-  - `zeroForOne`: Swap direction (true = token → WETH)
+  - `zeroForOne`: Swap direction (true = token → paired token)
   - `amountIn`: Amount to swap (as string)
   - `amountInDecimals`: Input token decimals
   - `amountOutDecimals`: Output token decimals
@@ -98,22 +98,20 @@ function SwapInterface() {
 Get balances and pool data from context:
 
 ```typescript
-import { useUser, useProject, usePool } from 'levr-sdk/client'
+import { useUser, useProject } from 'levr-sdk/client'
 
 const { data: user } = useUser()
 const { data: project } = useProject()
-const { data: pool } = usePool()
 
 // Balances
 user?.balances.token // Token balance
-user?.balances.weth // WETH balance
-user?.balances.eth // Native ETH balance
+user?.balances.pairedToken // Paired token balance (e.g., WETH, USDC)
+user?.balances.nativeEth // Native ETH balance (only when pairedToken.isNative)
 
 // Pool info
 project?.pool?.poolKey // Pool key for swaps
 project?.pool?.feeDisplay // Fee display (e.g., "3.00%")
-pool?.sqrtPriceX96 // Current price
-pool?.liquidity // Current liquidity
+project?.pool?.pairedToken // { address, symbol, decimals, isNative }
 ```
 
 ## Quote Query

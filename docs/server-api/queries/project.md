@@ -16,11 +16,6 @@ const publicClient = createPublicClient({
   transport: http(),
 })
 
-const oracleClient = createPublicClient({
-  chain: base, // Can use same chain or different for oracle
-  transport: http(),
-})
-
 // 1. Get static data (cache this!)
 const staticProject = await getStaticProject({
   publicClient,
@@ -37,7 +32,6 @@ if (!staticProject?.isRegistered) {
 const projectData = await getProject({
   publicClient,
   staticProject,
-  oraclePublicClient: oracleClient, // Optional: for USD pricing
 })
 
 if (!projectData) {
@@ -62,7 +56,10 @@ if (projectData.feeSplitter?.isActive) {
 
 - `publicClient` (required): Viem public client
 - `staticProject` (required): Static project data from `getStaticProject()`
-- `oraclePublicClient` (optional): Client for USD pricing oracle
+
+::: tip
+Pricing is now auto-fetched internally using the pool's paired token information. You no longer need to provide an `oraclePublicClient`.
+:::
 
 ## Returns
 
@@ -99,6 +96,7 @@ Returns `Project | null`. `staticProject.isRegistered` must be `true` before cal
     poolKey: PoolKey
     feeDisplay: string
     numPositions: bigint
+    pairedToken: PairedTokenInfo
   }
 
   // Treasury Stats
@@ -106,6 +104,9 @@ Returns `Project | null`. `staticProject.isRegistered` must be `true` before cal
     balance: BalanceResult
     totalAllocated: BalanceResult
     utilization: number
+    stakingContractBalance: BalanceResult
+    escrowBalance: BalanceResult
+    stakingContractPairedBalance?: BalanceResult
   }
 
   // Staking Stats (pool-level)
@@ -113,15 +114,31 @@ Returns `Project | null`. `staticProject.isRegistered` must be `true` before cal
     totalStaked: BalanceResult
     apr: {
       token: { raw: bigint, percentage: number }
-      weth: { raw: bigint, percentage: number } | null
+      pairedToken: { raw: bigint, percentage: number } | null
     }
     outstandingRewards: {
-      staking: { available: BalanceResult, pending: BalanceResult }
-      weth: { available: BalanceResult, pending: BalanceResult } | null
+      staking: {
+        available: BalanceResult
+        pending: BalanceResult
+        streaming: BalanceResult
+        claimable: BalanceResult
+      }
+      pairedToken: {
+        available: BalanceResult
+        pending: BalanceResult
+        streaming: BalanceResult
+        claimable: BalanceResult
+      } | null
     }
     rewardRates: {
       token: BalanceResult
-      weth: BalanceResult | null
+      pairedToken: BalanceResult | null
+    }
+    streamParams: {
+      windowSeconds: number
+      streamStart: bigint
+      streamEnd: bigint
+      isActive: boolean
     }
   }
 
@@ -153,15 +170,29 @@ Returns `Project | null`. `staticProject.isRegistered` must be `true` before cal
     // Dynamic data (if active)
     pendingFees?: {
       token: bigint
-      weth: bigint | null
+      pairedToken: bigint | null
     }
   }
 
-  // Pricing (dynamic data, fetched if oraclePublicClient provided)
+  // Pricing (auto-fetched from pool's paired token)
   pricing?: {
-    wethUsd: string
     tokenUsd: string
+    pairedTokenUsd: string
   }
+
+  // Block timestamp at time of fetch
+  blockTimestamp?: bigint
+}
+```
+
+### PairedTokenInfo
+
+```typescript
+{
+  address: `0x${string}`
+  symbol: string
+  decimals: number
+  isNative: boolean // true if WETH/WBNB (enables native ETH UX)
 }
 ```
 
@@ -173,21 +204,22 @@ Returns `Project | null`. `staticProject.isRegistered` must be `true` before cal
 
 - Contract addresses (treasury, governor, staking, etc.)
 - Token info (name, symbol, decimals, total supply)
-- Pool info (poolKey, fee display, positions)
+- Pool info (poolKey, fee display, positions, paired token)
 - Fee receivers
 - Fee splitter configuration (`isConfigured`, `isActive`, `splits`, `totalBps`)
 
 **Dynamic data** (fetched fresh):
 
-- Treasury stats (balance, utilization)
-- Staking stats (total staked, APR, rewards)
-- Governance stats (cycle ID, active proposals)
-- Pricing (USD prices if oracle client provided)
+- Treasury stats (balance, utilization, staking contract balance, escrow balance)
+- Staking stats (total staked, APR, rewards with streaming/claimable, stream params)
+- Governance stats (cycle ID, active proposals) - fetched from GraphQL indexer
+- Pricing (USD prices auto-fetched from pool)
 - Fee splitter pending fees (if active)
+- Block timestamp
 
 **Not included:**
 
-- ❌ Airdrop status - Use `getAirdropStatus()` separately
+- :x: Airdrop status - Use `getAirdropStatus()` separately
 
 ## Related
 

@@ -44,8 +44,8 @@ Array<{
 
 ```typescript
 enum FeePreference {
-  Both = 0, // Receives both clanker token and WETH
-  Paired = 1, // Receives WETH only
+  Both = 0, // Receives both clanker token and paired token
+  Paired = 1, // Receives paired token only
   Clanker = 2, // Receives clanker token only
 }
 ```

@@ -45,8 +45,8 @@ function ProjectInfo() {
       <h3>Staking Stats</h3>
       <p>Total Staked: {project.stakingStats?.totalStaked.formatted}</p>
       <p>Token APR: {project.stakingStats?.apr.token.percentage}%</p>
-      {project.stakingStats?.apr.weth && (
-        <p>WETH APR: {project.stakingStats.apr.weth.percentage}%</p>
+      {project.stakingStats?.apr.pairedToken && (
+        <p>Paired Token APR: {project.stakingStats.apr.pairedToken.percentage}%</p>
       )}
 
       {project.pool && (
@@ -61,7 +61,7 @@ function ProjectInfo() {
         <div>
           <h3>Pricing</h3>
           <p>Token Price: ${project.pricing.tokenUsd}</p>
-          <p>WETH Price: ${project.pricing.wethUsd}</p>
+          <p>Paired Token Price: ${project.pricing.pairedTokenUsd}</p>
         </div>
       )}
 
@@ -92,8 +92,8 @@ function ProjectInfo() {
           {project.feeSplitter.pendingFees && (
             <div>
               <p>Pending Token: {project.feeSplitter.pendingFees.token.toString()}</p>
-              {project.feeSplitter.pendingFees.weth && (
-                <p>Pending WETH: {project.feeSplitter.pendingFees.weth.toString()}</p>
+              {project.feeSplitter.pendingFees.pairedToken && (
+                <p>Pending Paired Token: {project.feeSplitter.pendingFees.pairedToken.toString()}</p>
               )}
             </div>
           )}
@@ -139,6 +139,7 @@ Project data contains ALL project-level information:
     poolKey: PoolKey
     feeDisplay: string
     numPositions: bigint
+    pairedToken: PairedTokenInfo // { address, symbol, decimals, isNative }
   }
 
   // Treasury Stats
@@ -146,6 +147,9 @@ Project data contains ALL project-level information:
     balance: BalanceResult
     totalAllocated: BalanceResult
     utilization: number
+    stakingContractBalance: BalanceResult
+    escrowBalance: BalanceResult
+    stakingContractPairedBalance?: BalanceResult
   }
 
   // Staking Stats (pool-level)
@@ -153,15 +157,21 @@ Project data contains ALL project-level information:
     totalStaked: BalanceResult
     apr: {
       token: { raw: bigint, percentage: number }
-      weth: { raw: bigint, percentage: number } | null
+      pairedToken: { raw: bigint, percentage: number } | null
     }
     outstandingRewards: {
-      staking: { available: BalanceResult, pending: BalanceResult }
-      weth: { available: BalanceResult, pending: BalanceResult } | null
+      staking: { available: BalanceResult, pending: BalanceResult, streaming: BalanceResult, claimable: BalanceResult }
+      pairedToken: { available: BalanceResult, pending: BalanceResult } | null
     }
     rewardRates: {
       token: BalanceResult
-      weth: BalanceResult | null
+      pairedToken: BalanceResult | null
+    }
+    streamParams: {
+      windowSeconds: number
+      streamStart: bigint
+      streamEnd: bigint
+      isActive: boolean
     }
   }
 
@@ -193,15 +203,18 @@ Project data contains ALL project-level information:
     // Dynamic data (if active)
     pendingFees?: {
       token: bigint
-      weth: bigint | null
+      pairedToken: bigint | null
     }
   }
 
-  // Pricing (dynamic data, if oraclePublicClient provided to LevrProvider)
+  // Pricing (dynamic data)
   pricing?: {
-    wethUsd: string
     tokenUsd: string
+    pairedTokenUsd: string
   }
+
+  // Block timestamp
+  blockTimestamp?: bigint
 }
 ```
 
@@ -228,7 +241,7 @@ Project data contains ALL project-level information:
 - Treasury stats
 - Staking stats
 - Governance stats
-- Pricing (if oracle provided)
+- Pricing
 - Fee splitter pending fees (if active)
 
 **Not included:**
@@ -243,12 +256,12 @@ Project data contains ALL project-level information:
 - Includes fee receivers with `areYouAnAdmin` calculated automatically
 - Includes fee splitter configuration and pending fees (if active)
 - When fee splitter is active, `stakingStats.outstandingRewards` includes fees in the splitter
-- Pricing requires `oraclePublicClient` in LevrProvider
+- Pricing is auto-fetched internally
 - Automatically refetches when token or chain changes
 
 ## Related
 
 - [useAirdropStatus](./use-airdrop-status.md) - Get airdrop status separately
 - [useUser](./use-user.md) - Get user-specific data
-- [usePool](./use-pool.md) - Get real-time pool state
+- [useMetrics](./use-metrics.md) - Get global protocol metrics
 - [useConfigureSplits](../mutation/use-configure-splits.md) - Configure fee splitting

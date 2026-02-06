@@ -17,15 +17,17 @@ function UserDashboard() {
     <div>
       <h2>Balances</h2>
       <p>Token: {user.balances.token.formatted}</p>
-      <p>WETH: {user.balances.weth.formatted}</p>
-      <p>ETH: {user.balances.eth.formatted}</p>
+      <p>Paired Token: {user.balances.pairedToken.formatted}</p>
+      {user.balances.nativeEth && (
+        <p>Native ETH: {user.balances.nativeEth.formatted}</p>
+      )}
 
       <h2>Staking</h2>
       <p>Staked: {user.staking.stakedBalance.formatted}</p>
       <p>Allowance: {user.staking.allowance.formatted}</p>
       <p>Claimable Token Rewards: {user.staking.claimableRewards.staking.formatted}</p>
-      {user.staking.claimableRewards.weth && (
-        <p>Claimable WETH Rewards: {user.staking.claimableRewards.weth.formatted}</p>
+      {user.staking.claimableRewards.pairedToken && (
+        <p>Claimable Paired Token Rewards: {user.staking.claimableRewards.pairedToken.formatted}</p>
       )}
 
       <h2>Voting</h2>
@@ -43,15 +45,15 @@ The user data is hierarchically organized:
 {
   balances: {
     token: BalanceResult
-    weth: BalanceResult
-    eth: BalanceResult
+    pairedToken: BalanceResult
+    nativeEth?: BalanceResult // Only present when pairedToken.isNative (e.g., WETH/WBNB)
   }
   staking: {
     stakedBalance: BalanceResult
     allowance: BalanceResult
     claimableRewards: {
       staking: BalanceResult
-      weth: BalanceResult | null
+      pairedToken: BalanceResult | null
     }
   }
   votingPower: string

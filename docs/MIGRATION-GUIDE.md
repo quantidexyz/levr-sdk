@@ -130,8 +130,8 @@ const { data: project } = useProject()
 
 // Access balances
 user?.balances.token
-user?.balances.weth
-user?.balances.eth
+user?.balances.pairedToken
+user?.balances.nativeEth
 
 // Access staking
 user?.staking.stakedBalance
@@ -372,7 +372,7 @@ refetch.afterVote() // Only user + proposals
 import { useBalance, useStakingData, useGovernanceData } from 'levr-sdk/client'
 
 // After
-import { useUser, useProject, usePool, useProposals } from 'levr-sdk/client'
+import { useUser, useProject, useProposals } from 'levr-sdk/client'
 ```
 
 ### 2. Update Data Access

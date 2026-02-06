@@ -10,7 +10,6 @@ Core data fetching functions:
 
 - [getProject()](./queries/project.md) - Get project data (static + dynamic)
 - [getStaticProject()](./queries/static-project.md) - Get static project data only
-- [getProjects()](./queries/projects.md) - Get multiple projects data
 - [getUser()](./queries/user.md) - Get user data (balances, staking, voting power)
 - [proposals()](./queries/proposals.md) - Get governance proposals with vote receipts
 - [proposal()](./queries/proposal.md) - Get single proposal by ID
@@ -22,6 +21,10 @@ Core data fetching functions:
 - [feeReceivers()](./queries/fee-receivers.md) - Get fee receiver information
 - [configureSplits()](./queries/fee-receivers.md#configure-splits-params) - Configure fee splitter splits
 - [updateRecipientToSplitter()](./queries/fee-receivers.md#update-recipient-to-splitter-params) - Update fee recipient to splitter
+
+::: info
+`getProjects()` has been removed. Use the [`useProjects`](../client-hooks/query/use-projects.md) hook instead for project listing with real-time updates.
+:::
 
 ### Class APIs
 
@@ -48,7 +51,7 @@ Helper functions and constants:
 ## Quick Example
 
 ```typescript
-import { getProject, Stake } from 'levr-sdk'
+import { getStaticProject, getProject, Stake } from 'levr-sdk'
 import { createPublicClient, createWalletClient, http } from 'viem'
 import { base } from 'viem/chains'
 
@@ -57,17 +60,27 @@ const publicClient = createPublicClient({
   transport: http(),
 })
 
-// Get project data
-const projectData = await getProject({
+// 1. Get static project data (cache this)
+const staticProject = await getStaticProject({
   publicClient,
   clankerToken: '0x...',
+})
+
+if (!staticProject?.isRegistered) {
+  throw new Error('Project not registered')
+}
+
+// 2. Get dynamic project data
+const projectData = await getProject({
+  publicClient,
+  staticProject,
 })
 
 if (!projectData) {
   throw new Error('Project not found')
 }
 
-// Use staking
+// 3. Use staking
 const stake = new Stake({
   wallet: walletClient,
   publicClient,

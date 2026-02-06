@@ -41,7 +41,6 @@ const staticProject = useStaticProjectQuery({
 // Dynamic data (refetches every 30s, includes pricing)
 const project = useProjectQuery({
   clankerToken,
-  oraclePublicClient,
   enabled,
 })
 
@@ -122,7 +121,6 @@ Components access shared queries:
 // Simple one-liner hooks
 export const useProject = () => useLevrContext().project
 export const useUser = () => useLevrContext().user
-export const usePool = () => useLevrContext().pool
 export const useProposals = () => useLevrContext().proposals
 ```
 
