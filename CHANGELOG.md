@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.5](https://github.com/quantidexyz/levr-sdk/compare/v0.5.4...v0.5.5) (2026-02-06)
+
+### Features
+
+- generalize paired token support across SDK and documentation, replacing WETH references with pairedToken, and introduce new useMetrics hook for global protocol metrics ([22cc404](https://github.com/quantidexyz/levr-sdk/commit/22cc4046c7b61b4707af1a2bb265d57bc4b4d15c))
+
 ### [0.5.4](https://github.com/quantidexyz/levr-sdk/compare/v0.5.3...v0.5.4) (2026-02-06)
 
 ### Features
