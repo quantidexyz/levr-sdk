@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.4](https://github.com/quantidexyz/levr-sdk/compare/v0.5.3...v0.5.4) (2026-02-06)
+
+### Features
+
+- add streaming and claimable fields to staking stats and compute claimable amounts for staking and paired tokens ([a1af558](https://github.com/quantidexyz/levr-sdk/commit/a1af558d8f4df50cb8e5e76c1f1c64b2a82b2026))
+
 ### [0.5.3](https://github.com/quantidexyz/levr-sdk/compare/v0.5.2...v0.5.3) (2026-02-03)
 
 ### Features
