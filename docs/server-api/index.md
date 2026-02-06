@@ -26,6 +26,13 @@ Core data fetching functions:
 `getProjects()` has been removed. Use the [`useProjects`](../client-hooks/query/use-projects.md) hook instead for project listing with real-time updates.
 :::
 
+### Deployment Functions
+
+Deploy and register tokens:
+
+- [deployV4()](./deployment/deploy-v4.md) - Deploy a new Clanker token and register with Levr (atomic)
+- [buildCalldatasV4()](./deployment/build-calldatas-v4.md) - Low-level calldata builder for custom deployment flows
+
 ### Class APIs
 
 Class-based APIs for operations:

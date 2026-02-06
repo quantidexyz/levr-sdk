@@ -1,6 +1,6 @@
 # useRegister
 
-Register an existing Clanker token with Levr factory.
+Register an existing Clanker token with the Levr factory. This creates all the governance infrastructure (treasury, governor, staking, staked token) for a token that was deployed outside of Levr.
 
 ## Usage
 
@@ -19,6 +19,9 @@ function RegisterButton({ clankerToken }: { clankerToken: `0x${string}` }) {
         console.log('Staked Token:', project.stakedToken)
       }
     },
+    onError: (error) => {
+      console.error('Registration failed:', error)
+    },
   })
 
   return (
@@ -31,23 +34,77 @@ function RegisterButton({ clankerToken }: { clankerToken: `0x${string}` }) {
 
 ## Options
 
-- `onSuccess`: Callback with hash and project contract addresses
+```typescript
+type UseRegisterParams = {
+  onSuccess?: (params: RegisterResult) => void
+  onError?: (error: unknown) => void
+}
+```
+
+- `onSuccess`: Callback with transaction hash and created project contract addresses
 - `onError`: Callback on registration error
 
 ## Parameters (passed to mutate)
 
-- `clankerToken` (required): Clanker token address to register
+```typescript
+{
+  clankerToken: `0x${string}`
+}
+```
+
+- `clankerToken` (required): Address of the Clanker token to register with Levr
 
 ## Returns
 
-- `mutate`: Register mutation function
+- `mutate(params)`: Register mutation
 - `isPending`: Loading state
-- `data`: Registration result (hash, project)
+- `data`: Registration result
 - `error`: Error if registration failed
+
+### RegisterResult
+
+```typescript
+type RegisterResult = {
+  hash: `0x${string}`
+  project:
+    | {
+        treasury: `0x${string}`
+        governor: `0x${string}`
+        staking: `0x${string}`
+        stakedToken: `0x${string}`
+      }
+    | undefined
+}
+```
+
+## Registration Flow
+
+The hook executes two steps atomically via `executeMulticall` on the trusted forwarder:
+
+1. **`prepareForDeployment()`** — Creates treasury and staking contracts on the factory
+2. **`register(clankerToken)`** — Registers the token, creating governance and staked token contracts
+
+The created contract addresses are decoded from the `Registered` event emitted by the factory.
+
+## When to Use
+
+Use `useRegister` when you need to add Levr governance to a token that already exists on-chain:
+
+- Tokens deployed manually through Clanker
+- Tokens deployed before Levr integration
+- Tokens deployed via other deployment tools
+
+For deploying **new** tokens with Levr registration in one step, use [`useDeploy`](./use-deploy.md) instead.
 
 ## Notes
 
-- Calls `prepareForDeployment()` + `register()` in one multicall
-- Creates treasury, governor, staking, and staked token contracts
-- Use for tokens deployed outside of Levr (e.g., manually deployed Clanker tokens)
-- For standard deployment, use `useDeploy()` instead
+- Requires connected wallet
+- Factory address is derived automatically from the connected chain
+- The trusted forwarder is read from the factory contract
+- Both steps are atomic — if either fails, the entire transaction reverts
+
+## Related
+
+- [useDeploy](./use-deploy.md) - Deploy and register in one step (for new tokens)
+- [usePrepare](./use-prepare.md) - Standalone preparation step
+- [deployV4()](../../server-api/deployment/deploy-v4.md) - Server-side deployment
