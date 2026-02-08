@@ -161,6 +161,14 @@ export function LevrProvider({
     [refetchAll, runRefetchChain, userRefetch, projectRefetch, proposalsRefetch, airdropRefetch]
   )
 
+  // Sync selectedCycleId to latest cycle whenever project data loads or cycle advances
+  const currentCycleId = project.data?.governanceStats?.currentCycleId
+  useEffect(() => {
+    if (currentCycleId !== null && currentCycleId !== undefined) {
+      setSelectedCycleId(currentCycleId)
+    }
+  }, [currentCycleId])
+
   // Auto-refetch on wallet/chain change
   useEffect(() => {
     if (!enabled) return

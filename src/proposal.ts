@@ -37,15 +37,6 @@ export type EnrichedProposalDetails = FormattedProposalDetails & {
   }
 }
 
-// Map state string from indexer to numeric state
-const stateStringToNumber: Record<string, number> = {
-  Pending: 0,
-  Active: 1,
-  Succeeded: 2,
-  Defeated: 3,
-  Executed: 4,
-}
-
 /**
  * Get proposals data from GraphQL indexer
  * meetsQuorum, meetsApproval, state are now indexed and updated on each vote
@@ -80,7 +71,7 @@ export async function proposals({
     limit: pageSize,
   })
 
-  const [indexedResult, winner] = await Promise.all([
+  const [indexedResult, winner, block] = await Promise.all([
     query(fields),
     publicClient.readContract({
       address: governorAddress,
@@ -88,6 +79,7 @@ export async function proposals({
       functionName: 'getWinner',
       args: [currentCycleId],
     }),
+    publicClient.getBlock(),
   ])
 
   const indexedProposals = indexedResult.LevrProposal
@@ -115,6 +107,32 @@ export async function proposals({
 
     // Get user vote from indexed votes array
     const indexedUserVote = (p as any).votes?.[0]
+
+    // Client-side state correction: the indexer only updates state on vote
+    // events, so it can be stale (e.g. stuck on "Pending" if no votes were
+    // ever cast, or "Active" after the voting window closed). Fully replicate
+    // the contract's _state() logic using the on-chain block timestamp.
+    const blockTs = Number(block.timestamp)
+    const votingStart = Number(p.votingStartsAt)
+    const votingEnd = Number(p.votingEndsAt)
+
+    let computedState: number
+    if (p.executed) {
+      computedState = 4 // Executed (terminal)
+    } else if (BigInt(p.cycleId) < currentCycleId) {
+      computedState = 3 // Defeated (prior cycle = expired)
+    } else if (blockTs < votingStart) {
+      computedState = 0 // Pending
+    } else if (blockTs <= votingEnd) {
+      computedState = 1 // Active
+    } else {
+      // Post-voting: check quorum, approval, and winner
+      if ((p.meetsQuorum ?? false) && (p.meetsApproval ?? false) && winner === proposalIdNum) {
+        computedState = 2 // Succeeded
+      } else {
+        computedState = 3 // Defeated
+      }
+    }
 
     return {
       id: proposalIdNum,
@@ -153,10 +171,9 @@ export async function proposals({
       totalBalanceVoted: BigInt(p.totalBalanceVoted ?? 0),
       executed: p.executed,
       cycleId: BigInt(p.cycleId),
-      // Use indexed values
       meetsQuorum: p.meetsQuorum ?? false,
       meetsApproval: p.meetsApproval ?? false,
-      state: stateStringToNumber[p.state] ?? 0,
+      state: computedState,
       voteReceipt: indexedUserVote
         ? {
             hasVoted: true,
@@ -175,8 +192,8 @@ export async function proposals({
 }
 
 export async function proposal(
-  _publicClient: PopPublicClient,
-  _governorAddress: `0x${string}`,
+  publicClient: PopPublicClient,
+  governorAddress: `0x${string}`,
   projectId: string,
   proposalId: bigint,
   tokenDecimals: number = 18,
@@ -189,10 +206,27 @@ export async function proposal(
   // Construct composite ID for GraphQL query
   const compositeId = `${projectId.toLowerCase()}-${proposalId.toString()}`
   const fields = getLevrProposalByIdFields(compositeId)
-  const indexedResult = await query(fields)
+
+  const [indexedResult, block] = await Promise.all([query(fields), publicClient.getBlock()])
 
   const p = indexedResult.LevrProposal_by_pk
   if (!p) return null
+
+  // Fetch winner + currentCycleId in parallel for state correction
+  const cycleId = BigInt(p.cycleId)
+  const [winner, currentCycleId] = await Promise.all([
+    publicClient.readContract({
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'getWinner',
+      args: [cycleId],
+    }),
+    publicClient.readContract({
+      address: governorAddress,
+      abi: LevrGovernor_v1,
+      functionName: 'currentCycleId',
+    }),
+  ])
 
   const amountRaw = BigInt(p.amount ?? 0)
   const yesVotesRaw = BigInt(p.yesVotes ?? 0)
@@ -204,6 +238,29 @@ export async function proposal(
   const tokenPrice = pricing ? parseFloat(pricing.tokenUsd) : null
 
   const proposalIdNum = BigInt(p.id.split('-').pop() ?? '0')
+
+  // Client-side state correction (same logic as proposals())
+  const blockTs = Number(block.timestamp)
+  const votingStart = Number(p.votingStartsAt)
+  const votingEnd = Number(p.votingEndsAt)
+
+  let computedState: number
+  if (p.executed) {
+    computedState = 4 // Executed (terminal)
+  } else if (cycleId < currentCycleId) {
+    computedState = 3 // Defeated (prior cycle = expired)
+  } else if (blockTs < votingStart) {
+    computedState = 0 // Pending
+  } else if (blockTs <= votingEnd) {
+    computedState = 1 // Active
+  } else {
+    // Post-voting: check quorum, approval, and winner
+    if ((p.meetsQuorum ?? false) && (p.meetsApproval ?? false) && winner === proposalIdNum) {
+      computedState = 2 // Succeeded
+    } else {
+      computedState = 3 // Defeated
+    }
+  }
 
   return {
     id: proposalIdNum,
@@ -241,10 +298,9 @@ export async function proposal(
     },
     totalBalanceVoted: BigInt(p.totalBalanceVoted ?? 0),
     executed: p.executed,
-    cycleId: BigInt(p.cycleId),
-    // Use indexed values
+    cycleId,
     meetsQuorum: p.meetsQuorum ?? false,
     meetsApproval: p.meetsApproval ?? false,
-    state: stateStringToNumber[p.state] ?? 0,
+    state: computedState,
   }
 }
